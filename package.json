@@ -1,0 +1,27 @@
+{
+  "name": "student-companion",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev -w apps/api",
+    "dev:mobile": "npm run start -w apps/mobile",
+    "lint": "npm run lint -ws",
+    "test": "npm run test -ws"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rbragadev/student-companion.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rbragadev/student-companion/issues"
+  },
+  "homepage": "https://github.com/rbragadev/student-companion#readme"
+}
