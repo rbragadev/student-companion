@@ -8,8 +8,9 @@ import {
   CoursesScreen,
   ProfileScreen,
 } from '../screens';
+import { RootTabParamList } from '../types/navigation';
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export default function TabNavigator() {
   return (

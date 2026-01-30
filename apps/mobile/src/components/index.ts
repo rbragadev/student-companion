@@ -7,5 +7,9 @@ export { Text } from './ui/Text';
 export { Container } from './layout/Container';
 export { Screen } from './layout/Screen';
 
+// Feature Components
+export { HomeHeader } from './features/HomeHeader';
+export { HeroCard } from './features/HeroCard';
+
 // Design Tokens
 export { designTokens } from '../utils/design-tokens';
