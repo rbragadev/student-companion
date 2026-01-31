@@ -5,7 +5,7 @@ import {
   HomeScreen,
   CopilotScreen,
   AccommodationScreen,
-  CoursesScreen,
+  CourseScreen,
   ProfileScreen,
 } from '../screens';
 import { RootTabParamList, TabRoutes } from '../types/navigation';
@@ -55,7 +55,7 @@ export default function TabNavigator() {
       <Tab.Screen name={TabRoutes.HOME} component={HomeScreen} />
       <Tab.Screen name={TabRoutes.COPILOT} component={CopilotScreen} />
       <Tab.Screen name={TabRoutes.ACCOMMODATION} component={AccommodationScreen} />
-      <Tab.Screen name={TabRoutes.COURSES} component={CoursesScreen} />
+      <Tab.Screen name={TabRoutes.COURSES} component={CourseScreen} />
       <Tab.Screen name={TabRoutes.PROFILE} component={ProfileScreen} />
     </Tab.Navigator>
   );

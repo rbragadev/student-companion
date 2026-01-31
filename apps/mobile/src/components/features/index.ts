@@ -4,3 +4,4 @@ export { RecommendationCard } from './RecommendationCard';
 export { SecondaryAction } from './SecondaryAction';
 export { TopTripCard } from './TopTripCard';
 export { AccommodationListCard } from './AccommodationListCard';
+export { CourseCard } from './CourseCard';
