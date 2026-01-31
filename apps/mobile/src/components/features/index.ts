@@ -5,3 +5,4 @@ export { SecondaryAction } from './SecondaryAction';
 export { TopTripCard } from './TopTripCard';
 export { AccommodationListCard } from './AccommodationListCard';
 export { CourseCard } from './CourseCard';
+export { PlaceCard } from './PlaceCard';

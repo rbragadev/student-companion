@@ -34,11 +34,58 @@ export interface UserInterest {
 export interface UserReview {
   id: string;
   itemId: string;
-  itemType: 'accommodation' | 'course';
+  itemType: 'accommodation' | 'course' | 'place';
   itemName: string;
   rating: number;
   comment: string;
   date: string;
+}
+
+export type PlaceCategory = 'bars' | 'restaurants' | 'cafes' | 'parks' | 'museums' | 'shopping' | 'nightlife' | 'sports';
+
+export interface Place {
+  id: string;
+  name: string;
+  category: PlaceCategory;
+  image: string;
+  rating: number;
+  ratingCount: number;
+  address: string;
+  neighborhood: string;
+  isStudentFavorite?: boolean;
+  hasDeal?: boolean;
+  dealDescription?: string;
+  priceRange?: '$' | '$$' | '$$$' | '$$$$';
+}
+
+export interface PlaceDetail extends Place {
+  images: string[];
+  description: string;
+  hours: {
+    [key: string]: string; // e.g., "monday": "9:00 AM - 10:00 PM"
+  };
+  phone?: string;
+  website?: string;
+  amenities: string[];
+  reviews: {
+    id: string;
+    userName: string;
+    userAvatar: string;
+    rating: number;
+    date: string;
+    comment: string;
+    replies?: {
+      id: string;
+      userName: string;
+      userAvatar: string;
+      comment: string;
+      date: string;
+    }[];
+  }[];
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 export interface HeroContent {
@@ -698,6 +745,115 @@ export const getCourseDetail = async (id: string): Promise<CourseDetail> => {
   };
 };
 
+// Simula uma chamada à API que retorna places
+export const getPlaces = async (): Promise<Place[]> => {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  return [
+    {
+      id: '1',
+      name: 'The Charles Bar',
+      category: 'bars',
+      image: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=800&h=600&fit=crop',
+      rating: 4.6,
+      ratingCount: 324,
+      address: '136 Cordova St W',
+      neighborhood: 'Gastown',
+      isStudentFavorite: true,
+      hasDeal: true,
+      dealDescription: '20% off for students',
+      priceRange: '$$',
+    },
+    {
+      id: '2',
+      name: 'Granville Island Public Market',
+      category: 'shopping',
+      image: 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=800&h=600&fit=crop',
+      rating: 4.8,
+      ratingCount: 892,
+      address: '1661 Duranleau St',
+      neighborhood: 'Granville Island',
+      isStudentFavorite: true,
+      priceRange: '$$',
+    },
+    {
+      id: '3',
+      name: 'Stanley Park Seawall',
+      category: 'parks',
+      image: 'https://images.unsplash.com/photo-1559511260-66a654ae982a?w=800&h=600&fit=crop',
+      rating: 4.9,
+      ratingCount: 1205,
+      address: 'Stanley Park Dr',
+      neighborhood: 'Downtown',
+      isStudentFavorite: true,
+      priceRange: '$',
+    },
+    {
+      id: '4',
+      name: 'Medina Cafe',
+      category: 'cafes',
+      image: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&h=600&fit=crop',
+      rating: 4.7,
+      ratingCount: 456,
+      address: '780 Richards St',
+      neighborhood: 'Downtown',
+      hasDeal: true,
+      dealDescription: 'Free coffee with breakfast',
+      priceRange: '$$',
+    },
+    {
+      id: '5',
+      name: 'Science World',
+      category: 'museums',
+      image: 'https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=800&h=600&fit=crop',
+      rating: 4.5,
+      ratingCount: 678,
+      address: '1455 Quebec St',
+      neighborhood: 'False Creek',
+      hasDeal: true,
+      dealDescription: 'Student discount available',
+      priceRange: '$$',
+    },
+    {
+      id: '6',
+      name: 'Vij\'s Restaurant',
+      category: 'restaurants',
+      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=600&fit=crop',
+      rating: 4.8,
+      ratingCount: 543,
+      address: '3106 Cambie St',
+      neighborhood: 'Cambie Village',
+      isStudentFavorite: true,
+      priceRange: '$$$',
+    },
+    {
+      id: '7',
+      name: 'Celebrities Nightclub',
+      category: 'nightlife',
+      image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&h=600&fit=crop',
+      rating: 4.4,
+      ratingCount: 289,
+      address: '1022 Davie St',
+      neighborhood: 'West End',
+      hasDeal: true,
+      dealDescription: 'Free entry before 11pm with student ID',
+      priceRange: '$$',
+    },
+    {
+      id: '8',
+      name: 'Kitsilano Beach',
+      category: 'parks',
+      image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=600&fit=crop',
+      rating: 4.7,
+      ratingCount: 892,
+      address: 'Cornwall Ave',
+      neighborhood: 'Kitsilano',
+      isStudentFavorite: true,
+      priceRange: '$',
+    },
+  ];
+};
+
 // Hook para usar cursos
 export const useCourses = () => {
   const [courses, setCourses] = React.useState<Course[]>([]);
@@ -741,4 +897,19 @@ export const useUserReviews = () => {
   }, []);
 
   return { reviews, loading };
+};
+
+// Hook para usar places
+export const usePlaces = () => {
+  const [places, setPlaces] = React.useState<Place[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    getPlaces().then(data => {
+      setPlaces(data);
+      setLoading(false);
+    });
+  }, []);
+
+  return { places, loading };
 };

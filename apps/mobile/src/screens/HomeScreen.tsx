@@ -37,8 +37,7 @@ export default function HomeScreen() {
   };
 
   const handleAvatarPress = () => {
-    console.log('Avatar pressed');
-    // TODO: Navegar para perfil
+    navigation.navigate(StackRoutes.PROFILE);
   };
 
   const handleHeroCtaPress = () => {

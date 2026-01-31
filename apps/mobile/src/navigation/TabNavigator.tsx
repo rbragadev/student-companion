@@ -6,7 +6,7 @@ import {
   CopilotScreen,
   AccommodationScreen,
   CourseScreen,
-  ProfileScreen,
+  PlacesScreen,
 } from '../screens';
 import { RootTabParamList, TabRoutes } from '../types/navigation';
 
@@ -27,8 +27,8 @@ export default function TabNavigator() {
             iconName = focused ? 'location' : 'location-outline';
           } else if (route.name === TabRoutes.COURSES) {
             iconName = focused ? 'chatbox' : 'chatbox-outline';
-          } else if (route.name === TabRoutes.PROFILE) {
-            iconName = focused ? 'person' : 'person-outline';
+          } else if (route.name === TabRoutes.PLACES) {
+            iconName = focused ? 'compass' : 'compass-outline';
           } else {
             iconName = 'help-outline';
           }
@@ -56,7 +56,7 @@ export default function TabNavigator() {
       <Tab.Screen name={TabRoutes.COPILOT} component={CopilotScreen} />
       <Tab.Screen name={TabRoutes.ACCOMMODATION} component={AccommodationScreen} />
       <Tab.Screen name={TabRoutes.COURSES} component={CourseScreen} />
-      <Tab.Screen name={TabRoutes.PROFILE} component={ProfileScreen} />
+      <Tab.Screen name={TabRoutes.PLACES} component={PlacesScreen} />
     </Tab.Navigator>
   );
 }

@@ -1,11 +1,17 @@
 import React from 'react';
 import { View, Image, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen, Text, Card, Button } from '../components';
 import { useUserProfile, useUserInterests, useUserReviews } from '../services/mockData';
 import { colorValues } from '../utils/design-tokens';
+import { RootStackParamList } from '../types/navigation';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { user, loading: userLoading } = useUserProfile();
   const { interests, loading: interestsLoading } = useUserInterests();
   const { reviews, loading: reviewsLoading } = useUserReviews();
@@ -75,6 +81,20 @@ export default function ProfileScreen() {
 
   return (
     <Screen safeArea={true} scrollable={true}>
+      {/* Back Button */}
+      <View className="px-4 pt-4 pb-2">
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+          className="flex-row items-center gap-2"
+        >
+          <Ionicons name="arrow-back" size={24} color={colorValues.textPrimary} />
+          <Text variant="body" className="text-textPrimary font-medium">
+            Back
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Header */}
       <View className="px-4 pt-4 pb-6 gap-4">
         {/* Avatar + Name */}
