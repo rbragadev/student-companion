@@ -78,7 +78,7 @@ export default function HomeScreen() {
 
       {/* Recomendações */}
       {recommendations.length > 0 && (
-        <View className="gap-3">
+        <View className="gap-3 mt-4">
           <Text variant="h3" className="text-lg font-semibold">
             Recommended for you
           </Text>

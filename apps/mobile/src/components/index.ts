@@ -2,6 +2,7 @@
 export { Button } from './ui/Button';
 export { Card } from './ui/Card'; 
 export { Text } from './ui/Text';
+export { Banner } from './ui/Banner';
 
 // Layout Components
 export { Container } from './layout/Container';

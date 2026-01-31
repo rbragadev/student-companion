@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Image, TouchableOpacity, ImageSourcePropType } from 'react-native';
+import { View, ImageSourcePropType } from 'react-native';
 import { Text } from '../ui/Text';
 import { Button } from '../ui/Button';
+import { Banner } from '../ui/Banner';
 
 interface HeroCardProps {
   image: string | ImageSourcePropType;
@@ -18,20 +19,8 @@ export const HeroCard: React.FC<HeroCardProps> = ({
   ctaText,
   onCtaPress,
 }) => {
-  const imageSource = typeof image === 'string' ? { uri: image } : image;
-
   return (
-    <View className="bg-card rounded-2xl overflow-hidden shadow-card">
-      {/* Imagem Hero */}
-      <View className="w-full h-40 bg-surface">
-        <Image
-          source={imageSource}
-          className="w-full h-full"
-          resizeMode="cover"
-        />
-      </View>
-
-      {/* Conteúdo */}
+    <Banner image={image} imageHeight={160}>
       <View className="p-5 gap-3">
         {/* Título e Subtítulo */}
         <View className="gap-1.5">
@@ -49,6 +38,6 @@ export const HeroCard: React.FC<HeroCardProps> = ({
           {ctaText}
         </Button>
       </View>
-    </View>
+    </Banner>
   );
 };

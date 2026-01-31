@@ -24,7 +24,7 @@ module.exports = {
         },
         
         // Neutras
-        background: '#FFFFFF',
+        background: '#f2f0f1',
         surface: '#F8F9FA',
         surfaceSecondary: '#F1F3F4',
         border: '#E9ECEF',
