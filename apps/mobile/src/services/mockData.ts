@@ -32,8 +32,13 @@ export interface Recommendation {
   price?: string;
   priceUnit?: string;
   rating?: number;
+  ratingCount?: number;
   features?: string[];
   distance?: string;
+  isTopTrip?: boolean;
+  isPartner?: boolean;
+  accommodationType?: 'Homestay' | 'Shared' | 'Studio' | 'Apartment';
+  areaHint?: string;
 }
 
 // Simula uma chamada à API que retorna os dados do usuário
@@ -116,6 +121,138 @@ export const getRecommendations = async (): Promise<Recommendation[]> => {
   ];
 };
 
+// Simula uma chamada à API que retorna todas as acomodações
+export const getAccommodations = async (): Promise<Recommendation[]> => {
+  await new Promise(resolve => setTimeout(resolve, 150));
+  
+  return [
+    // Top Trips
+    {
+      id: 'acc-1',
+      type: 'accommodation',
+      title: 'RedFish Lake',
+      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
+      location: 'Idaho',
+      price: '$40',
+      priceUnit: 'Visit',
+      rating: 4.5,
+      ratingCount: 128,
+      isTopTrip: true,
+      isPartner: false,
+      accommodationType: 'Homestay',
+      areaHint: 'Near University District',
+    },
+    {
+      id: 'acc-2',
+      type: 'accommodation',
+      title: 'Maligne Lake',
+      image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&h=600&fit=crop',
+      location: 'Canada',
+      price: '$40',
+      priceUnit: 'Visit',
+      rating: 4.5,
+      ratingCount: 95,
+      isTopTrip: true,
+      isPartner: true,
+      accommodationType: 'Shared',
+      areaHint: 'Downtown Vancouver',
+    },
+    {
+      id: 'acc-3',
+      type: 'accommodation',
+      title: 'Lake Louise',
+      image: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=800&h=600&fit=crop',
+      location: 'Canada',
+      price: '$45',
+      priceUnit: 'Visit',
+      rating: 4.8,
+      ratingCount: 210,
+      isTopTrip: true,
+      isPartner: true,
+      accommodationType: 'Studio',
+      areaHint: 'Kitsilano Beach Area',
+    },
+    // Outras acomodações
+    {
+      id: 'acc-4',
+      type: 'accommodation',
+      title: 'Cozy Kitsilano Homestay',
+      image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&h=600&fit=crop',
+      location: 'Kitsilano',
+      price: 'CAD 1,150',
+      priceUnit: 'month',
+      rating: 4.5,
+      ratingCount: 42,
+      isTopTrip: false,
+      isPartner: true,
+      accommodationType: 'Homestay',
+      areaHint: 'Residential area, near beach',
+      badge: 'Good fit for ESL students',
+    },
+    {
+      id: 'acc-5',
+      type: 'accommodation',
+      title: 'Downtown Shared Suite',
+      image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop',
+      location: 'Vancouver Downtown',
+      price: 'CAD 850',
+      priceUnit: 'month',
+      rating: 4.3,
+      ratingCount: 67,
+      isTopTrip: false,
+      isPartner: false,
+      accommodationType: 'Shared',
+      areaHint: 'Heart of downtown',
+    },
+    {
+      id: 'acc-6',
+      type: 'accommodation',
+      title: 'Modern Studio Apartment',
+      image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop',
+      location: 'Yaletown',
+      price: 'CAD 1,800',
+      priceUnit: 'month',
+      rating: 4.7,
+      ratingCount: 89,
+      isTopTrip: false,
+      isPartner: true,
+      accommodationType: 'Studio',
+      areaHint: 'Trendy neighborhood',
+      badge: 'Recently renovated',
+    },
+    {
+      id: 'acc-7',
+      type: 'accommodation',
+      title: 'West End Family Home',
+      image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600&fit=crop',
+      location: 'West End',
+      price: 'CAD 1,250',
+      priceUnit: 'month',
+      rating: 4.6,
+      ratingCount: 55,
+      isTopTrip: false,
+      isPartner: true,
+      accommodationType: 'Homestay',
+      areaHint: 'Close to Stanley Park',
+    },
+    {
+      id: 'acc-8',
+      type: 'accommodation',
+      title: 'Spacious Shared House',
+      image: 'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=800&h=600&fit=crop',
+      location: 'Main Street',
+      price: 'CAD 950',
+      priceUnit: 'month',
+      rating: 4.2,
+      ratingCount: 38,
+      isTopTrip: false,
+      isPartner: false,
+      accommodationType: 'Shared',
+      areaHint: 'Hip area with cafes',
+    },
+  ];
+};
+
 // Hook para usar os dados do usuário (por enquanto retorna dados mock)
 export const useUserProfile = () => {
   // TODO: Substituir por React Query ou similar quando integrar com API real
@@ -160,6 +297,24 @@ export const useRecommendations = () => {
   }, []);
 
   return { recommendations, loading };
+};
+
+// Hook para usar todas as acomodações
+export const useAccommodations = () => {
+  const [accommodations, setAccommodations] = React.useState<Recommendation[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    getAccommodations().then(data => {
+      setAccommodations(data);
+      setLoading(false);
+    });
+  }, []);
+
+  const topTrips = accommodations.filter(acc => acc.isTopTrip);
+  const otherAccommodations = accommodations.filter(acc => !acc.isTopTrip);
+
+  return { accommodations, topTrips, otherAccommodations, loading };
 };
 
 // Exporta React para os hooks
