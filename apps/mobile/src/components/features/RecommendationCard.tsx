@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../ui/Text';
+import { colorValues } from '../../utils/design-tokens';
 
 interface RecommendationCardProps {
   id: string;
@@ -49,7 +50,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
         {badge && (
           <View className="absolute top-3 left-3">
             <View className="bg-white px-2.5 py-1.5 rounded-full flex-row items-center gap-1.5">
-              <Ionicons name="checkmark-circle" size={14} color="#00B4D8" />
+              <Ionicons name="checkmark-circle" size={14} color={colorValues.primary[500]} />
               <Text variant="caption" className="text-textPrimary font-medium">
                 {badge}
               </Text>
