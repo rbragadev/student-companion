@@ -98,12 +98,9 @@ export interface CourseDetail extends Course {
   images: string[];
   description: string;
   location: string;
-  startDates: string[];
   duration: string;
-  levels: string[];
-  schedule: string;
-  benefits: string[];
-  requirements: string[];
+  visaType: string;
+  targetAudience: string; // "Para quem é"
   reviews: {
     id: string;
     userName: string;
@@ -551,6 +548,61 @@ export const getCourses = async (): Promise<Course[]> => {
       image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=300&fit=crop',
     },
   ];
+};
+
+// Simula uma chamada à API que retorna detalhes de um curso
+export const getCourseDetail = async (id: string): Promise<CourseDetail> => {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  return {
+    id,
+    schoolName: 'ILSC Vancouver',
+    programName: 'General English - Full Time',
+    weeklyHours: 28,
+    priceCad: '$1,450',
+    rating: 4.8,
+    ratingCount: 156,
+    isPartner: true,
+    badge: 'Parceiro',
+    image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=400&h=300&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=800&h=600&fit=crop',
+    ],
+    description: 'Our General English program is designed to help you improve your English language skills in all areas: speaking, listening, reading, and writing. Classes are dynamic and interactive, focusing on practical communication skills that you can use in everyday situations.',
+    location: 'Downtown Vancouver, BC',
+    duration: '4-48 weeks (flexible)',
+    visaType: 'Study Permit or Visitor Visa',
+    targetAudience: 'Perfect for students who want to improve their English for personal, academic, or professional purposes. Suitable for all levels from beginner to advanced.',
+    reviews: [
+      {
+        id: '1',
+        userName: 'Maria Silva',
+        userAvatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Maria',
+        rating: 5,
+        date: 'Dec 2025',
+        comment: 'Amazing experience! The teachers are very professional and the school has a great structure. I improved my English a lot in just 3 months.',
+      },
+      {
+        id: '2',
+        userName: 'João Santos',
+        userAvatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Joao',
+        rating: 4,
+        date: 'Nov 2025',
+        comment: 'Good program overall. The location is excellent and the staff is very helpful. Would recommend!',
+      },
+      {
+        id: '3',
+        userName: 'Ana Costa',
+        userAvatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Ana',
+        rating: 5,
+        date: 'Oct 2025',
+        comment: 'Best decision I made! The classes are very interactive and I made friends from all over the world.',
+      },
+    ],
+  };
 };
 
 // Hook para usar cursos

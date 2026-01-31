@@ -14,6 +14,7 @@ export enum TabRoutes {
 export enum StackRoutes {
   MAIN_TABS = 'MainTabs',
   ACCOMMODATION_DETAIL = 'AccommodationDetail',
+  COURSE_DETAIL = 'CourseDetail',
 }
 
 // Tabs do navegador principal
@@ -29,6 +30,7 @@ export type RootTabParamList = {
 export type RootStackParamList = {
   [StackRoutes.MAIN_TABS]: NavigatorScreenParams<RootTabParamList>;
   [StackRoutes.ACCOMMODATION_DETAIL]: { accommodationId: string };
+  [StackRoutes.COURSE_DETAIL]: { courseId: string };
 };
 
 declare global {

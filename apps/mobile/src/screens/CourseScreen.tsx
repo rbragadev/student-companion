@@ -37,9 +37,7 @@ export default function CourseScreen() {
   }, [courses, searchText, selectedSchool]);
 
   const handleCoursePress = (id: string) => {
-    console.log('Navigate to course detail:', id);
-    // TODO: Adicionar StackRoutes.COURSE_DETAIL quando implementar
-    // navigation.navigate(StackRoutes.COURSE_DETAIL, { courseId: id });
+    navigation.navigate(StackRoutes.COURSE_DETAIL, { courseId: id });
   };
 
   const handleSchoolFilter = () => {
