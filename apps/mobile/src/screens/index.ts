@@ -5,4 +5,5 @@ export { default as AccommodationDetailScreen } from './AccommodationDetailScree
 export { default as CourseScreen } from './CourseScreen';
 export { default as CourseDetailScreen } from './CourseDetailScreen';
 export { default as PlacesScreen } from './PlacesScreen';
+export { default as PlaceDetailScreen } from './PlaceDetailScreen';
 export { default as ProfileScreen } from './ProfileScreen';

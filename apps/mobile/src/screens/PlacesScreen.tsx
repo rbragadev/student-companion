@@ -36,9 +36,7 @@ export default function PlacesScreen() {
   }, [places, selectedCategory]);
 
   const handlePlacePress = (id: string) => {
-    console.log('Navigate to place detail:', id);
-    // TODO: Implementar navegação
-    // navigation.navigate(StackRoutes.PLACE_DETAIL, { placeId: id });
+    navigation.navigate(StackRoutes.PLACE_DETAIL, { placeId: id });
   };
 
   if (loading) {

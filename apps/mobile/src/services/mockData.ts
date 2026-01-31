@@ -854,6 +854,94 @@ export const getPlaces = async (): Promise<Place[]> => {
   ];
 };
 
+// Simula uma chamada à API que retorna detalhes de um place
+export const getPlaceDetail = async (id: string): Promise<PlaceDetail> => {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  return {
+    id,
+    name: 'The Charles Bar',
+    category: 'bars',
+    image: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=800&h=600&fit=crop',
+    rating: 4.6,
+    ratingCount: 324,
+    address: '136 Cordova St W',
+    neighborhood: 'Gastown',
+    isStudentFavorite: true,
+    hasDeal: true,
+    dealDescription: '20% off for students on Wednesdays',
+    priceRange: '$$',
+    images: [
+      'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=800&h=600&fit=crop',
+    ],
+    description: 'A cozy neighborhood bar in the heart of Gastown. Perfect spot for students to meet, chat, and enjoy great drinks at affordable prices. Known for its friendly atmosphere and regular student nights.',
+    hours: {
+      monday: '5:00 PM - 12:00 AM',
+      tuesday: '5:00 PM - 12:00 AM',
+      wednesday: '5:00 PM - 2:00 AM',
+      thursday: '5:00 PM - 2:00 AM',
+      friday: '5:00 PM - 2:00 AM',
+      saturday: '2:00 PM - 2:00 AM',
+      sunday: '2:00 PM - 12:00 AM',
+    },
+    phone: '+1 (604) 555-0199',
+    website: 'www.thecharlesbar.com',
+    amenities: ['Free WiFi', 'Student Discounts', 'Happy Hour', 'Live Music', 'Outdoor Seating', 'Late Night Food'],
+    reviews: [
+      {
+        id: '1',
+        userName: 'Sarah Johnson',
+        userAvatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Sarah',
+        rating: 5,
+        date: 'Jan 2026',
+        comment: 'Love this place! Great atmosphere and the student discount on Wednesdays is amazing. Perfect spot to hang out with friends after class.',
+        replies: [
+          {
+            id: 'r1',
+            userName: 'The Charles Bar',
+            userAvatar: 'https://api.dicebear.com/7.x/initials/png?seed=TCB',
+            comment: 'Thanks Sarah! We love having you here. See you next Wednesday! 🍻',
+            date: 'Jan 2026',
+          },
+        ],
+      },
+      {
+        id: '2',
+        userName: 'Mike Chen',
+        userAvatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Mike',
+        rating: 4,
+        date: 'Dec 2025',
+        comment: 'Good selection of beers and friendly staff. Can get crowded on weekends but that\'s expected. Prices are reasonable.',
+        replies: [],
+      },
+      {
+        id: '3',
+        userName: 'Emma Wilson',
+        userAvatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Emma',
+        rating: 5,
+        date: 'Dec 2025',
+        comment: 'Best bar in Gastown! The live music on Thursdays is always great and the bartenders really know their stuff. Highly recommend!',
+        replies: [
+          {
+            id: 'r2',
+            userName: 'Mike Chen',
+            userAvatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Mike',
+            comment: 'Totally agree! The Thursday live music nights are the best.',
+            date: 'Dec 2025',
+          },
+        ],
+      },
+    ],
+    coordinates: {
+      latitude: 49.2839,
+      longitude: -123.1094,
+    },
+  };
+};
+
 // Hook para usar cursos
 export const useCourses = () => {
   const [courses, setCourses] = React.useState<Course[]>([]);

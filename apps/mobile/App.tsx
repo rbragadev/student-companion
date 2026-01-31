@@ -6,7 +6,7 @@ import './global.css';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TabNavigator from './src/navigation/TabNavigator';
-import { AccommodationDetailScreen, CourseDetailScreen, ProfileScreen } from './src/screens';
+import { AccommodationDetailScreen, CourseDetailScreen, PlaceDetailScreen, ProfileScreen } from './src/screens';
 import { RootStackParamList, StackRoutes } from './src/types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -25,6 +25,11 @@ export default function App() {
           <Stack.Screen 
             name={StackRoutes.COURSE_DETAIL} 
             component={CourseDetailScreen}
+            options={{ presentation: 'card' }}
+          />
+          <Stack.Screen 
+            name={StackRoutes.PLACE_DETAIL} 
+            component={PlaceDetailScreen}
             options={{ presentation: 'card' }}
           />
           <Stack.Screen 
