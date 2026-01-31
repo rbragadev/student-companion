@@ -4,14 +4,41 @@ export interface UserProfile {
   id: string;
   firstName: string;
   lastName: string;
+  email: string;
+  phone: string;
   avatar: string;
   destination: {
     city: string;
     country: string;
   };
   purpose: string;
+  budget?: {
+    accommodation?: string;
+    course?: string;
+  };
+  englishLevel?: string;
+  arrivalDate?: string;
   hasUnreadNotifications: boolean;
   notificationCount: number;
+}
+
+export interface UserInterest {
+  id: string;
+  type: 'accommodation' | 'course';
+  title: string;
+  subtitle: string;
+  date: string;
+  status: 'pending' | 'contacted' | 'closed';
+}
+
+export interface UserReview {
+  id: string;
+  itemId: string;
+  itemType: 'accommodation' | 'course';
+  itemName: string;
+  rating: number;
+  comment: string;
+  date: string;
 }
 
 export interface HeroContent {
@@ -120,15 +147,81 @@ export const getUserProfile = async (): Promise<UserProfile> => {
     id: '1',
     firstName: 'Raphael',
     lastName: 'Braga',
+    email: 'raphael.braga@email.com',
+    phone: '+1 (604) 555-0123',
     avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Raphael',
     destination: {
       city: 'Vancouver',
       country: 'Canada',
     },
     purpose: 'study English',
+    budget: {
+      accommodation: '$800-1200/month',
+      course: '$1200-1600/month',
+    },
+    englishLevel: 'Intermediate',
+    arrivalDate: 'March 2026',
     hasUnreadNotifications: true,
     notificationCount: 3,
   };
+};
+
+// Simula uma chamada à API que retorna interesses/leads do usuário
+export const getUserInterests = async (): Promise<UserInterest[]> => {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  return [
+    {
+      id: '1',
+      type: 'accommodation',
+      title: 'Cozy Homestay in Vancouver',
+      subtitle: 'Sent inquiry on Jan 15, 2026',
+      date: '2026-01-15',
+      status: 'pending',
+    },
+    {
+      id: '2',
+      type: 'course',
+      title: 'ILSC Vancouver - General English',
+      subtitle: 'Enrollment request sent',
+      date: '2026-01-20',
+      status: 'contacted',
+    },
+    {
+      id: '3',
+      type: 'accommodation',
+      title: 'Modern Studio Downtown',
+      subtitle: 'Application completed',
+      date: '2026-01-10',
+      status: 'closed',
+    },
+  ];
+};
+
+// Simula uma chamada à API que retorna avaliações do usuário
+export const getUserReviews = async (): Promise<UserReview[]> => {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  return [
+    {
+      id: '1',
+      itemId: 'acc-1',
+      itemType: 'accommodation',
+      itemName: 'Shared House in Kitsilano',
+      rating: 5,
+      comment: 'Great place! Very clean and the host was super helpful. Would definitely recommend.',
+      date: '2025-12-20',
+    },
+    {
+      id: '2',
+      itemId: 'course-1',
+      itemType: 'course',
+      itemName: 'EC English - IELTS Preparation',
+      rating: 4,
+      comment: 'Good program overall. Teachers are experienced and the school has good facilities.',
+      date: '2025-11-15',
+    },
+  ];
 };
 
 // Simula uma chamada à API que retorna o conteúdo do Hero Card
@@ -618,4 +711,34 @@ export const useCourses = () => {
   }, []);
 
   return { courses, loading };
+};
+
+// Hook para usar interesses do usuário
+export const useUserInterests = () => {
+  const [interests, setInterests] = React.useState<UserInterest[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    getUserInterests().then(data => {
+      setInterests(data);
+      setLoading(false);
+    });
+  }, []);
+
+  return { interests, loading };
+};
+
+// Hook para usar avaliações do usuário
+export const useUserReviews = () => {
+  const [reviews, setReviews] = React.useState<UserReview[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    getUserReviews().then(data => {
+      setReviews(data);
+      setLoading(false);
+    });
+  }, []);
+
+  return { reviews, loading };
 };
