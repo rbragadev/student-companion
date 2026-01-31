@@ -112,7 +112,7 @@ export default function HomeScreen() {
 
       {/* Ações Secundárias */}
       <View className="gap-3 mt-2">
-        <Text variant="bodySecondary" className="text-sm">
+        <Text variant="h3" className="mt-4">
           Or explore other options
         </Text>
         
@@ -130,10 +130,6 @@ export default function HomeScreen() {
           />
         </View>
       </View>
-
-      <Card>
-        <Text variant="body">Mais conteúdo em breve... 🏠</Text>
-      </Card>
     </Screen>
   );
 }
