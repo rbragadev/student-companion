@@ -22,6 +22,20 @@ export interface HeroContent {
   ctaIntent: 'accommodation' | 'courses' | 'general';
 }
 
+export interface Recommendation {
+  id: string;
+  type: 'accommodation' | 'course';
+  title: string;
+  image: string;
+  badge?: string;
+  location?: string;
+  price?: string;
+  priceUnit?: string;
+  rating?: number;
+  features?: string[];
+  distance?: string;
+}
+
 // Simula uma chamada à API que retorna os dados do usuário
 export const getUserProfile = async (): Promise<UserProfile> => {
   // Simula delay de rede
@@ -55,6 +69,40 @@ export const getHeroContent = async (): Promise<HeroContent> => {
   };
 };
 
+// Simula uma chamada à API que retorna recomendações personalizadas
+export const getRecommendations = async (): Promise<Recommendation[]> => {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  return [
+    {
+      id: '1',
+      type: 'accommodation',
+      title: 'Kitsilano Homestay',
+      image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&h=600&fit=crop',
+      badge: 'Good fit for ESL students',
+      location: 'Kitsilano',
+      price: 'CAD 1,150',
+      priceUnit: 'month',
+      rating: 4.5,
+      features: ['🇨🇦', '📚', '1'],
+      distance: '20 min to school',
+    },
+    {
+      id: '2',
+      type: 'accommodation',
+      title: 'Vancouver Shared Apartment',
+      image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop',
+      badge: 'Good fit for ESL students',
+      location: 'Vancouver Downtown',
+      price: '$40',
+      priceUnit: 'week',
+      rating: 4.3,
+      features: ['🏙️'],
+      distance: '10 min to school',
+    },
+  ];
+};
+
 // Hook para usar os dados do usuário (por enquanto retorna dados mock)
 export const useUserProfile = () => {
   // TODO: Substituir por React Query ou similar quando integrar com API real
@@ -84,6 +132,21 @@ export const useHeroContent = () => {
   }, []);
 
   return { content, loading };
+};
+
+// Hook para usar as recomendações
+export const useRecommendations = () => {
+  const [recommendations, setRecommendations] = React.useState<Recommendation[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    getRecommendations().then(data => {
+      setRecommendations(data);
+      setLoading(false);
+    });
+  }, []);
+
+  return { recommendations, loading };
 };
 
 // Exporta React para os hooks

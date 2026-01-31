@@ -10,6 +10,7 @@ export { Screen } from './layout/Screen';
 // Feature Components
 export { HomeHeader } from './features/HomeHeader';
 export { HeroCard } from './features/HeroCard';
+export { RecommendationCard } from './features/RecommendationCard';
 
 // Design Tokens
 export { designTokens } from '../utils/design-tokens';

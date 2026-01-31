@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { designTokens } from '../../utils/design-tokens';
 
@@ -10,6 +10,7 @@ interface ScreenProps {
   className?: string;
   safeArea?: boolean;
   backgroundColor?: string;
+  scrollable?: boolean;
 }
 
 export const Screen = ({ 
@@ -19,6 +20,7 @@ export const Screen = ({
   className = '',
   safeArea = true,
   backgroundColor = 'bg-background',
+  scrollable = true,
   ...props 
 }: ScreenProps) => {
   
@@ -38,11 +40,14 @@ export const Screen = ({
     lg: designTokens.gap.lg,
     xl: designTokens.gap.xl,
   };
+
+  const Content = scrollable ? ScrollView : View;
+  const contentProps = scrollable ? { showsVerticalScrollIndicator: false } : {};
   
   if (safeArea) {
     return (
       <SafeAreaView className="flex-1 bg-background">
-        <View 
+        <Content 
           className={`
             flex-1
             ${backgroundColor}
@@ -50,16 +55,17 @@ export const Screen = ({
             ${gapClasses[gap]}
             ${className}
           `}
+          {...contentProps}
           {...props}
         >
           {children}
-        </View>
+        </Content>
       </SafeAreaView>
     );
   }
   
   return (
-    <View 
+    <Content 
       className={`
         flex-1
         ${backgroundColor}
@@ -67,9 +73,10 @@ export const Screen = ({
         ${gapClasses[gap]}
         ${className}
       `}
+      {...contentProps}
       {...props}
     >
       {children}
-    </View>
+    </Content>
   );
 };
