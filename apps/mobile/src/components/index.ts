@@ -11,6 +11,7 @@ export { Screen } from './layout/Screen';
 export { HomeHeader } from './features/HomeHeader';
 export { HeroCard } from './features/HeroCard';
 export { RecommendationCard } from './features/RecommendationCard';
+export { SecondaryAction } from './features/SecondaryAction';
 
 // Design Tokens
 export { designTokens } from '../utils/design-tokens';
