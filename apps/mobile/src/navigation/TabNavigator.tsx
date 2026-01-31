@@ -8,7 +8,7 @@ import {
   CoursesScreen,
   ProfileScreen,
 } from '../screens';
-import { RootTabParamList } from '../types/navigation';
+import { RootTabParamList, TabRoutes } from '../types/navigation';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -19,15 +19,15 @@ export default function TabNavigator() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'Home') {
+          if (route.name === TabRoutes.HOME) {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Copilot') {
+          } else if (route.name === TabRoutes.COPILOT) {
             iconName = focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
-          } else if (route.name === 'Acomodação') {
+          } else if (route.name === TabRoutes.ACCOMMODATION) {
             iconName = focused ? 'location' : 'location-outline';
-          } else if (route.name === 'Cursos') {
+          } else if (route.name === TabRoutes.COURSES) {
             iconName = focused ? 'chatbox' : 'chatbox-outline';
-          } else if (route.name === 'Perfil') {
+          } else if (route.name === TabRoutes.PROFILE) {
             iconName = focused ? 'person' : 'person-outline';
           } else {
             iconName = 'help-outline';
@@ -52,11 +52,11 @@ export default function TabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Copilot" component={CopilotScreen} />
-      <Tab.Screen name="Acomodação" component={AccommodationScreen} />
-      <Tab.Screen name="Cursos" component={CoursesScreen} />
-      <Tab.Screen name="Perfil" component={ProfileScreen} />
+      <Tab.Screen name={TabRoutes.HOME} component={HomeScreen} />
+      <Tab.Screen name={TabRoutes.COPILOT} component={CopilotScreen} />
+      <Tab.Screen name={TabRoutes.ACCOMMODATION} component={AccommodationScreen} />
+      <Tab.Screen name={TabRoutes.COURSES} component={CoursesScreen} />
+      <Tab.Screen name={TabRoutes.PROFILE} component={ProfileScreen} />
     </Tab.Navigator>
   );
 }

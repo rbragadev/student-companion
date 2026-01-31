@@ -1,15 +1,22 @@
 import React from 'react';
 import { View, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Text, Card, Button } from '../components';
 import { getAccommodationDetail, AccommodationDetail } from '../services/mockData';
 import { colorValues } from '../utils/design-tokens';
-
+import { RootStackParamList, StackRoutes } from '../types/navigation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, typeof StackRoutes.ACCOMMODATION_DETAIL>;
+type AccommodationDetailRouteProp = RouteProp<RootStackParamList, typeof StackRoutes.ACCOMMODATION_DETAIL>;
+
 export default function AccommodationDetailScreen() {
-  const accommodationId = 'acc-4';
+  const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<AccommodationDetailRouteProp>();
+  const { accommodationId } = route.params;
   
   const [accommodation, setAccommodation] = React.useState<AccommodationDetail | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -24,10 +31,11 @@ export default function AccommodationDetailScreen() {
 
   const handleInterestPress = () => {
     console.log('Navigate to lead form');
+    // TODO: Navegar para tela de lead
   };
 
   const handleBackPress = () => {
-    console.log('Go back');
+    navigation.goBack();
   };
 
   if (loading || !accommodation) {

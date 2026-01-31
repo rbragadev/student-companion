@@ -1,19 +1,22 @@
 import React from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { Screen, Text } from '../components';
 import { TopTripCard, AccommodationListCard } from '../components/features';
 import { useAccommodations } from '../services/mockData';
 import { colorValues } from '../utils/design-tokens';
-import { spacing } from '../utils/design-tokens';
+import { RootStackParamList } from '../types/navigation';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AccommodationScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { topTrips, otherAccommodations, loading } = useAccommodations();
   const [selectedCity, setSelectedCity] = React.useState('Vancouver');
 
   const handleAccommodationPress = (id: string) => {
-    console.log('Navigate to accommodation detail:', id);
-    // TODO: Navegar para tela de detalhes
+    navigation.navigate('AccommodationDetail', { accommodationId: id });
   };
 
   const handleFilterPress = () => {

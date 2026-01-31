@@ -1,12 +1,16 @@
 import React from 'react';
 import { View, ScrollView } from 'react-native';
-import { Screen, Text, Card, HomeHeader, HeroCard, RecommendationCard, SecondaryAction } from '../components';
+import { Screen, Text, HomeHeader, HeroCard, RecommendationCard, SecondaryAction } from '../components';
 import { useUserProfile, useHeroContent, useRecommendations } from '../services/mockData';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { RootTabParamList } from '../types/navigation';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootTabParamList, RootStackParamList, TabRoutes, StackRoutes } from '../types/navigation';
 
-type HomeScreenNavigationProp = BottomTabNavigationProp<RootTabParamList, 'Home'>;
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<RootTabParamList, typeof TabRoutes.HOME>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -39,20 +43,23 @@ export default function HomeScreen() {
 
   const handleHeroCtaPress = () => {
     // Navega para o Copilot com intent de accommodation
-    navigation.navigate('Copilot', { intent: heroContent.ctaIntent });
+    navigation.navigate(TabRoutes.COPILOT, { intent: heroContent.ctaIntent });
   };
 
   const handleRecommendationPress = (id: string, type: 'accommodation' | 'course') => {
-    console.log('Recommendation pressed:', id, type);
-    // TODO: Navegar para detalhes da recomendação
+    if (type === 'accommodation') {
+      navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, { accommodationId: id });
+    } else {
+      console.log('Course detail not implemented yet:', id);
+    }
   };
 
   const handleBrowseAccommodations = () => {
-    navigation.navigate('Acomodação');
+    navigation.navigate(TabRoutes.ACCOMMODATION);
   };
 
   const handleBrowseCourses = () => {
-    navigation.navigate('Cursos');
+    navigation.navigate(TabRoutes.COURSES);
   };
 
   return (
