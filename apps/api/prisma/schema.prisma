@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,28 +7,42 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  firstName String
-  lastName  String
-  email     String   @unique
-  phone     String?
-  avatar    String?
-  
-  // Destination info as JSON
-  destination Json  // { city: string, country: string }
-  
-  // Study info
-  purpose      String
-  budget       Json?  // { accommodation?: string, course?: string }
-  englishLevel String?
-  arrivalDate  String?
-  
-  // Notifications
-  hasUnreadNotifications Boolean @default(false)
-  notificationCount      Int     @default(0)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String           @id @default(cuid())
+  email       String           @unique
+  phone       String?
+  avatar      String?
+  createdAt   DateTime         @default(now())
+  firstName   String
+  lastName    String
+  updatedAt   DateTime         @updatedAt
+  preferences UserPreferences?
 
   @@map("users")
+}
+
+model UserPreferences {
+  id                          String    @id @default(cuid())
+  userId                      String    @unique
+  destinationCity             String
+  destinationCountry          String
+  budgetAccommodationMin      Int?
+  budgetAccommodationMax      Int?
+  budgetCourseMin             Int?
+  budgetCourseMax             Int?
+  purpose                     String
+  englishLevel                String?
+  arrivalDate                 DateTime?
+  preferredAccommodationTypes String[]  @default([])
+  maxDistanceToSchool         Int?
+  hasUnreadNotifications      Boolean   @default(false)
+  notificationCount           Int       @default(0)
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  user                        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([destinationCity])
+  @@index([destinationCountry])
+  @@index([budgetAccommodationMax])
+  @@index([englishLevel])
+  @@map("user_preferences")
 }

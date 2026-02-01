@@ -82,10 +82,11 @@ export default function HomeScreen() {
     <Screen safeArea={true} padding="lg" gap="lg">
       <HomeHeader
         firstName={user.firstName}
-        destination={user.destination}
-        purpose={user.purpose}
+        lastName={user.lastName}
+        destinationCity={user.preferences.destinationCity}
+        purpose={user.preferences.purpose}
         avatarUrl={user.avatar}
-        hasUnreadNotifications={user.hasUnreadNotifications}
+        hasUnreadNotifications={user.preferences.hasUnreadNotifications}
         onSettingsPress={handleSettingsPress}
         onNotificationsPress={handleNotificationsPress}
         onAvatarPress={handleAvatarPress}

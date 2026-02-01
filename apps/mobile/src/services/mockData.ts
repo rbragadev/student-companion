@@ -187,33 +187,7 @@ export interface CourseDetail extends Course {
   }[];
 }
 
-// Simula uma chamada à API que retorna os dados do usuário
-export const getUserProfile = async (): Promise<UserProfile> => {
-  // Simula delay de rede
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  return {
-    id: '1',
-    firstName: 'Raphael',
-    lastName: 'Braga',
-    email: 'raphael.braga@email.com',
-    phone: '+1 (604) 555-0123',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Raphael',
-    destination: {
-      city: 'Vancouver',
-      country: 'Canada',
-    },
-    purpose: 'study English',
-    budget: {
-      accommodation: '$800-1200/month',
-      course: '$1200-1600/month',
-    },
-    englishLevel: 'Intermediate',
-    arrivalDate: 'March 2026',
-    hasUnreadNotifications: true,
-    notificationCount: 3,
-  };
-};
+
 
 // Simula uma chamada à API que retorna interesses/leads do usuário
 export const getUserInterests = async (): Promise<UserInterest[]> => {
@@ -545,22 +519,6 @@ export const getAccommodationDetail = async (id: string): Promise<AccommodationD
     hostName: 'Jennifer Thompson',
     hostAvatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Jennifer',
   };
-};
-
-// Hook para usar os dados do usuário (por enquanto retorna dados mock)
-export const useUserProfile = () => {
-  // TODO: Substituir por React Query ou similar quando integrar com API real
-  const [user, setUser] = React.useState<UserProfile | null>(null);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    getUserProfile().then(data => {
-      setUser(data);
-      setLoading(false);
-    });
-  }, []);
-
-  return { user, loading };
 };
 
 // Hook para usar o conteúdo do Hero Card

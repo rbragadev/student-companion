@@ -2,16 +2,13 @@ import React from 'react';
 import { View, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../ui/Text';
-import { useUserProfile } from '../../hooks/api/useUserProfile';
 
 interface HomeHeaderProps {
   firstName: string;
-  destination: {
-    city: string;
-    country: string;
-  };
+  lastName: string;
+  destinationCity: string
   purpose: string;
-  avatarUrl: string;
+  avatarUrl?: string;
   hasUnreadNotifications?: boolean;
   onSettingsPress?: () => void;
   onNotificationsPress?: () => void;
@@ -20,7 +17,8 @@ interface HomeHeaderProps {
 
 export const HomeHeader: React.FC<HomeHeaderProps> = ({
   firstName,
-  destination,
+  lastName,
+  destinationCity,
   purpose,
   avatarUrl,
   hasUnreadNotifications = false,
@@ -28,6 +26,9 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
   onNotificationsPress,
   onAvatarPress,
 }) => {
+  // Gera iniciais: primeira letra do firstName + primeira letra do lastName
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+
   return (
     <View className="gap-4">
       {/* Top Bar - Avatar e Ícones */}
@@ -35,14 +36,20 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
         {/* Avatar */}
         <TouchableOpacity 
           onPress={onAvatarPress}
-          className="w-12 h-12 rounded-full overflow-hidden bg-surface"
+          className="w-12 h-12 rounded-full overflow-hidden bg-surface items-center justify-center"
           activeOpacity={0.7}
         >
-          <Image
-            source={{ uri: avatarUrl }}
-            className="w-full h-full"
-            resizeMode="cover"
-          />
+          {avatarUrl ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              className="w-full h-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <Text variant="h3" className="text-primary font-semibold">
+              {initials}
+            </Text>
+          )}
         </TouchableOpacity>
 
         {/* Ícones de Ação */}
@@ -77,7 +84,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
         </Text>
         
         <Text variant="h3" className="font-normal text-textPrimary">
-          Moving to {destination.city} to {purpose}?
+          Moving to {destinationCity} to {purpose}?
         </Text>
         
         <Text variant="bodySecondary" className="mt-1 leading-relaxed">
