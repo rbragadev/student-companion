@@ -8,26 +8,28 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TabNavigator from './src/navigation/TabNavigator';
 import { AccommodationDetailScreen, CourseDetailScreen, PlaceDetailScreen, ProfileScreen } from './src/screens';
 import { RootStackParamList, StackRoutes } from './src/types/navigation';
+import { QueryProvider } from './src/providers/QueryProvider';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
-    <SafeAreaProvider style={{ flex: 1 }}>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name={StackRoutes.MAIN_TABS} component={TabNavigator} />
-          <Stack.Screen 
-            name={StackRoutes.ACCOMMODATION_DETAIL} 
-            component={AccommodationDetailScreen}
-            options={{ presentation: 'card' }}
-          />
-          <Stack.Screen 
-            name={StackRoutes.COURSE_DETAIL} 
-            component={CourseDetailScreen}
-            options={{ presentation: 'card' }}
-          />
-          <Stack.Screen 
+    <QueryProvider>
+      <SafeAreaProvider style={{ flex: 1 }}>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name={StackRoutes.MAIN_TABS} component={TabNavigator} />
+            <Stack.Screen 
+              name={StackRoutes.ACCOMMODATION_DETAIL} 
+              component={AccommodationDetailScreen}
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen 
+              name={StackRoutes.COURSE_DETAIL} 
+              component={CourseDetailScreen}
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen 
             name={StackRoutes.PLACE_DETAIL} 
             component={PlaceDetailScreen}
             options={{ presentation: 'card' }}
@@ -41,5 +43,6 @@ export default function App() {
         <StatusBar style="auto" />
       </NavigationContainer>
     </SafeAreaProvider>
+    </QueryProvider>
   );
 }

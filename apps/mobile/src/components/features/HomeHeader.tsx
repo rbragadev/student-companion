@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../ui/Text';
+import { useUserProfile } from '../../hooks/api/useUserProfile';
 
 interface HomeHeaderProps {
   firstName: string;

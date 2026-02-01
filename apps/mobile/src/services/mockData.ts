@@ -1,26 +1,6 @@
 // Mock API Data - Será substituído por chamadas reais posteriormente
 
-export interface UserProfile {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  avatar: string;
-  destination: {
-    city: string;
-    country: string;
-  };
-  purpose: string;
-  budget?: {
-    accommodation?: string;
-    course?: string;
-  };
-  englishLevel?: string;
-  arrivalDate?: string;
-  hasUnreadNotifications: boolean;
-  notificationCount: number;
-}
+
 
 export interface UserInterest {
   id: string;
@@ -633,6 +613,7 @@ export const useAccommodations = () => {
 
 // Exporta React para os hooks
 import React from 'react';
+import { UserProfile } from '../types/user.types';
 
 // Simula uma chamada à API que retorna cursos
 export const getCourses = async (): Promise<Course[]> => {

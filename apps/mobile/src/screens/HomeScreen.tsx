@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { Screen, Text, HomeHeader, HeroCard, RecommendationCard, SecondaryAction } from '../components';
-import { useUserProfile, useHeroContent, useRecommendations } from '../services/mockData';
+import { useHeroContent, useRecommendations } from '../services/mockData';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootTabParamList, RootStackParamList, TabRoutes, StackRoutes } from '../types/navigation';
+import { useUserProfile } from '../hooks/api/useUserProfile';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, typeof TabRoutes.HOME>,
@@ -14,14 +15,30 @@ type HomeScreenNavigationProp = CompositeNavigationProp<
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { user, loading: userLoading } = useUserProfile();
+  const { data: user, isLoading: userLoading, error: userError } = useUserProfile('1');
   const { content: heroContent, loading: heroLoading } = useHeroContent();
   const { recommendations, loading: recsLoading } = useRecommendations();
 
-  if (userLoading || heroLoading || recsLoading || !user || !heroContent) {
+  if (userLoading || heroLoading || recsLoading) {
     return (
       <Screen safeArea={true} padding="lg">
         <Text variant="body">Carregando...</Text>
+      </Screen>
+    );
+  }
+
+  if (userError) {
+    return (
+      <Screen safeArea={true} padding="lg">
+        <Text variant="body">Erro ao carregar perfil: {userError.message}</Text>
+      </Screen>
+    );
+  }
+
+  if (!user || !heroContent) {
+    return (
+      <Screen safeArea={true} padding="lg">
+        <Text variant="body">Dados não disponíveis</Text>
       </Screen>
     );
   }

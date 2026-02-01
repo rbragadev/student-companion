@@ -239,3 +239,286 @@ export default function App() {
 ---
 
 🎯 **Design System 100% funcional com NativeWind + TypeScript**
+
+
+# API Integration Guide
+
+Este guia explica como usar a integração de API com Axios + TanStack Query no app mobile.
+
+## 📦 Stack
+
+- **Axios**: Cliente HTTP para fazer requisições
+- **TanStack Query (React Query)**: Gerenciamento de estado assíncrono, cache e sincronização
+
+## 📁 Estrutura de Arquivos
+
+```
+src/
+├── services/
+│   └── api/
+│       ├── config.ts        # Configurações da API (URLs, timeout)
+│       ├── client.ts        # Axios instance com interceptors
+│       └── userApi.ts       # Endpoints de usuário
+├── hooks/
+│   └── api/
+│       └── useUserProfile.ts # React Query hooks
+└── providers/
+    └── QueryProvider.tsx    # TanStack Query provider
+```
+
+## 🚀 Como Usar
+
+### 1. Buscar Perfil do Usuário
+
+```tsx
+import { useUserProfile } from '../hooks/api/useUserProfile';
+
+export const ProfileScreen = () => {
+  const { data: user, isLoading, error, refetch } = useUserProfile('test-user-1');
+
+  if (isLoading) {
+    return <ActivityIndicator />;
+  }
+
+  if (error) {
+    return (
+      <View>
+        <Text>Error: {error.message}</Text>
+        <Button title="Tentar novamente" onPress={() => refetch()} />
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      <Text>{user?.firstName} {user?.lastName}</Text>
+      <Text>{user?.email}</Text>
+    </View>
+  );
+};
+```
+
+### 2. Estados Disponíveis
+
+O hook `useUserProfile` retorna vários estados úteis:
+
+```tsx
+const {
+  data,           // Dados do usuário
+  isLoading,      // true durante o primeiro carregamento
+  isFetching,     // true durante qualquer fetch (incluindo background)
+  isError,        // true se houve erro
+  error,          // Objeto de erro
+  isSuccess,      // true quando tem dados
+  refetch,        // Função para refazer a busca manualmente
+} = useUserProfile(userId);
+```
+
+### 3. Configuração de Cache
+
+O React Query já vem configurado com cache inteligente:
+
+- **staleTime**: 5 minutos - dados são considerados "frescos"
+- **gcTime**: 10 minutos - tempo que dados ficam em cache
+- **retry**: 2 tentativas em caso de erro
+- **refetchOnReconnect**: true - refaz busca ao reconectar
+
+```tsx
+// Exemplo: customizar cache para uma query específica
+const { data } = useUserProfile('user-123', {
+  staleTime: 10 * 60 * 1000, // 10 minutos
+  refetchOnWindowFocus: true,
+});
+```
+
+### 4. Invalidar Cache (depois de mutations)
+
+Quando você atualizar dados (POST/PATCH), deve invalidar o cache:
+
+```tsx
+import { useQueryClient } from '@tanstack/react-query';
+import { userQueryKeys } from '../hooks/api/useUserProfile';
+
+const queryClient = useQueryClient();
+
+// Após atualizar perfil
+await updateProfile(userId, newData);
+
+// Invalida o cache do usuário
+queryClient.invalidateQueries({
+  queryKey: userQueryKeys.profile(userId)
+});
+```
+
+## 🔐 Autenticação
+
+Os interceptors estão preparados para adicionar tokens automaticamente:
+
+### No client.ts, descomente:
+
+```typescript
+apiClient.interceptors.request.use(
+  async (config) => {
+    const token = await getAuthToken(); // Sua função de obter token
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  }
+);
+```
+
+### Tratamento de erro 401:
+
+```typescript
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Redirecionar para login
+      navigation.navigate('Login');
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+## 📝 Criar Novos Endpoints
+
+### 1. Adicionar no service (userApi.ts):
+
+```typescript
+export const userApi = {
+  // ... endpoints existentes
+  
+  updateProfile: async (userId: string, payload: Partial<UserProfile>) => {
+    const { data } = await apiClient.patch(`/users/${userId}`, payload);
+    return data;
+  },
+};
+```
+
+### 2. Criar hook com mutation:
+
+```typescript
+// hooks/api/useUpdateUserProfile.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { userApi } from '../../services/api/userApi';
+import { userQueryKeys } from './useUserProfile';
+
+export const useUpdateUserProfile = (userId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Partial<UserProfile>) => 
+      userApi.updateProfile(userId, payload),
+    
+    onSuccess: () => {
+      // Invalida o cache após sucesso
+      queryClient.invalidateQueries({
+        queryKey: userQueryKeys.profile(userId)
+      });
+    },
+  });
+};
+```
+
+### 3. Usar na tela:
+
+```tsx
+const { mutate, isPending, isError } = useUpdateUserProfile('user-123');
+
+const handleSave = () => {
+  mutate(
+    { firstName: 'New Name' },
+    {
+      onSuccess: () => {
+        Alert.alert('Sucesso', 'Perfil atualizado!');
+      },
+      onError: (error) => {
+        Alert.alert('Erro', error.message);
+      },
+    }
+  );
+};
+```
+
+## 🔧 Configurações
+
+### Ambiente (Development vs Production)
+
+A URL da API é configurada automaticamente em `config.ts`:
+
+```typescript
+export const API_CONFIG = {
+  BASE_URL: __DEV__ 
+    ? 'http://localhost:3000'           // Development
+    : 'https://api.production.com',     // Production
+};
+```
+
+### iOS: Localhost
+
+Para testar no iOS Simulator com API local:
+- Use `http://localhost:3000` ✅
+
+### Android: Localhost
+
+Para testar no Android Emulator com API local:
+- Use `http://10.0.2.2:3000` (Android Emulator)
+- Use `http://<SEU_IP>:3000` (Dispositivo físico)
+
+Atualize em `config.ts`:
+
+```typescript
+export const API_CONFIG = {
+  BASE_URL: __DEV__
+    ? Platform.OS === 'android' 
+      ? 'http://10.0.2.2:3000'
+      : 'http://localhost:3000'
+    : 'https://api.production.com',
+};
+```
+
+## 🐛 Debug
+
+### Ver requisições no console:
+
+Os logs já estão configurados em modo desenvolvimento:
+
+```
+[API] GET /users/123
+[API] Response: /users/123 200
+```
+
+### React Query DevTools (opcional):
+
+Para adicionar o devtools do React Query:
+
+```bash
+npm install @tanstack/react-query-devtools
+```
+
+```tsx
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
+<QueryProvider>
+  <App />
+  {__DEV__ && <ReactQueryDevtools />}
+</QueryProvider>
+```
+
+## ✅ Boas Práticas
+
+1. **Sempre use hooks do React Query** - não faça fetch direto nos componentes
+2. **Centralize query keys** - facilita invalidação
+3. **Use optimistic updates** para melhor UX
+4. **Trate erros globalmente** nos interceptors
+5. **Configure staleTime** apropriadamente para cada endpoint
+6. **Invalide cache** após mutations
+
+## 📚 Recursos
+
+- [TanStack Query Docs](https://tanstack.com/query/latest)
+- [Axios Docs](https://axios-http.com/docs/intro)
+- [React Query Best Practices](https://tkdodo.eu/blog/practical-react-query)

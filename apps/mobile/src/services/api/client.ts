@@ -1,0 +1,63 @@
+/**
+ * Axios HTTP Client
+ * Configured with interceptors for authentication and error handling
+ */
+
+import axios, { AxiosError } from 'axios';
+import { API_CONFIG } from './config';
+
+export const apiClient = axios.create({
+  baseURL: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+/**
+ * Request Interceptor
+ * Adds authentication token to all requests
+ */
+apiClient.interceptors.request.use(
+  async (config) => {
+    // TODO: Uncomment when implementing auth
+    // const token = await getAuthToken();
+    // if (token) {
+    //   config.headers.Authorization = `Bearer ${token}`;
+    // }
+    
+    if (__DEV__) {
+      console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * Response Interceptor
+ * Handles global error responses
+ */
+apiClient.interceptors.response.use(
+  (response) => {
+    if (__DEV__) {
+      console.log(`[API] Response: ${response.config.url}`, response.status);
+    }
+    return response;
+  },
+  (error: AxiosError) => {
+    if (__DEV__) {
+      console.error('[API] Error:', error.message);
+    }
+
+    // TODO: Add global error handling
+    // - 401: Redirect to login
+    // - 500: Show error toast
+    // - Network error: Show offline message
+    
+    return Promise.reject(error);
+  }
+);
