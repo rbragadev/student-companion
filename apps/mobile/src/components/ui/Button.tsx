@@ -6,7 +6,7 @@ import { designTokens } from '../../utils/design-tokens';
 interface ButtonProps extends Omit<PressableProps, 'children'> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
-  children: string;
+  children: React.ReactNode;
   disabled?: boolean;
 }
 

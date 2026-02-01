@@ -4,15 +4,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen, Text, Card, Button } from '../components';
-import { useUserProfile, useUserInterests, useUserReviews } from '../services/mockData';
+import { useUserInterests, useUserReviews } from '../services/mockData';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList } from '../types/navigation';
+import { useUserProfile } from '../hooks/api/useUserProfile';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, loading: userLoading } = useUserProfile();
+  const { data: user, isLoading: userLoading, error: userError } = useUserProfile('1');
   const { interests, loading: interestsLoading } = useUserInterests();
   const { reviews, loading: reviewsLoading } = useUserReviews();
 
@@ -165,7 +166,7 @@ export default function ProfileScreen() {
                   Destination
                 </Text>
                 <Text variant="body" className="font-medium">
-                  {user.destination.city}, {user.destination.country}
+                  {user.preferences.destinationCity}, {user.preferences.destinationCountry}
                 </Text>
               </View>
             </View>
@@ -180,12 +181,12 @@ export default function ProfileScreen() {
                   Purpose
                 </Text>
                 <Text variant="body" className="font-medium capitalize">
-                  {user.purpose}
+                  {user.preferences.purpose}
                 </Text>
               </View>
             </View>
 
-            {user.englishLevel && (
+            {user.preferences.englishLevel && (
               <>
                 <View className="h-px bg-border" />
                 <View className="flex-row items-center gap-3">
@@ -195,14 +196,14 @@ export default function ProfileScreen() {
                       English Level
                     </Text>
                     <Text variant="body" className="font-medium">
-                      {user.englishLevel}
+                      {user.preferences.englishLevel}
                     </Text>
                   </View>
                 </View>
               </>
             )}
 
-            {user.arrivalDate && (
+            {user.preferences.arrivalDate && (
               <>
                 <View className="h-px bg-border" />
                 <View className="flex-row items-center gap-3">
@@ -212,14 +213,14 @@ export default function ProfileScreen() {
                       Expected Arrival
                     </Text>
                     <Text variant="body" className="font-medium">
-                      {user.arrivalDate}
+                      {user.preferences.arrivalDate}
                     </Text>
                   </View>
                 </View>
               </>
             )}
 
-            {user.budget && (
+            {user.preferences.budgetAccommodationMax && (
               <>
                 <View className="h-px bg-border" />
                 <View className="flex-row items-center gap-3">
@@ -229,11 +230,11 @@ export default function ProfileScreen() {
                       Budget
                     </Text>
                     <Text variant="body" className="font-medium">
-                      Accommodation: {user.budget.accommodation}
+                      Accommodation: {user.preferences.budgetAccommodationMax}
                     </Text>
-                    {user.budget.course && (
+                    {user.preferences.budgetCourseMax && (
                       <Text variant="body" className="font-medium">
-                        Course: {user.budget.course}
+                        Course: {user.preferences.budgetCourseMax}
                       </Text>
                     )}
                   </View>
