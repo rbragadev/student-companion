@@ -5,10 +5,38 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  email     String   @unique
+  phone     String?
+  avatar    String?
+  
+  // Destination info
+  destinationCity    String  @map("destination_city")
+  destinationCountry String  @map("destination_country")
+  
+  // Study info
+  purpose           String
+  accommodationBudget String? @map("accommodation_budget")
+  courseBudget      String? @map("course_budget")
+  englishLevel      String? @map("english_level")
+  arrivalDate       String? @map("arrival_date")
+  
+  // Notifications
+  hasUnreadNotifications Boolean @default(false) @map("has_unread_notifications")
+  notificationCount      Int     @default(0) @map("notification_count")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
 }

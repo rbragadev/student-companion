@@ -6,7 +6,9 @@ import { Screen, Text } from '../components';
 import { TopTripCard, AccommodationListCard } from '../components/features';
 import { useAccommodations } from '../services/mockData';
 import { colorValues } from '../utils/design-tokens';
-import { RootStackParamList } from '../types/navigation';
+import { RootStackParamList, StackRoutes } from '../types/navigation';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -16,7 +18,7 @@ export default function AccommodationScreen() {
   const [selectedCity, setSelectedCity] = React.useState('Vancouver');
 
   const handleAccommodationPress = (id: string) => {
-    navigation.navigate('AccommodationDetail', { accommodationId: id });
+    navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, { accommodationId: id });
   };
 
   const handleFilterPress = () => {

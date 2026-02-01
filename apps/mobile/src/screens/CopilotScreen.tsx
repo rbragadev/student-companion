@@ -45,9 +45,9 @@ export default function CopilotScreen() {
 
   const handleRecommendationPress = (recommendation: any) => {
     if (recommendation.type === 'accommodation') {
-      navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, { id: recommendation.id });
+      navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, { accommodationId: recommendation.id });
     } else if (recommendation.type === 'course') {
-      navigation.navigate(StackRoutes.COURSE_DETAIL, { id: recommendation.id });
+      navigation.navigate(StackRoutes.COURSE_DETAIL, { courseId: recommendation.id });
     }
   };
 
@@ -62,7 +62,7 @@ export default function CopilotScreen() {
         <Container>
           {/* Header */}
           <View className="py-6">
-            <Text variant="title" className="mb-2">
+            <Text variant="h1" className="mb-2">
               AI Copilot
             </Text>
             <Text variant="body" className="text-neutral-600">
@@ -138,7 +138,7 @@ export default function CopilotScreen() {
                   <Text variant="body" className="text-2xl mr-2">
                     💡
                   </Text>
-                  <Text variant="heading" className="flex-1">
+                  <Text variant="h2" className="flex-1">
                     Summary
                   </Text>
                 </View>
@@ -172,7 +172,7 @@ export default function CopilotScreen() {
                     <Text variant="body" className="text-2xl mr-2">
                       ⚖️
                     </Text>
-                    <Text variant="heading" className="flex-1">
+                    <Text variant="h2" className="flex-1">
                       Trade-offs
                     </Text>
                   </View>
@@ -222,7 +222,7 @@ export default function CopilotScreen() {
                     <Text variant="body" className="text-2xl mr-2">
                       ❓
                     </Text>
-                    <Text variant="heading" className="flex-1 text-warning-800">
+                    <Text variant="h2" className="flex-1 text-warning-800">
                       I need more information
                     </Text>
                   </View>
@@ -249,7 +249,7 @@ export default function CopilotScreen() {
                     <Text variant="body" className="text-2xl mr-2">
                       🎯
                     </Text>
-                    <Text variant="heading">
+                    <Text variant="h2">
                       Recommendations for you
                     </Text>
                   </View>
