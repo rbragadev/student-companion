@@ -22,4 +22,6 @@ export class UserResponseDto {
   arrivalDate?: string;
   hasUnreadNotifications: boolean;
   notificationCount: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
