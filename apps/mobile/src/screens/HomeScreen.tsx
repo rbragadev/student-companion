@@ -15,7 +15,7 @@ type HomeScreenNavigationProp = CompositeNavigationProp<
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { data: user, isLoading: userLoading, error: userError } = useUserProfile('1');
+  const { data: user, isLoading: userLoading, error: userError } = useUserProfile('a8ee8202-7adb-48d9-a2c7-6a03ffc75b48');
   const { content: heroContent, loading: heroLoading } = useHeroContent();
   const { recommendations, loading: recsLoading } = useRecommendations();
 

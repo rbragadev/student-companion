@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { User, UserPreferences } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserPreferencesDto } from './dto/create-user-preferences.dto';
+import { randomUUID } from 'crypto';
 
 // Tipo que representa User com preferences incluídas
 export type UserWithPreferences = User & {
@@ -30,8 +32,18 @@ export class UserService {
   }
 
   async create(data: CreateUserDto): Promise<User> {
-    const user = await this.prisma.user.create({ data });
+    const user = await this.prisma.user.create({ data: { ...data, id: randomUUID() } });
     return user;
+  }
+
+  async createPreferences(userId: string, data: CreateUserPreferencesDto): Promise<UserPreferences> {
+    const preferences = await this.prisma.userPreferences.create({
+      data: {
+        ...data,
+        userId,
+      },
+    });
+    return preferences;
   }
 
   async update(id: string, data: UpdateUserDto): Promise<User> {
