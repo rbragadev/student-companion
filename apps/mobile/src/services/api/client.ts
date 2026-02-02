@@ -39,18 +39,30 @@ apiClient.interceptors.request.use(
 
 /**
  * Response Interceptor
- * Handles global error responses
+ * Handles global error responses and unwraps data envelope
  */
 apiClient.interceptors.response.use(
   (response) => {
     if (__DEV__) {
       console.log(`[API] Response: ${response.config.url}`, response.status);
     }
+    
+    // Desencapsula o formato { statusCode, message, data }
+    // Retorna apenas o data para manter a compatibilidade com o código existente
+    if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+      response.data = response.data.data;
+    }
+    
     return response;
   },
   (error: AxiosError) => {
     if (__DEV__) {
       console.error('[API] Error:', error.message);
+      
+      // Log do erro encapsulado do backend
+      if (error.response?.data) {
+        console.error('[API] Error details:', error.response.data);
+      }
     }
 
     // TODO: Add global error handling

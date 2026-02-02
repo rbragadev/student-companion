@@ -15,7 +15,7 @@ model User {
   firstName   String
   lastName    String
   updatedAt   DateTime         @updatedAt
-  review      review[]
+  reviews     Review[]
   preferences UserPreferences?
 
   @@map("users")
@@ -48,7 +48,7 @@ model UserPreferences {
   @@map("user_preferences")
 }
 
-model course {
+model Course {
   id             String   @id(map: "Course_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   schoolId       String   @db.Uuid
   programName    String   @db.VarChar(255)
@@ -66,11 +66,12 @@ model course {
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now())
-  school         school   @relation(fields: [schoolId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
+  school         School   @relation(fields: [schoolId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
+
+  @@map("course")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model review {
+model Review {
   id             String   @id(map: "Review_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId         String   @db.Uuid
   reviewableType String
@@ -79,10 +80,12 @@ model review {
   comment        String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now())
-  users          User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "review_users_fk")
+  user           User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "review_users_fk")
+
+  @@map("review")
 }
 
-model school {
+model School {
   id          String   @id(map: "School_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String   @db.VarChar(255)
   location    String   @db.VarChar(255)
@@ -94,5 +97,7 @@ model school {
   isPartner   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
-  course      course[]
+  courses     Course[]
+
+  @@map("school")
 }
