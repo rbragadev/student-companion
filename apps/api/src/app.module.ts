@@ -7,9 +7,10 @@ import { CourseModule } from './course/course.module';
 import { ReviewModule } from './review/review.module';
 import { SchoolModule } from './school/school.module';
 import { AccommodationModule } from './accommodation/accommodation.module';
+import { PlaceModule } from './place/place.module';
 
 @Module({
-  imports: [PrismaModule, UserModule, CourseModule, ReviewModule, SchoolModule, AccommodationModule],
+  imports: [PrismaModule, UserModule, CourseModule, ReviewModule, SchoolModule, AccommodationModule, PlaceModule],
   controllers: [AppController],
   providers: [AppService],
 })

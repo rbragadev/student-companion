@@ -216,7 +216,7 @@ export default function AccommodationDetailScreen() {
             <View className="flex-row items-center gap-1">
               <Ionicons name="star" size={18} color={colorValues.warning} />
               <Text variant="body" className="font-semibold">
-                {accommodation.ratingOverall ? Number(accommodation.ratingOverall).toFixed(1) : 'N/A'}
+                {accommodation.rating ? Number(accommodation.rating).toFixed(1) : 'N/A'}
               </Text>
               <Text variant="body" className="text-textSecondary">
                 ({accommodation.ratingCount || 0} reviews)

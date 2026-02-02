@@ -171,7 +171,7 @@ export default function AccommodationScreen() {
               location={acc.location || ''}
               price={`${Math.round(acc.priceInCents / 100)}`}
               priceUnit={acc.priceUnit || ''}
-              rating={acc.ratingOverall ? Number(acc.ratingOverall) : 0}
+              rating={acc.rating ? Number(acc.rating) : 0}
               onPress={() => handleAccommodationPress(acc.id)}
               onFavoritePress={() => handleFavoritePress(acc.id)}
             />
@@ -196,7 +196,7 @@ export default function AccommodationScreen() {
             areaHint={acc.areaHint || ''}
             price={`CAD ${Math.round(acc.priceInCents / 100).toLocaleString()}`}
             priceUnit={acc.priceUnit || 'month'}
-            rating={acc.ratingOverall ? Number(acc.ratingOverall) : 0}
+            rating={acc.rating ? Number(acc.rating) : 0}
             ratingCount={acc.ratingCount || 0}
             isPartner={acc.isPartner}
             badge={acc.goodFor}

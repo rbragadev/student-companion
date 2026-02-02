@@ -103,34 +103,62 @@ model School {
 }
 
 model Accommodation {
-  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title                String   @db.VarChar(255)
-  accommodationType    String   @map("accommodation_type") @db.VarChar(50)
-  priceInCents         Int      @map("price_in_cents")
-  priceUnit            String   @map("price_unit") @default("month") @db.VarChar(20)
-  location             String   @db.VarChar(255)
-  areaHint             String?  @map("area_hint") @db.VarChar(255)
-  latitude             Decimal? @db.Decimal(10, 8)
-  longitude            Decimal? @db.Decimal(11, 8)
-  description          String
-  rules                String[] @default([])
-  amenities            String[] @default([])
-  image                String   @db.VarChar(500)
-  images               String[] @default([])
-  rating               Decimal? @default(0.00) @db.Decimal(3, 2)
-  ratingCount          Int?     @default(0) @map("rating_count")
-  ratingCleanliness    Decimal? @default(0.00) @map("rating_cleanliness") @db.Decimal(3, 2)
-  ratingLocation       Decimal? @default(0.00) @map("rating_location") @db.Decimal(3, 2)
-  ratingCommunication  Decimal? @default(0.00) @map("rating_communication") @db.Decimal(3, 2)
-  ratingValue          Decimal? @default(0.00) @map("rating_value") @db.Decimal(3, 2)
-  goodFor              String?  @map("good_for")
-  isPartner            Boolean  @default(false) @map("is_partner")
-  isTopTrip            Boolean  @default(false) @map("is_top_trip")
-  hostName             String?  @map("host_name") @db.VarChar(255)
-  hostAvatar           String?  @map("host_avatar") @db.VarChar(500)
-  isActive             Boolean  @default(true) @map("is_active")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @default(now()) @map("updated_at")
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title               String    @db.VarChar(255)
+  accommodationType   String    @map("accommodation_type") @db.VarChar(50)
+  priceInCents        Int       @map("price_in_cents")
+  priceUnit           String    @default("month") @map("price_unit") @db.VarChar(20)
+  location            String    @db.VarChar(255)
+  areaHint            String?   @map("area_hint") @db.VarChar(255)
+  latitude            Decimal?  @db.Decimal(10, 8)
+  longitude           Decimal?  @db.Decimal(11, 8)
+  description         String
+  rules               String[]  @default([])
+  amenities           String[]  @default([])
+  image               String    @db.VarChar(500)
+  images              String[]  @default([])
+  rating              Decimal?  @default(0.00) @db.Decimal(3, 2)
+  ratingCount         Int?      @default(0) @map("rating_count")
+  ratingCleanliness   Decimal?  @default(0.00) @map("rating_cleanliness") @db.Decimal(3, 2)
+  ratingLocation      Decimal?  @default(0.00) @map("rating_location") @db.Decimal(3, 2)
+  ratingCommunication Decimal?  @default(0.00) @map("rating_communication") @db.Decimal(3, 2)
+  ratingValue         Decimal?  @default(0.00) @map("rating_value") @db.Decimal(3, 2)
+  goodFor             String?   @map("good_for")
+  isPartner           Boolean?  @default(false) @map("is_partner")
+  isTopTrip           Boolean?  @default(false) @map("is_top_trip")
+  hostName            String?   @map("host_name") @db.VarChar(255)
+  hostAvatar          String?   @map("host_avatar") @db.VarChar(500)
+  isActive            Boolean?  @default(true) @map("is_active")
+  createdAt           DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
 
   @@map("accommodation")
+}
+
+model Place {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String    @db.VarChar(255)
+  category          String    @db.VarChar(50)
+  image             String
+  images            String[]  @default([])
+  rating            Decimal?  @default(0) @db.Decimal(2, 1)
+  ratingCount       Int?      @default(0) @map("rating_count")
+  address           String
+  neighborhood      String?   @db.VarChar(100)
+  latitude          Decimal?  @db.Decimal(10, 8)
+  longitude         Decimal?  @db.Decimal(11, 8)
+  isStudentFavorite Boolean?  @default(false) @map("is_student_favorite")
+  hasDeal           Boolean?  @default(false) @map("has_deal")
+  dealDescription   String?   @map("deal_description")
+  priceRange        String?   @map("price_range") @db.VarChar(10)
+  description       String?
+  hours             Json?
+  phone             String?   @db.VarChar(50)
+  website           String?
+  amenities         String[]  @default([])
+  isActive          Boolean?  @default(true) @map("is_active")
+  createdAt         DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@map("place")
 }
