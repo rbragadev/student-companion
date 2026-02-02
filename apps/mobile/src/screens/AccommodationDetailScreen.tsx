@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Text, Card, Button } from '../components';
-import { getAccommodationDetail, AccommodationDetail } from '../services/mockData';
+import { useAccommodationById } from '../hooks/api/useAccommodations';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 
@@ -18,16 +18,8 @@ export default function AccommodationDetailScreen() {
   const route = useRoute<AccommodationDetailRouteProp>();
   const { accommodationId } = route.params;
   
-  const [accommodation, setAccommodation] = React.useState<AccommodationDetail | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const { data: accommodation, isLoading } = useAccommodationById(accommodationId);
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
-
-  React.useEffect(() => {
-    getAccommodationDetail(accommodationId).then(data => {
-      setAccommodation(data);
-      setLoading(false);
-    });
-  }, [accommodationId]);
 
   const handleInterestPress = () => {
     console.log('Navigate to lead form');
@@ -38,7 +30,7 @@ export default function AccommodationDetailScreen() {
     navigation.goBack();
   };
 
-  if (loading || !accommodation) {
+  if (isLoading || !accommodation) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <Text variant="body" className="text-textSecondary">
@@ -144,7 +136,7 @@ export default function AccommodationDetailScreen() {
           {/* Preço */}
           <View className="flex-row items-baseline gap-2">
             <Text variant="h2" className="text-2xl font-bold text-primary-500">
-              {accommodation.price}
+              CAD {(accommodation.priceInCents / 100).toLocaleString()}
             </Text>
             <Text variant="body" className="text-textSecondary">
               /{accommodation.priceUnit}
@@ -224,10 +216,10 @@ export default function AccommodationDetailScreen() {
             <View className="flex-row items-center gap-1">
               <Ionicons name="star" size={18} color={colorValues.warning} />
               <Text variant="body" className="font-semibold">
-                {accommodation.rating.overall}
+                {accommodation.ratingOverall ? Number(accommodation.ratingOverall).toFixed(1) : 'N/A'}
               </Text>
               <Text variant="body" className="text-textSecondary">
-                ({accommodation.rating.count} reviews)
+                ({accommodation.ratingCount || 0} reviews)
               </Text>
             </View>
           </View>
@@ -235,84 +227,63 @@ export default function AccommodationDetailScreen() {
           {/* Dimensões do Rating */}
           <Card padding="md" className="mb-4">
             <View className="gap-3">
-              {Object.entries(accommodation.rating.dimensions).map(([key, value]) => (
-                <View key={key}>
-                  <View className="flex-row items-center justify-between mb-1">
-                    <Text variant="body" className="text-textSecondary capitalize">
-                      {key}
-                    </Text>
-                    <Text variant="body" className="font-medium">
-                      {value}
-                    </Text>
-                  </View>
-                  <View className="h-2 bg-surface rounded-full overflow-hidden">
-                    <View
-                      className="h-full bg-primary-500 rounded-full"
-                      style={{ width: `${(value / 5) * 100}%` }}
-                    />
-                  </View>
-                </View>
-              ))}
+              {[
+                { key: 'Cleanliness', value: accommodation.ratingCleanliness },
+                { key: 'Location', value: accommodation.ratingLocation },
+                { key: 'Communication', value: accommodation.ratingCommunication },
+                { key: 'Value', value: accommodation.ratingValue },
+              ]
+                .filter(item => item.value != null)
+                .map(({ key, value }) => {
+                  const numValue = typeof value === 'object' ? Number(value) : Number(value);
+                  return (
+                    <View key={key}>
+                      <View className="flex-row items-center justify-between mb-1">
+                        <Text variant="body" className="text-textSecondary">
+                          {key}
+                        </Text>
+                        <Text variant="body" className="font-medium">
+                          {numValue.toFixed(1)}
+                        </Text>
+                      </View>
+                      <View className="h-2 bg-surface rounded-full overflow-hidden">
+                        <View
+                          className="h-full bg-primary-500 rounded-full"
+                          style={{ width: `${(numValue / 5) * 100}%` }}
+                        />
+                      </View>
+                    </View>
+                  );
+                })}
             </View>
           </Card>
 
-          {/* Lista de Reviews */}
+          {/* Lista de Reviews - TODO: Buscar reviews do backend */}
           <View className="gap-4">
-            {accommodation.reviews.map((review) => (
-              <Card key={review.id} padding="md">
-                <View className="gap-3">
-                  {/* Header do Review */}
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-3">
-                      <Image
-                        source={{ uri: review.userAvatar }}
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <View>
-                        <Text variant="body" className="font-semibold">
-                          {review.userName}
-                        </Text>
-                        <Text variant="caption" className="text-textMuted">
-                          {new Date(review.date).toLocaleDateString('en-US', {
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View className="flex-row items-center gap-1">
-                      <Ionicons name="star" size={14} color={colorValues.warning} />
-                      <Text variant="caption" className="font-medium">
-                        {review.rating}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Comentário */}
-                  <Text variant="body" className="text-textSecondary leading-relaxed">
-                    {review.comment}
-                  </Text>
-                </View>
-              </Card>
-            ))}
+            <Card padding="md">
+              <Text variant="body" className="text-textSecondary text-center">
+                Reviews will be loaded from API
+              </Text>
+            </Card>
           </View>
         </View>
 
         {/* Bom para quem? */}
-        <View className="px-4 pt-6 pb-4">
-          <Text variant="h2" className="text-lg font-semibold mb-3">
-            Good for
-          </Text>
-          <Card padding="md" className="bg-primary-50 border border-primary-500">
-            <View className="flex-row gap-3">
-              <Ionicons name="information-circle" size={24} color={colorValues.primary[500]} />
-              <Text variant="body" className="text-textPrimary flex-1 leading-relaxed">
-                {accommodation.goodFor}
-              </Text>
-            </View>
-          </Card>
-        </View>
+        {accommodation.goodFor && (
+          <View className="px-4 pt-6 pb-4">
+            <Text variant="h2" className="text-lg font-semibold mb-3">
+              Good for
+            </Text>
+            <Card padding="md" className="bg-primary-50 border border-primary-500">
+              <View className="flex-row gap-3">
+                <Ionicons name="information-circle" size={24} color={colorValues.primary[500]} />
+                <Text variant="body" className="text-textPrimary flex-1 leading-relaxed">
+                  {accommodation.goodFor}
+                </Text>
+              </View>
+            </Card>
+          </View>
+        )}
       </ScrollView>
 
       {/* CTA Fixo */}
@@ -323,7 +294,7 @@ export default function AccommodationDetailScreen() {
               Starting from
             </Text>
             <Text variant="h3" className="text-xl font-bold text-primary-500">
-              {accommodation.price}
+              CAD {(accommodation.priceInCents / 100).toLocaleString()}
               <Text variant="body" className="text-textSecondary font-normal">
                 /{accommodation.priceUnit}
               </Text>

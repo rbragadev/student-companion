@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Screen, Text } from '../components';
 import { TopTripCard, AccommodationListCard } from '../components/features';
-import { useAccommodations } from '../services/mockData';
+import { useAccommodations } from '../hooks/api/useAccommodations';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,8 +14,18 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AccommodationScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { topTrips, otherAccommodations, loading } = useAccommodations();
+  const { data: accommodations, isLoading } = useAccommodations();
   const [selectedCity, setSelectedCity] = React.useState('Vancouver');
+
+  // Separar top trips das outras acomodações
+  const { topTrips, otherAccommodations } = useMemo(() => {
+    if (!accommodations) return { topTrips: [], otherAccommodations: [] };
+    
+    return {
+      topTrips: accommodations.filter(acc => acc.isTopTrip),
+      otherAccommodations: accommodations.filter(acc => !acc.isTopTrip),
+    };
+  }, [accommodations]);
 
   const handleAccommodationPress = (id: string) => {
     navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, { accommodationId: id });
@@ -31,7 +41,7 @@ export default function AccommodationScreen() {
     // TODO: Toggle favorito
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Screen safeArea={true}>
         <View className="flex-1 items-center justify-center">
@@ -152,18 +162,18 @@ export default function AccommodationScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, gap: 0 }}
         >
-          {topTrips.map((trip) => (
+          {topTrips.map((acc) => (
             <TopTripCard
-              key={trip.id}
-              id={trip.id}
-              title={trip.title}
-              image={trip.image}
-              location={trip.location || ''}
-              price={trip.price || ''}
-              priceUnit={trip.priceUnit || ''}
-              rating={trip.rating || 0}
-              onPress={() => handleAccommodationPress(trip.id)}
-              onFavoritePress={() => handleFavoritePress(trip.id)}
+              key={acc.id}
+              id={acc.id}
+              title={acc.title}
+              image={acc.image}
+              location={acc.location || ''}
+              price={`${Math.round(acc.priceInCents / 100)}`}
+              priceUnit={acc.priceUnit || ''}
+              rating={acc.ratingOverall ? Number(acc.ratingOverall) : 0}
+              onPress={() => handleAccommodationPress(acc.id)}
+              onFavoritePress={() => handleFavoritePress(acc.id)}
             />
           ))}
         </ScrollView>
@@ -175,22 +185,22 @@ export default function AccommodationScreen() {
           All Accommodations
         </Text>
 
-        {otherAccommodations.map((accommodation) => (
+        {otherAccommodations.map((acc) => (
           <AccommodationListCard
-            key={accommodation.id}
-            id={accommodation.id}
-            title={accommodation.title}
-            image={accommodation.image}
-            accommodationType={accommodation.accommodationType || 'Shared'}
-            location={accommodation.location || ''}
-            areaHint={accommodation.areaHint || ''}
-            price={accommodation.price || ''}
-            priceUnit={accommodation.priceUnit || ''}
-            rating={accommodation.rating || 0}
-            ratingCount={accommodation.ratingCount || 0}
-            isPartner={accommodation.isPartner}
-            badge={accommodation.badge}
-            onPress={() => handleAccommodationPress(accommodation.id)}
+            key={acc.id}
+            id={acc.id}
+            title={acc.title}
+            image={acc.image}
+            accommodationType={acc.accommodationType || 'Shared'}
+            location={acc.location || ''}
+            areaHint={acc.areaHint || ''}
+            price={`CAD ${Math.round(acc.priceInCents / 100).toLocaleString()}`}
+            priceUnit={acc.priceUnit || 'month'}
+            rating={acc.ratingOverall ? Number(acc.ratingOverall) : 0}
+            ratingCount={acc.ratingCount || 0}
+            isPartner={acc.isPartner}
+            badge={acc.goodFor}
+            onPress={() => handleAccommodationPress(acc.id)}
           />
         ))}
       </View>

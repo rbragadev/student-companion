@@ -43,7 +43,7 @@ export const AccommodationListCard: React.FC<AccommodationListCardProps> = ({
     >
       <Card padding="none" variant="default" className="flex-row overflow-hidden">
         {/* Imagem */}
-        <View className="relative w-28 h-28">
+        <View className="relative w-32 h-36">
           <Image
             source={{ uri: image }}
             className="w-full h-full"
@@ -80,6 +80,16 @@ export const AccommodationListCard: React.FC<AccommodationListCardProps> = ({
             </Text>
           </View>
 
+          {/* Badge opcional */}
+          {badge && (
+            <View className="flex-row items-center gap-1">
+              <Ionicons name="checkmark-circle" size={12} color={colorValues.primary[500]} />
+              <Text variant="caption" className="text-primary-500 font-medium text-xs" numberOfLines={1}>
+                {badge}
+              </Text>
+            </View>
+          )}
+
           {/* Footer - Preço e Rating */}
           <View className="flex-row items-center justify-between mt-auto">
             <View className="flex-row items-baseline gap-1">
@@ -94,25 +104,13 @@ export const AccommodationListCard: React.FC<AccommodationListCardProps> = ({
             <View className="flex-row items-center gap-1">
               <Ionicons name="star" size={12} color={colorValues.warning} />
               <Text variant="caption" className="text-textPrimary font-medium text-xs">
-                {rating}
+                {rating.toFixed(1)}
               </Text>
               <Text variant="caption" className="text-textMuted text-xs">
                 ({ratingCount})
               </Text>
             </View>
           </View>
-
-          {/* Badge opcional */}
-          {badge && (
-            <View className="absolute top-3 right-3">
-              <View className="bg-white px-2 py-1 rounded-full flex-row items-center gap-1 shadow-sm">
-                <Ionicons name="checkmark-circle" size={10} color={colorValues.primary[500]} />
-                <Text variant="caption" className="text-textPrimary font-medium text-xs">
-                  {badge}
-                </Text>
-              </View>
-            </View>
-          )}
         </View>
       </Card>
     </TouchableOpacity>

@@ -1,0 +1,30 @@
+export interface Accommodation {
+  id: string;
+  title: string;
+  accommodationType: 'Homestay' | 'Shared' | 'Studio' | 'Apartment';
+  priceInCents: number;
+  priceUnit: string;
+  location: string;
+  areaHint?: string;
+  latitude?: number;
+  longitude?: number;
+  description: string;
+  rules: string[];
+  amenities: string[];
+  image: string;
+  images: string[];
+  rating?: number;
+  ratingCount?: number;
+  ratingCleanliness?: number;
+  ratingLocation?: number;
+  ratingCommunication?: number;
+  ratingValue?: number;
+  goodFor?: string;
+  isPartner: boolean;
+  isTopTrip: boolean;
+  hostName?: string;
+  hostAvatar?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
