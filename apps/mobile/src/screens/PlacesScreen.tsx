@@ -5,8 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen, Text } from '../components';
 import { PlaceCard } from '../components/features';
-import { usePlaces } from '../services/mockData';
-import type { PlaceCategory } from '../services/mockData';
+import { usePlaces } from '../hooks/api/usePlaces';
+import type { PlaceCategory } from '../types/place.types';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 
@@ -25,21 +25,14 @@ const CATEGORIES: { key: PlaceCategory; label: string; icon: keyof typeof Ionico
 
 export default function PlacesScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { places, loading } = usePlaces();
   const [selectedCategory, setSelectedCategory] = React.useState<PlaceCategory | 'all'>('all');
-
-  const filteredPlaces = React.useMemo(() => {
-    if (selectedCategory === 'all') {
-      return places;
-    }
-    return places.filter(place => place.category === selectedCategory);
-  }, [places, selectedCategory]);
+  const { data: places, isLoading } = usePlaces(selectedCategory === 'all' ? undefined : selectedCategory);
 
   const handlePlacePress = (id: string) => {
     navigation.navigate(StackRoutes.PLACE_DETAIL, { placeId: id });
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Screen safeArea={true}>
         <View className="flex-1 items-center justify-center">
@@ -135,13 +128,13 @@ export default function PlacesScreen() {
       {/* Results Count */}
       <View className="px-4 pb-2">
         <Text variant="body" className="text-textSecondary">
-          {filteredPlaces.length} {filteredPlaces.length === 1 ? 'place' : 'places'} found
+          {places?.length || 0} {places?.length === 1 ? 'place' : 'places'} found
         </Text>
       </View>
 
       {/* Places List */}
       <View className="px-4 pb-4">
-        {filteredPlaces.length === 0 ? (
+        {!places || places.length === 0 ? (
           <View className="py-12 items-center">
             <Ionicons name="location-outline" size={48} color={colorValues.textMuted} />
             <Text variant="body" className="text-textMuted mt-4 text-center">
@@ -149,15 +142,15 @@ export default function PlacesScreen() {
             </Text>
           </View>
         ) : (
-          filteredPlaces.map((place) => (
+          places.map((place) => (
             <PlaceCard
               key={place.id}
               id={place.id}
               name={place.name}
               image={place.image}
-              rating={place.rating}
+              rating={Number(place.rating)}
               ratingCount={place.ratingCount}
-              neighborhood={place.neighborhood}
+              neighborhood={place.neighborhood || ''}
               priceRange={place.priceRange}
               isStudentFavorite={place.isStudentFavorite}
               hasDeal={place.hasDeal}

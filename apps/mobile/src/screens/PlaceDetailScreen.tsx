@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Text, Card, Button } from '../components';
-import { getPlaceDetail } from '../services/mockData';
-import type { PlaceDetail } from '../services/mockData';
+import { usePlaceById } from '../hooks/api/usePlaces';
+import { useReviewsByReviewable } from '../hooks/api/useReviews';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 
@@ -30,20 +30,13 @@ export default function PlaceDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { placeId } = route.params;
 
-  const [place, setPlace] = React.useState<PlaceDetail | null>(null);
+  const { data: place, isLoading } = usePlaceById(placeId);
+  const { data: reviews, isLoading: isLoadingReviews } = useReviewsByReviewable('PLACE', placeId);
+  
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
-  const [loading, setLoading] = React.useState(true);
   const [isSaved, setIsSaved] = React.useState(false);
-  const [replyingTo, setReplyingTo] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    getPlaceDetail(placeId).then(data => {
-      setPlace(data);
-      setLoading(false);
-    });
-  }, [placeId]);
-
-  if (loading || !place) {
+  if (isLoading || !place) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <Text variant="body" className="text-textSecondary">
@@ -60,11 +53,6 @@ export default function PlaceDetailScreen() {
 
   const handleGetDeal = () => {
     console.log('Get deal:', place.dealDescription);
-    // TODO: Implementar lógica de cupom/deal
-  };
-
-  const handleReply = (reviewId: string) => {
-    setReplyingTo(replyingTo === reviewId ? null : reviewId);
   };
 
   const getCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
@@ -96,10 +84,10 @@ export default function PlaceDetailScreen() {
             }}
             scrollEventThrottle={16}
           >
-            {place.images.map((img, index) => (
+            {place.images.map((image) => (
               <Image
-                key={index}
-                source={{ uri: img }}
+                key={image}
+                source={{ uri: image }}
                 style={{ width, height: 300 }}
                 resizeMode="cover"
               />
@@ -108,9 +96,9 @@ export default function PlaceDetailScreen() {
 
           {/* Page Indicators */}
           <View className="absolute bottom-4 left-0 right-0 flex-row justify-center gap-2">
-            {place.images.map((_, index) => (
+            {place.images.map((image, index) => (
               <View
-                key={index}
+                key={`${place.id}-${index}`}
                 className={`w-2 h-2 rounded-full ${
                   index === currentImageIndex ? 'bg-white' : 'bg-white/50'
                 }`}
@@ -169,7 +157,7 @@ export default function PlaceDetailScreen() {
               <View className="flex-row items-center gap-1">
                 <Ionicons name="star" size={18} color={colorValues.warning} />
                 <Text variant="body" className="font-semibold text-lg">
-                  {place.rating.toFixed(1)}
+                  {Number(place.rating).toFixed(1)}
                 </Text>
                 <Text variant="body" className="text-textMuted">
                   ({place.ratingCount} reviews)
@@ -249,25 +237,27 @@ export default function PlaceDetailScreen() {
           </Card>
 
           {/* Hours */}
-          <View className="gap-2">
-            <Text variant="h2" className="text-lg font-semibold">
-              Opening Hours
-            </Text>
-            <Card>
-              <View className="gap-2">
-                {Object.entries(place.hours).map(([day, hours]) => (
-                  <View key={day} className="flex-row items-center justify-between">
-                    <Text variant="body" className="text-textSecondary capitalize">
-                      {day}
-                    </Text>
-                    <Text variant="body" className="font-medium">
-                      {hours}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </Card>
-          </View>
+          {place.hours && (
+            <View className="gap-2">
+              <Text variant="h2" className="text-lg font-semibold">
+                Opening Hours
+              </Text>
+              <Card>
+                <View className="gap-2">
+                  {Object.entries(place.hours).map(([day, hours]) => (
+                    <View key={day} className="flex-row items-center justify-between">
+                      <Text variant="body" className="text-textSecondary capitalize">
+                        {day}
+                      </Text>
+                      <Text variant="body" className="font-medium">
+                        {hours}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            </View>
+          )}
 
           {/* Amenities */}
           {place.amenities.length > 0 && (
@@ -276,8 +266,8 @@ export default function PlaceDetailScreen() {
                 Amenities
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                {place.amenities.map((amenity, index) => (
-                  <View key={index} className="bg-primary-50 px-3 py-2 rounded-full">
+              {place.amenities.map((amenity) => (
+                  <View key={amenity} className="bg-primary-50 px-3 py-2 rounded-full">
                     <Text variant="caption" className="text-primary-700 font-medium">
                       {amenity}
                     </Text>
@@ -305,85 +295,79 @@ export default function PlaceDetailScreen() {
           )}
 
           {/* Reviews */}
-          {place.reviews.length > 0 && (
-            <View className="gap-3">
-              <Text variant="h2" className="text-lg font-semibold">
-                Reviews ({place.ratingCount})
-              </Text>
-
-              {place.reviews.map((review) => (
+          <View className="gap-3">
+            <Text variant="h2" className="text-lg font-semibold">
+              Reviews ({place.ratingCount})
+            </Text>
+            
+            {isLoadingReviews && (
+              <Card>
+                <Text variant="body" className="text-textSecondary text-center">
+                  Loading reviews...
+                </Text>
+              </Card>
+            )}
+            {!isLoadingReviews && (!reviews || reviews.length === 0) && (
+              <Card>
+                <Text variant="body" className="text-textSecondary text-center">
+                  No reviews yet. Be the first to review!
+                </Text>
+              </Card>
+            )}
+            {!isLoadingReviews && reviews && reviews.length > 0 && (
+              reviews.map((review) => (
                 <Card key={review.id}>
                   <View className="gap-3">
                     {/* Review Header */}
-                    <View className="flex-row items-center gap-3">
-                      <Image
-                        source={{ uri: review.userAvatar }}
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <View className="flex-1">
-                        <Text variant="body" className="font-semibold">
-                          {review.userName}
-                        </Text>
-                        <Text variant="caption" className="text-textMuted">
-                          {review.date}
-                        </Text>
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center gap-3">
+                        <View className="w-10 h-10 rounded-full bg-primary-100 items-center justify-center">
+                          <Text variant="body" className="text-primary-600 font-semibold">
+                            {(review.user?.name || 'Anonymous').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View>
+                          <Text variant="body" className="font-semibold">
+                            {review.user?.name || 'Anonymous'}
+                          </Text>
+                          <Text variant="caption" className="text-textSecondary">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </Text>
+                        </View>
                       </View>
                       <View className="flex-row items-center gap-1">
-                        <Ionicons name="star" size={14} color={colorValues.warning} />
-                        <Text variant="body" className="font-medium">
-                          {review.rating.toFixed(1)}
+                        <Ionicons name="star" size={16} color={colorValues.warning} />
+                        <Text variant="body" className="font-semibold">
+                          {Number(review.rating).toFixed(1)}
                         </Text>
                       </View>
                     </View>
 
-                    {/* Review Comment */}
-                    <Text variant="body" className="text-textSecondary leading-relaxed">
+                    {/* Review Content */}
+                    <Text variant="body" className="text-textSecondary">
                       {review.comment}
                     </Text>
 
-                    {/* Reply Button */}
-                    <TouchableOpacity
-                      onPress={() => handleReply(review.id)}
-                      activeOpacity={0.7}
-                      className="flex-row items-center gap-1"
-                    >
-                      <Ionicons name="chatbubble-outline" size={16} color={colorValues.primary[500]} />
-                      <Text variant="caption" className="text-primary-500 font-medium">
-                        Reply ({review.replies?.length || 0})
-                      </Text>
-                    </TouchableOpacity>
-
-                    {/* Replies */}
-                    {review.replies && review.replies.length > 0 && replyingTo === review.id && (
-                      <View className="ml-4 gap-3 pt-2 border-l-2 border-border pl-3">
-                        {review.replies.map((reply) => (
-                          <View key={reply.id} className="gap-2">
-                            <View className="flex-row items-center gap-2">
-                              <Image
-                                source={{ uri: reply.userAvatar }}
-                                className="w-8 h-8 rounded-full"
-                              />
-                              <View className="flex-1">
-                                <Text variant="caption" className="font-semibold">
-                                  {reply.userName}
-                                </Text>
-                                <Text variant="caption" className="text-textMuted text-xs">
-                                  {reply.date}
-                                </Text>
-                              </View>
-                            </View>
-                            <Text variant="caption" className="text-textSecondary">
-                              {reply.comment}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
+                    {/* Review Actions */}
+                    <View className="flex-row items-center gap-4 pt-2 border-t border-border">
+                      <TouchableOpacity className="flex-row items-center gap-1">
+                        <Ionicons name="thumbs-up-outline" size={16} color={colorValues.textSecondary} />
+                        <Text variant="caption" className="text-textSecondary">
+                          Helpful
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity className="flex-row items-center gap-1">
+                        <Ionicons name="chatbubble-outline" size={16} color={colorValues.textSecondary} />
+                        <Text variant="caption" className="text-textSecondary">
+                          Reply
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </Card>
-              ))}
-            </View>
-          )}
+              ))
+            )}
+          </View>
         </View>
       </ScrollView>
 
