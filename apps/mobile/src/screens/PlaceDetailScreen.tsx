@@ -321,14 +321,21 @@ export default function PlaceDetailScreen() {
                     {/* Review Header */}
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center gap-3">
-                        <View className="w-10 h-10 rounded-full bg-primary-100 items-center justify-center">
-                          <Text variant="body" className="text-primary-600 font-semibold">
-                            {(review.user?.name || 'Anonymous').charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
+                        {review.user?.avatar ? (
+                          <Image 
+                            source={{ uri: review.user.avatar }} 
+                            className="w-10 h-10 rounded-full"
+                          />
+                        ) : (
+                          <View className="w-10 h-10 rounded-full bg-primary-100 items-center justify-center">
+                            <Text variant="body" className="text-primary-600 font-semibold">
+                              {(review.user?.firstName || 'A').charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
                         <View>
                           <Text variant="body" className="font-semibold">
-                            {review.user?.name || 'Anonymous'}
+                            {review.user ? `${review.user.firstName} ${review.user.lastName}` : 'Anonymous'}
                           </Text>
                           <Text variant="caption" className="text-textSecondary">
                             {new Date(review.createdAt).toLocaleDateString()}

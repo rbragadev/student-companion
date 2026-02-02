@@ -9,8 +9,9 @@ export interface Review {
   updatedAt: string;
   user?: {
     id: string;
-    name: string;
+    firstName: string;
+    lastName: string;
     email: string;
-    avatarUrl?: string;
+    avatar?: string;
   };
 }
