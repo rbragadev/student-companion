@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Text, Card, Button } from '../components';
-import { getCourseDetail } from '../services/mockData';
-import type { CourseDetail } from '../services/mockData';
+import { useCourseById } from '../hooks/api/useCourses';
+import { useReviewsByReviewable } from '../hooks/api/useReviews';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 
@@ -19,16 +19,11 @@ export default function CourseDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { courseId } = route.params;
 
-  const [course, setCourse] = React.useState<CourseDetail | null>(null);
+  const { data: course, isLoading: courseLoading } = useCourseById(courseId);
+  const { data: reviews = [], isLoading: reviewsLoading } = useReviewsByReviewable('COURSE', courseId);
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
-  const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    getCourseDetail(courseId).then(data => {
-      setCourse(data);
-      setLoading(false);
-    });
-  }, [courseId]);
+  const loading = courseLoading || reviewsLoading;
 
   if (loading || !course) {
     return (
@@ -108,9 +103,9 @@ export default function CourseDetailScreen() {
           <View className="gap-2">
             <View className="flex-row items-center justify-between">
               <Text variant="caption" className="text-textSecondary font-medium">
-                {course.schoolName}
+                {course.school?.name || 'Unknown School'}
               </Text>
-              {course.isPartner && course.badge && (
+              {course.school?.isPartner && course.badge && (
                 <View className="bg-success/10 px-3 py-1 rounded-full">
                   <Text variant="caption" className="text-success font-medium">
                     {course.badge}
@@ -122,7 +117,7 @@ export default function CourseDetailScreen() {
               {course.programName}
             </Text>
             <Text variant="body" className="text-textMuted">
-              {course.location}
+              {course.school?.location || 'Location not specified'}
             </Text>
           </View>
 
@@ -155,7 +150,7 @@ export default function CourseDetailScreen() {
                 </Text>
               </View>
 
-              {course.priceCad && (
+              {course.priceInCents && (
                 <>
                   <View className="h-px bg-border" />
                   <View className="flex-row items-center justify-between">
@@ -166,7 +161,7 @@ export default function CourseDetailScreen() {
                       </Text>
                     </View>
                     <Text variant="h2" className="text-xl font-bold text-primary-500">
-                      {course.priceCad}
+                      ${(course.priceInCents / 100).toFixed(2)}
                       <Text variant="body" className="text-textMuted font-normal">
                         {' '}/month
                       </Text>
@@ -218,7 +213,7 @@ export default function CourseDetailScreen() {
           </Card>
 
           {/* Reviews */}
-          {course.reviews.length > 0 && (
+          {reviews.length > 0 && (
             <View className="gap-3">
               <View className="flex-row items-center justify-between">
                 <Text variant="h2" className="text-lg font-semibold">
@@ -227,7 +222,7 @@ export default function CourseDetailScreen() {
                 <View className="flex-row items-center gap-1">
                   <Ionicons name="star" size={16} color={colorValues.warning} />
                   <Text variant="body" className="font-semibold">
-                    {course.rating.toFixed(1)}
+                    {course.rating ? Number(course.rating).toFixed(1) : '0.0'}
                   </Text>
                   <Text variant="caption" className="text-textMuted">
                     ({course.ratingCount})
@@ -235,20 +230,20 @@ export default function CourseDetailScreen() {
                 </View>
               </View>
 
-              {course.reviews.map((review) => (
+              {reviews.map((review) => (
                 <Card key={review.id}>
                   <View className="gap-3">
                     <View className="flex-row items-center gap-3">
                       <Image
-                        source={{ uri: review.userAvatar }}
+                        source={{ uri: review.user?.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/png?seed=' + review.userId }}
                         className="w-10 h-10 rounded-full"
                       />
                       <View className="flex-1">
                         <Text variant="body" className="font-semibold">
-                          {review.userName}
+                          {review.user?.name || 'Anonymous'}
                         </Text>
                         <Text variant="caption" className="text-textMuted">
-                          {review.date}
+                          {new Date(review.createdAt).toLocaleDateString()}
                         </Text>
                       </View>
                       <View className="flex-row items-center gap-1">
@@ -273,13 +268,13 @@ export default function CourseDetailScreen() {
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-border px-4 py-4">
         <View className="flex-row items-center justify-between gap-4">
           <View>
-            {course.priceCad && (
+            {course.priceInCents && (
               <>
                 <Text variant="caption" className="text-textMuted">
                   Starting from
                 </Text>
                 <Text variant="h2" className="text-xl font-bold text-primary-500">
-                  {course.priceCad}
+                  ${(course.priceInCents / 100).toFixed(2)}
                   <Text variant="body" className="text-textMuted font-normal text-sm">
                     {' '}/month
                   </Text>

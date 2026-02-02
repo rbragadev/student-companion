@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen, Text } from '../components';
 import { CourseCard } from '../components/features';
-import { useCourses } from '../services/mockData';
+import { useCourses } from '../hooks/api/useCourses';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 
@@ -13,24 +13,25 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function CourseScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { courses, loading } = useCourses();
+  const { data: courses = [], isLoading: loading } = useCourses();
   const [searchText, setSearchText] = React.useState('');
   const [selectedSchool, setSelectedSchool] = React.useState<string | null>(null);
 
   // Extrai escolas únicas dos cursos
   const schools = React.useMemo(() => {
-    const uniqueSchools = Array.from(new Set(courses.map(course => course.schoolName)));
+    const uniqueSchools = Array.from(new Set(courses.map(course => course.school?.name || 'Unknown School')));
     return uniqueSchools.sort();
   }, [courses]);
 
   // Filtra cursos com base na busca e escola selecionada
   const filteredCourses = React.useMemo(() => {
     return courses.filter(course => {
+      const schoolName = course.school?.name || 'Unknown School';
       const matchesSearch = searchText === '' || 
         course.programName.toLowerCase().includes(searchText.toLowerCase()) ||
-        course.schoolName.toLowerCase().includes(searchText.toLowerCase());
+        schoolName.toLowerCase().includes(searchText.toLowerCase());
       
-      const matchesSchool = !selectedSchool || course.schoolName === selectedSchool;
+      const matchesSchool = !selectedSchool || schoolName === selectedSchool;
       
       return matchesSearch && matchesSchool;
     });
@@ -139,22 +140,29 @@ export default function CourseScreen() {
             </Text>
           </View>
         ) : (
-          filteredCourses.map((course) => (
-            <CourseCard
-              key={course.id}
-              id={course.id}
-              schoolName={course.schoolName}
-              programName={course.programName}
-              weeklyHours={course.weeklyHours}
-              priceCad={course.priceCad}
-              rating={course.rating}
-              ratingCount={course.ratingCount}
-              isPartner={course.isPartner}
-              badge={course.badge}
-              image={course.image}
-              onPress={() => handleCoursePress(course.id)}
-            />
-          ))
+          filteredCourses.map((course) => {
+            const schoolName = course.school?.name || 'Unknown School';
+            const priceCad = course.priceInCents 
+              ? `$${(course.priceInCents / 100).toFixed(2)}` 
+              : undefined;
+            
+            return (
+              <CourseCard
+                key={course.id}
+                id={course.id}
+                schoolName={schoolName}
+                programName={course.programName}
+                weeklyHours={course.weeklyHours}
+                priceCad={priceCad}
+                rating={course.rating ? Number(course.rating) : 0}
+                ratingCount={course.ratingCount}
+                isPartner={course.school?.isPartner || false}
+                badge={course.badge}
+                image={course.image}
+                onPress={() => handleCoursePress(course.id)}
+              />
+            );
+          })
         )}
       </View>
     </Screen>
