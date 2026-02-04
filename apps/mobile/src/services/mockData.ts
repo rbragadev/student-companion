@@ -104,31 +104,6 @@ export const getUserInterests = async (): Promise<UserInterest[]> => {
   ];
 };
 
-// Simula uma chamada à API que retorna avaliações do usuário
-export const getUserReviews = async (): Promise<UserReview[]> => {
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  return [
-    {
-      id: '1',
-      itemId: 'acc-1',
-      itemType: 'accommodation',
-      itemName: 'Shared House in Kitsilano',
-      rating: 5,
-      comment: 'Great place! Very clean and the host was super helpful. Would definitely recommend.',
-      date: '2025-12-20',
-    },
-    {
-      id: '2',
-      itemId: 'course-1',
-      itemType: 'course',
-      itemName: 'EC English - IELTS Preparation',
-      rating: 4,
-      comment: 'Good program overall. Teachers are experienced and the school has good facilities.',
-      date: '2025-11-15',
-    },
-  ];
-};
 
 // Simula uma chamada à API que retorna o conteúdo do Hero Card
 export const getHeroContent = async (): Promise<HeroContent> => {
@@ -237,21 +212,6 @@ export const useUserInterests = () => {
   }, []);
 
   return { interests, loading };
-};
-
-// Hook para usar avaliações do usuário
-export const useUserReviews = () => {
-  const [reviews, setReviews] = React.useState<UserReview[]>([]);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    getUserReviews().then(data => {
-      setReviews(data);
-      setLoading(false);
-    });
-  }, []);
-
-  return { reviews, loading };
 };
 
 // Simula uma chamada à API do Copilot

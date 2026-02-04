@@ -18,8 +18,8 @@ import { Platform } from 'react-native';
 
 const DEV_API_URL = Platform.select({
   android: 'http://10.0.2.2:3000',      // Android Emulator
-  ios: 'http://192.168.68.103:3000',    // iOS Simulator - IP da máquina host
-  default: 'http://192.168.68.103:3000',
+  ios: 'http://192.168.68.101:3000',    // iOS Simulator - IP da máquina host
+  default: 'http://192.168.68.101:3000',
 });
 
 export const API_CONFIG = {

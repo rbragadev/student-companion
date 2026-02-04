@@ -4,18 +4,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen, Text, Card, Button } from '../components';
-import { useUserInterests, useUserReviews } from '../services/mockData';
+import { useUserInterests } from '../services/mockData';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList } from '../types/navigation';
 import { useUserProfile } from '../hooks/api/useUserProfile';
+import { useReviewsByUser } from '../hooks/api/useReviews';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { data: user, isLoading: userLoading, error: userError } = useUserProfile('a8ee8202-7adb-48d9-a2c7-6a03ffc75b48');
+  const userId = 'a8ee8202-7adb-48d9-a2c7-6a03ffc75b48';
+  const { data: user, isLoading: userLoading, error: userError } = useUserProfile(userId);
   const { interests, loading: interestsLoading } = useUserInterests();
-  const { reviews, loading: reviewsLoading } = useUserReviews();
+  const { data: reviews, isLoading: reviewsLoading } = useReviewsByUser(userId);
 
   const handleEditProfile = () => {
     console.log('Edit profile');
@@ -77,6 +79,15 @@ export default function ProfileScreen() {
       case 'contacted': return 'Contacted';
       case 'closed': return 'Closed';
       default: return status;
+    }
+  };
+
+  const getReviewableTypeName = (type: string) => {
+    switch (type) {
+      case 'COURSE': return 'Course';
+      case 'ACCOMMODATION': return 'Accommodation';
+      case 'PLACE': return 'Place';
+      default: return type;
     }
   };
 
@@ -290,7 +301,7 @@ export default function ProfileScreen() {
       )}
 
       {/* My Reviews */}
-      {!reviewsLoading && reviews.length > 0 && (
+      {!reviewsLoading && reviews && reviews.length > 0 && (
         <View className="px-4 pb-4 gap-3">
           <Text variant="h2" className="text-lg font-semibold">
             My Reviews
@@ -302,10 +313,10 @@ export default function ProfileScreen() {
                 <View className="flex-row items-start justify-between">
                   <View className="flex-1">
                     <Text variant="body" className="font-semibold">
-                      {review.itemName}
+                      {getReviewableTypeName(review.reviewableType)}
                     </Text>
                     <Text variant="caption" className="text-textMuted">
-                      {review.date}
+                      {new Date(review.createdAt).toLocaleDateString()}
                     </Text>
                   </View>
                   <View className="flex-row items-center gap-1">
