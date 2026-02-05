@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { recommendationApi } from '../../services/api/recommendationApi';
 import { Recommendation as ApiRecommendation } from '../../types/api.types';
+import { extractCityFromSubtitle, extractPriceFromSubtitle } from '../../utils/formatters';
 
 /**
  * Interface compatível com os componentes atuais
@@ -22,29 +23,26 @@ interface ComponentRecommendation {
 
 /**
  * Transforma dados da API para formato do componente
- * Adiciona valores mock para campos que ainda não existem no banco
+ * Usa switch para lógica específica por tipo
  */
 const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecommendation => {
-  // Extrai location do subtitle (ex: "Homestay • $950/month" -> "Homestay")
-  const location = apiRec.subtitle.split('•')[0]?.trim();
+  // Extrai campos comuns usando formatters
+  const location = extractCityFromSubtitle(apiRec.subtitle);
+  const price = extractPriceFromSubtitle(apiRec.subtitle);
   
-  // Extrai price do subtitle (ex: "Homestay • $950/month" -> "$950")
-  const priceMatch = apiRec.subtitle.match(/\$[\d,]+/);
-  const price = priceMatch ? priceMatch[0] : undefined;
-  
-  // Extrai priceUnit do subtitle (ex: "Homestay • $950/month" -> "month")
+  // Extrai priceUnit do subtitle
   const priceUnitMatch = apiRec.subtitle.match(/\/(week|month|day|year)/);
   const priceUnit = priceUnitMatch ? priceUnitMatch[1] : undefined;
 
-  // Extrai rating de forma segura e converte para número
+  // Extrai e valida rating (converte string para número)
   const ratingRaw = (apiRec.data as any)?.rating;
   const rating = ratingRaw ? parseFloat(ratingRaw) : undefined;
-  // Se rating for 0, trata como undefined (sem avaliação ainda)
   const validRating = rating && rating > 0 ? rating : undefined;
 
-  return {
+  // Base comum para todos os tipos
+  const baseRecommendation = {
     id: apiRec.id,
-    type: apiRec.type as 'accommodation' | 'course',  // Cast para apenas os tipos suportados
+    type: apiRec.type as 'accommodation' | 'course',
     title: apiRec.title,
     image: apiRec.imageUrl,
     badge: apiRec.badge || undefined,
@@ -52,11 +50,51 @@ const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecomme
     price,
     priceUnit,
     rating: validRating,
-    
-    // TODO: Valores mock - implementar extração real depois
-    features: ['🇨🇦', '📚', '1'], // TODO: transformar data.amenities em ícones
-    distance: '20 min to school',  // TODO: calcular com Haversine ou pegar de data.distanceToSchool
   };
+
+  // Lógica específica por tipo
+  switch (apiRec.type) {
+    case 'accommodation':
+      return {
+        ...baseRecommendation,
+        // TODO: Extrair de data.amenities quando disponível
+        features: ['🇨🇦', '📚', '1'],
+        // TODO: Calcular com Haversine usando data.latitude/longitude
+        distance: '20 min to school',
+      };
+
+    case 'course':
+      return {
+        ...baseRecommendation,
+        // TODO: Extrair data.weeklyHours, data.duration, data.school.name
+        features: ['🇨🇦', '📚', '10'],
+        // TODO: Usar data.school.location para calcular distância
+        distance: '20 min to school',
+      };
+
+    case 'place':
+      return {
+        ...baseRecommendation,
+        // TODO: Extrair data.category, data.amenities
+        features: ['⭐', '🎉'],
+        distance: undefined, // Places não precisam de distância para escola
+      };
+
+    case 'school':
+      return {
+        ...baseRecommendation,
+        // TODO: Extrair data._count.courses, isPartner
+        features: ['🎓', '🌟'],
+        distance: undefined, // Schools são o destino, não precisam de distância
+      };
+
+    default:
+      return {
+        ...baseRecommendation,
+        features: [],
+        distance: undefined,
+      };
+  }
 };
 
 const recommendationQueryKeys = {
