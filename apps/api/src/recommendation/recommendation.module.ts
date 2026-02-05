@@ -7,6 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AccommodationStrategy } from './strategies/accommodation.strategy';
 import { CourseStrategy } from './strategies/course.strategy';
 import { PlaceStrategy } from './strategies/place.strategy';
+import { SchoolStrategy } from './strategies/school.strategy';
 
 // Factory
 import { StrategyFactory } from './factories/strategy.factory';
@@ -29,6 +30,12 @@ import { PlaceRatingRule } from './rules/place/rating.rule';
 import { PlaceStudentFavoriteRule } from './rules/place/student-favorite.rule';
 import { PlaceDealRule } from './rules/place/deal.rule';
 
+// School Rules
+import { SchoolRatingRule } from './rules/school/rating.rule';
+import { SchoolProgramsVarietyRule } from './rules/school/programs-variety.rule';
+import { SchoolLocationRule } from './rules/school/location.rule';
+import { SchoolAccreditationRule } from './rules/school/accreditation.rule';
+
 @Module({
   imports: [PrismaModule],
   controllers: [RecommendationController],
@@ -40,6 +47,7 @@ import { PlaceDealRule } from './rules/place/deal.rule';
     AccommodationStrategy,
     CourseStrategy,
     PlaceStrategy,
+    SchoolStrategy,
     
     // Accommodation Rules
     AccommodationBudgetRule,
@@ -58,6 +66,12 @@ import { PlaceDealRule } from './rules/place/deal.rule';
     PlaceRatingRule,
     PlaceStudentFavoriteRule,
     PlaceDealRule,
+    
+    // School Rules
+    SchoolRatingRule,
+    SchoolProgramsVarietyRule,
+    SchoolLocationRule,
+    SchoolAccreditationRule,
   ],
 })
 export class RecommendationModule {}

@@ -3,7 +3,7 @@ import { ScoringRule, RecommendableEntity } from './scoring-rule.interface';
 
 export interface Recommendation {
   id: string;
-  type: 'accommodation' | 'course' | 'place';
+  type: 'accommodation' | 'course' | 'place' | 'school';
   title: string;
   subtitle?: string;
   score: number;

@@ -6,6 +6,17 @@ import { GetRecommendationsDto } from './dto/get-recommendation.dto';
 export class RecommendationController {
   constructor(private readonly recommendationService: RecommendationService) {}
 
+  @Get(':userId/mixed')
+  async getMixedRecommendations(
+    @Param('userId') userId: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.recommendationService.getMixedRecommendations(
+      userId,
+      limit ?? 10,
+    );
+  }
+
   @Get(':userId')
   async getRecommendations(
     @Param('userId') userId: string,

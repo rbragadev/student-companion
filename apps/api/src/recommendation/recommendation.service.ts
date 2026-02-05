@@ -71,4 +71,38 @@ export class RecommendationService {
       .toSorted((a, b) => b.score - a.score)
       .slice(0, limit);
   }
+
+  /**
+   * Retorna recomendações de todos os tipos (accommodation, course, place)
+   * misturadas e ordenadas por score.
+   * Ideal para feeds ou tela inicial.
+   */
+  async getMixedRecommendations(
+    userId: string,
+    limit: number,
+  ): Promise<Recommendation[]> {
+    // Buscar recomendações de todos os tipos em paralelo
+    const [accommodations, courses, places, schools] = await Promise.all([
+      this.getRecommendations(
+        userId,
+        RecommendationType.ACCOMMODATION,
+        50,
+      ),
+      this.getRecommendations(userId, RecommendationType.COURSE, 50),
+      this.getRecommendations(userId, RecommendationType.PLACE, 50),
+      this.getRecommendations(userId, RecommendationType.SCHOOL, 50),
+    ]);
+
+    // Combinar todas as recomendações e ordenar por score
+    const allRecommendations = [
+      ...accommodations,
+      ...courses,
+      ...places,
+      ...schools,
+    ];
+
+    return allRecommendations
+      .toSorted((a, b) => b.score - a.score)
+      .slice(0, limit);
+  }
 }

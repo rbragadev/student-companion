@@ -255,7 +255,7 @@ import { ScoringRule, RecommendableEntity } from './scoring-rule.interface';
 
 export interface Recommendation {
   id: string;
-  type: 'accommodation' | 'course' | 'place';
+  type: 'accommodation' | 'course' | 'place' | 'school';
   title: string;
   subtitle?: string;
   score: number;
@@ -843,7 +843,171 @@ export class PlaceStrategy implements RecommendationStrategy {
 }
 ```
 
-### 8. Strategy Factory
+### 8. School Rules
+
+```typescript
+// apps/api/src/recommendation/rules/school/rating.rule.ts
+import { Injectable } from '@nestjs/common';
+import { School, UserPreferences } from '@prisma/client';
+import { BaseScoringRule } from '../base-scoring.rule';
+import { ScoringContext } from '../../interfaces/scoring-rule.interface';
+
+@Injectable()
+export class SchoolRatingRule extends BaseScoringRule<School, UserPreferences> {
+  constructor() {
+    super('SchoolRating', 0.4);
+  }
+
+  calculate(context: ScoringContext<School, UserPreferences>): number {
+    const rating = context.entity.rating;
+    if (!rating) return 50;
+    return this.normalize((Number(rating) / 5) * 100);
+  }
+}
+```
+
+```typescript
+// apps/api/src/recommendation/rules/school/programs-variety.rule.ts
+import { Injectable } from '@nestjs/common';
+import { School, UserPreferences } from '@prisma/client';
+import { BaseScoringRule } from '../base-scoring.rule';
+import { ScoringContext } from '../../interfaces/scoring-rule.interface';
+
+@Injectable()
+export class SchoolProgramsVarietyRule extends BaseScoringRule<School, UserPreferences> {
+  constructor() {
+    super('SchoolProgramsVariety', 0.25);
+  }
+
+  calculate(context: ScoringContext<School, UserPreferences>): number {
+    const programTypes = context.entity.programTypes || [];
+    const score = Math.min(100, programTypes.length * 25);
+    return this.normalize(score);
+  }
+}
+```
+
+```typescript
+// apps/api/src/recommendation/rules/school/location.rule.ts
+import { Injectable } from '@nestjs/common';
+import { School, UserPreferences } from '@prisma/client';
+import { BaseScoringRule } from '../base-scoring.rule';
+import { ScoringContext } from '../../interfaces/scoring-rule.interface';
+
+@Injectable()
+export class SchoolLocationRule extends BaseScoringRule<School, UserPreferences> {
+  constructor() {
+    super('SchoolLocation', 0.2);
+  }
+
+  calculate(context: ScoringContext<School, UserPreferences>): number {
+    const preferredCities = context.userPreferences.preferredCities || [];
+    if (preferredCities.length === 0) return 50;
+    
+    const schoolCity = context.entity.location?.city;
+    if (!schoolCity) return 50;
+    
+    const isPreferred = preferredCities.some(
+      (city) => city.toLowerCase() === schoolCity.toLowerCase(),
+    );
+    
+    return isPreferred ? 100 : 30;
+  }
+}
+```
+
+```typescript
+// apps/api/src/recommendation/rules/school/accreditation.rule.ts
+import { Injectable } from '@nestjs/common';
+import { School, UserPreferences } from '@prisma/client';
+import { BaseScoringRule } from '../base-scoring.rule';
+import { ScoringContext } from '../../interfaces/scoring-rule.interface';
+
+@Injectable()
+export class SchoolAccreditationRule extends BaseScoringRule<School, UserPreferences> {
+  constructor() {
+    super('SchoolAccreditation', 0.15);
+  }
+
+  calculate(context: ScoringContext<School, UserPreferences>): number {
+    let score = 0;
+    if (context.entity.isAccredited) score += 60;
+    if (context.entity.isPartner) score += 40;
+    return this.normalize(score);
+  }
+}
+```
+
+### 9. School Strategy
+
+```typescript
+// apps/api/src/recommendation/strategies/school.strategy.ts
+import { Injectable } from '@nestjs/common';
+import { School, UserPreferences } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
+import {
+  RecommendationStrategy,
+  Recommendation,
+} from '../interfaces/recommendation-strategy.interface';
+import { ScoringRule } from '../interfaces/scoring-rule.interface';
+import { SchoolRatingRule } from '../rules/school/rating.rule';
+import { SchoolProgramsVarietyRule } from '../rules/school/programs-variety.rule';
+import { SchoolLocationRule } from '../rules/school/location.rule';
+import { SchoolAccreditationRule } from '../rules/school/accreditation.rule';
+
+@Injectable()
+export class SchoolStrategy implements RecommendationStrategy {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ratingRule: SchoolRatingRule,
+    private readonly programsVarietyRule: SchoolProgramsVarietyRule,
+    private readonly locationRule: SchoolLocationRule,
+    private readonly accreditationRule: SchoolAccreditationRule,
+  ) {}
+
+  async fetchEntities(userPreferences: UserPreferences): Promise<School[]> {
+    return this.prisma.school.findMany({
+      include: {
+        location: true,
+        _count: { select: { courses: true } },
+      },
+    });
+  }
+
+  getScoringRules(): ScoringRule<School, UserPreferences>[] {
+    return [
+      this.ratingRule,
+      this.programsVarietyRule,
+      this.locationRule,
+      this.accreditationRule,
+    ];
+  }
+
+  mapToRecommendation(entity: School, score: number): Recommendation {
+    let badge = '';
+    if (entity.isPartner) {
+      badge = '⭐ Partner';
+    } else if (entity.isAccredited) {
+      badge = '✓ Accredited';
+    }
+
+    const coursesCount = (entity as any)._count?.courses || 0;
+
+    return {
+      id: entity.id,
+      type: 'school',
+      title: entity.name,
+      subtitle: `${entity.location?.city || 'Unknown'} • ${coursesCount} courses`,
+      score: Math.round(score * 10) / 10,
+      badge,
+      imageUrl: entity.logoUrl || 'https://via.placeholder.com/150',
+      data: entity,
+    };
+  }
+}
+```
+
+### 10. Strategy Factory
 
 ```typescript
 // apps/api/src/recommendation/factories/strategy.factory.ts
@@ -853,13 +1017,15 @@ import { RecommendationStrategy } from '../interfaces/recommendation-strategy.in
 import { AccommodationStrategy } from '../strategies/accommodation.strategy';
 import { CourseStrategy } from '../strategies/course.strategy';
 import { PlaceStrategy } from '../strategies/place.strategy';
+import { SchoolStrategy } from '../strategies/school.strategy';
 
 @Injectable()
 export class StrategyFactory {
   constructor(
-    private accommodationStrategy: AccommodationStrategy,
-    private courseStrategy: CourseStrategy,
-    private placeStrategy: PlaceStrategy,
+    private readonly accommodationStrategy: AccommodationStrategy,
+    private readonly courseStrategy: CourseStrategy,
+    private readonly placeStrategy: PlaceStrategy,
+    private readonly schoolStrategy: SchoolStrategy,
   ) {}
 
   getStrategy(type: RecommendationType): RecommendationStrategy {
@@ -870,6 +1036,8 @@ export class StrategyFactory {
         return this.courseStrategy;
       case RecommendationType.PLACE:
         return this.placeStrategy;
+      case RecommendationType.SCHOOL:
+        return this.schoolStrategy;
       default:
         throw new Error(`Unknown recommendation type: ${type}`);
     }
@@ -996,6 +1164,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AccommodationStrategy } from './strategies/accommodation.strategy';
 import { CourseStrategy } from './strategies/course.strategy';
 import { PlaceStrategy } from './strategies/place.strategy';
+import { SchoolStrategy } from './strategies/school.strategy';
 
 // Factory
 import { StrategyFactory } from './factories/strategy.factory';
@@ -1018,6 +1187,12 @@ import { PlaceRatingRule } from './rules/place/rating.rule';
 import { PlaceStudentFavoriteRule } from './rules/place/student-favorite.rule';
 import { PlaceDealRule } from './rules/place/deal.rule';
 
+// School Rules
+import { SchoolRatingRule } from './rules/school/rating.rule';
+import { SchoolProgramsVarietyRule } from './rules/school/programs-variety.rule';
+import { SchoolLocationRule } from './rules/school/location.rule';
+import { SchoolAccreditationRule } from './rules/school/accreditation.rule';
+
 @Module({
   imports: [PrismaModule],
   controllers: [RecommendationController],
@@ -1029,6 +1204,7 @@ import { PlaceDealRule } from './rules/place/deal.rule';
     AccommodationStrategy,
     CourseStrategy,
     PlaceStrategy,
+    SchoolStrategy,
     
     // Accommodation Rules
     AccommodationBudgetRule,
@@ -1047,6 +1223,12 @@ import { PlaceDealRule } from './rules/place/deal.rule';
     PlaceRatingRule,
     PlaceStudentFavoriteRule,
     PlaceDealRule,
+    
+    // School Rules
+    SchoolRatingRule,
+    SchoolProgramsVarietyRule,
+    SchoolLocationRule,
+    SchoolAccreditationRule,
   ],
 })
 export class RecommendationModule {}

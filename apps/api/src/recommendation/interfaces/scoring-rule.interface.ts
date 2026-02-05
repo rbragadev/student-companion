@@ -1,9 +1,9 @@
-import { Accommodation, Course, Place, UserPreferences } from '@prisma/client';
+import { Accommodation, Course, Place, School, UserPreferences } from '@prisma/client';
 
 /**
  * União de tipos de entidades suportadas para recomendação
  */
-export type RecommendableEntity = Accommodation | Course | Place;
+export type RecommendableEntity = Accommodation | Course | Place | School;
 
 /**
  * Contexto genérico para cálculo de scoring
