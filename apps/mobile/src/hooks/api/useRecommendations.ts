@@ -1,7 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { dataTagErrorSymbol, useQuery } from '@tanstack/react-query';
 import { recommendationApi, RecommendationType } from '../../services/api/recommendationApi';
 import { Recommendation as ApiRecommendation } from '../../types/recommendation.types';
 import { extractPriceFromSubtitle } from '../../utils/formatters';
+import { Place } from '../../types/place.types';
+import { Accommodation } from '../../types/accommodation.types';
 
 /**
  * Interface compatível com os componentes atuais
@@ -11,6 +13,7 @@ interface ComponentRecommendation {
   id: string;
   type: 'accommodation' | 'course' | 'place' | 'school';
   title: string;
+  subtitle?: string;
   image: string;
   badge?: string;
   location?: string;
@@ -44,6 +47,7 @@ const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecomme
     id: apiRec.id,
     type: apiRec.type,
     title: apiRec.title,
+    subtitle: apiRec.subtitle,
     image: apiRec.imageUrl,
     badge: apiRec.badge || undefined,
     location: apiRec.location,
@@ -56,6 +60,7 @@ const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecomme
   // Lógica específica por tipo
   switch (apiRec.type) {
     case 'accommodation':
+      const accomData = apiRec.data as Accommodation;
       return {
         ...baseRecommendation,
         // TODO: Extrair de data.amenities quando disponível
@@ -73,13 +78,15 @@ const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecomme
         distance: '20 min to school',
       };
 
-    case 'place':
+    case 'place': {
+      const placeData = apiRec.data as Place;
       return {
         ...baseRecommendation,
-        // TODO: Extrair data.category, data.amenities
+        price: placeData.priceRange || undefined,
         features: ['⭐', '🎉'],
         distance: undefined, // Places não precisam de distância para escola
       };
+    }
 
     case 'school':
       return {

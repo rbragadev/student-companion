@@ -40,14 +40,15 @@ export class AccommodationStrategy implements RecommendationStrategy {
   mapToRecommendation(entity: RecommendableEntity, score: number): Recommendation {
     const accommodation = entity as Accommodation;
 
-    // Usa o primeiro badge do array de badges
+    const subtitle = `${accommodation.accommodationType} - $${(accommodation.priceInCents / 100).toFixed(0)}/${accommodation.priceUnit}`;
+
     const badge = accommodation.badges?.[0] || '';
 
     return {
       id: accommodation.id,
       type: 'accommodation',
       title: accommodation.title,
-      subtitle: `${accommodation.accommodationType} • $${(accommodation.priceInCents / 100).toFixed(0)}/${accommodation.priceUnit}`,
+      subtitle,
       location: accommodation.location || 'Unknown',
       score: Math.round(score * 10) / 10,
       badge,

@@ -33,7 +33,7 @@ export class PlaceStrategy implements RecommendationStrategy {
     // Usa o primeiro badge do array de badges
     const badge = place.badges?.[0] || '';
 
-    const subtitle = `${place.location || 'Unknown'}`;
+    const subtitle = `${place.category || 'Unknown'} • ${place.dealDescription || 'Unknown'}`;
 
     return {
       id: place.id,

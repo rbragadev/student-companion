@@ -8,6 +8,7 @@ interface RecommendationCardProps {
   id: string;
   type: 'accommodation' | 'course' | 'school' | 'place';
   title: string;
+  subtitle?: string;
   image: string;
   badge?: string;
   location?: string;
@@ -23,6 +24,7 @@ interface RecommendationCardProps {
 export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   type,
   title,
+  subtitle,
   image,
   badge,
   location,
@@ -85,6 +87,17 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
               )}
             </View>
           </View>
+
+          {subtitle && (
+            <Text
+              variant="caption"
+              className="text-textSecondary"
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {subtitle}
+            </Text>
+          )}
 
           {location && (
             <View className="flex-row items-center gap-1">

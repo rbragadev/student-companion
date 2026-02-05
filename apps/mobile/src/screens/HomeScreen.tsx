@@ -145,6 +145,7 @@ export default function HomeScreen() {
                 id={rec.id}
                 type={rec.type}
                 title={rec.title}
+                subtitle={rec.subtitle}
                 image={rec.image}
                 badge={rec.badge}
                 location={rec.location}
