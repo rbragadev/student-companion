@@ -8,9 +8,10 @@ import { ReviewModule } from './review/review.module';
 import { SchoolModule } from './school/school.module';
 import { AccommodationModule } from './accommodation/accommodation.module';
 import { PlaceModule } from './place/place.module';
+import { RecommendationModule } from './recommendation/recommendation.module';
 
 @Module({
-  imports: [PrismaModule, UserModule, CourseModule, ReviewModule, SchoolModule, AccommodationModule, PlaceModule],
+  imports: [PrismaModule, UserModule, CourseModule, ReviewModule, SchoolModule, AccommodationModule, PlaceModule, RecommendationModule],
   controllers: [AppController],
   providers: [AppService],
 })
