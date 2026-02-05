@@ -30,25 +30,27 @@ export class CourseStrategy implements RecommendationStrategy {
   }
 
   getScoringRules(): ScoringRule[] {
-    return [
-      this.budgetRule,
-      this.ratingRule,
-      this.englishLevelRule,
-      this.durationRule,
-    ];
+    return [this.budgetRule, this.ratingRule, this.englishLevelRule, this.durationRule];
   }
 
   mapToRecommendation(entity: RecommendableEntity, score: number): Recommendation {
     const course = entity as Course & { school: { name: string } };
-    
+
     // Usa o primeiro badge do array de badges
     const badge = course.badges?.[0] || '';
-    
+
+    // Formata preço se disponível
+    const priceText =
+      course.price_in_cents && course.price_unit
+        ? ` • $${(course.price_in_cents / 100).toFixed(0)}/${course.price_unit}`
+        : '';
+
     return {
       id: course.id,
       type: 'course',
-      title: course.programName,
-      subtitle: `${course.weeklyHours}h/week • ${course.school.name}`,
+      title: course.program_name,
+      subtitle: `${priceText} • ${course.school.name}`,
+      location: 'TODO',
       score: Math.round(score * 10) / 10,
       badge,
       imageUrl: course.images?.[0] || 'https://via.placeholder.com/150',

@@ -32,7 +32,7 @@ export default function PlaceDetailScreen() {
 
   const { data: place, isLoading } = usePlaceById(placeId);
   const { data: reviews, isLoading: isLoadingReviews } = useReviewsByReviewable('PLACE', placeId);
-  
+
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
   const [isSaved, setIsSaved] = React.useState(false);
 
@@ -179,7 +179,11 @@ export default function PlaceDetailScreen() {
           {/* Category + Neighborhood */}
           <View className="flex-row items-center gap-4">
             <View className="flex-row items-center gap-2">
-              <Ionicons name={getCategoryIcon(place.category)} size={20} color={colorValues.primary[500]} />
+              <Ionicons
+                name={getCategoryIcon(place.category)}
+                size={20}
+                color={colorValues.primary[500]}
+              />
               <Text variant="body" className="text-textSecondary">
                 {CATEGORY_LABELS[place.category] || place.category}
               </Text>
@@ -187,7 +191,7 @@ export default function PlaceDetailScreen() {
             <View className="flex-row items-center gap-2">
               <Ionicons name="location-outline" size={20} color={colorValues.primary[500]} />
               <Text variant="body" className="text-textSecondary">
-                {place.neighborhood}
+                {place.location}
               </Text>
             </View>
           </View>
@@ -266,7 +270,7 @@ export default function PlaceDetailScreen() {
                 Amenities
               </Text>
               <View className="flex-row flex-wrap gap-2">
-              {place.amenities.map((amenity) => (
+                {place.amenities.map((amenity) => (
                   <View key={amenity} className="bg-primary-50 px-3 py-2 rounded-full">
                     <Text variant="caption" className="text-primary-700 font-medium">
                       {amenity}
@@ -299,7 +303,7 @@ export default function PlaceDetailScreen() {
             <Text variant="h2" className="text-lg font-semibold">
               Reviews ({place.ratingCount})
             </Text>
-            
+
             {isLoadingReviews && (
               <Card>
                 <Text variant="body" className="text-textSecondary text-center">
@@ -314,7 +318,9 @@ export default function PlaceDetailScreen() {
                 </Text>
               </Card>
             )}
-            {!isLoadingReviews && reviews && reviews.length > 0 && (
+            {!isLoadingReviews &&
+              reviews &&
+              reviews.length > 0 &&
               reviews.map((review) => (
                 <Card key={review.id}>
                   <View className="gap-3">
@@ -322,8 +328,8 @@ export default function PlaceDetailScreen() {
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center gap-3">
                         {review.user?.avatar ? (
-                          <Image 
-                            source={{ uri: review.user.avatar }} 
+                          <Image
+                            source={{ uri: review.user.avatar }}
                             className="w-10 h-10 rounded-full"
                           />
                         ) : (
@@ -335,7 +341,9 @@ export default function PlaceDetailScreen() {
                         )}
                         <View>
                           <Text variant="body" className="font-semibold">
-                            {review.user ? `${review.user.firstName} ${review.user.lastName}` : 'Anonymous'}
+                            {review.user
+                              ? `${review.user.firstName} ${review.user.lastName}`
+                              : 'Anonymous'}
                           </Text>
                           <Text variant="caption" className="text-textSecondary">
                             {new Date(review.createdAt).toLocaleDateString()}
@@ -358,13 +366,21 @@ export default function PlaceDetailScreen() {
                     {/* Review Actions */}
                     <View className="flex-row items-center gap-4 pt-2 border-t border-border">
                       <TouchableOpacity className="flex-row items-center gap-1">
-                        <Ionicons name="thumbs-up-outline" size={16} color={colorValues.textSecondary} />
+                        <Ionicons
+                          name="thumbs-up-outline"
+                          size={16}
+                          color={colorValues.textSecondary}
+                        />
                         <Text variant="caption" className="text-textSecondary">
                           Helpful
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity className="flex-row items-center gap-1">
-                        <Ionicons name="chatbubble-outline" size={16} color={colorValues.textSecondary} />
+                        <Ionicons
+                          name="chatbubble-outline"
+                          size={16}
+                          color={colorValues.textSecondary}
+                        />
                         <Text variant="caption" className="text-textSecondary">
                           Reply
                         </Text>
@@ -372,8 +388,7 @@ export default function PlaceDetailScreen() {
                     </View>
                   </View>
                 </Card>
-              ))
-            )}
+              ))}
           </View>
         </View>
       </ScrollView>
@@ -394,7 +409,7 @@ export default function PlaceDetailScreen() {
               color={isSaved ? colorValues.textInverse : colorValues.textPrimary}
             />
           </TouchableOpacity>
-          
+
           {place.hasDeal ? (
             <Button onPress={handleGetDeal} className="flex-1">
               Get Deal

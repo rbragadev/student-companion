@@ -9,7 +9,22 @@ export class CourseService {
 
   async createCourse(data: CreateCourseDto) {
     return this.prisma.course.create({
-      data: { ...data, id: randomUUID() },
+      data: {
+        id: randomUUID(),
+        school_id: data.schoolId,
+        program_name: data.programName,
+        weekly_hours: data.weeklyHours,
+        price_in_cents: data.priceInCents,
+        price_unit: data.priceUnit,
+        description: data.description,
+        duration: data.duration,
+        visa_type: data.visaType,
+        target_audience: data.targetAudience,
+        image: data.image,
+        images: data.images || [],
+        badges: data.badges || [],
+        is_active: data.isActive ?? true,
+      },
       include: {
         school: true,
       },

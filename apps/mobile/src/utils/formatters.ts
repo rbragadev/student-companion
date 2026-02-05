@@ -8,10 +8,7 @@
  * @param currency - Moeda (padrão CAD)
  * @returns Preço formatado (ex: "CAD 1,150")
  */
-export const formatPrice = (
-  priceInCents: number,
-  currency: string = 'CAD',
-): string => {
+export const formatPrice = (priceInCents: number, currency: string = 'CAD'): string => {
   const dollars = priceInCents / 100;
   return `${currency} ${dollars.toLocaleString('en-US', {
     minimumFractionDigits: 0,
@@ -40,16 +37,6 @@ export const formatDistance = (distanceKm: number): string => {
 export const formatRating = (rating?: number): string => {
   if (!rating) return '—';
   return rating.toFixed(1);
-};
-
-/**
- * Extrai cidade do subtitle da recomendação
- * @param subtitle - Subtitle da recomendação (ex: "Vancouver • $950/month")
- * @returns Cidade extraída
- */
-export const extractCityFromSubtitle = (subtitle: string): string => {
-  const parts = subtitle.split('•');
-  return parts[0]?.trim() || '';
 };
 
 /**

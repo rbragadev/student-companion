@@ -25,19 +25,14 @@ export class SchoolStrategy implements RecommendationStrategy {
     return this.prisma.school.findMany({
       include: {
         _count: {
-          select: { courses: true },
+          select: { course: true },
         },
       },
     });
   }
 
   getScoringRules(): ScoringRule<School, UserPreferences>[] {
-    return [
-      this.ratingRule,
-      this.programsVarietyRule,
-      this.locationRule,
-      this.accreditationRule,
-    ];
+    return [this.ratingRule, this.programsVarietyRule, this.locationRule, this.accreditationRule];
   }
 
   mapToRecommendation(entity: School, score: number): Recommendation {
@@ -45,13 +40,14 @@ export class SchoolStrategy implements RecommendationStrategy {
     const badge = entity.badges?.[0] || '';
 
     // Pega a contagem de cursos do _count
-    const coursesCount = (entity as any)._count?.courses || 0;
+    const coursesCount = (entity as any)._count?.course || 0;
 
     return {
       id: entity.id,
       type: 'school',
       title: entity.name,
       subtitle: `${entity.location || 'Unknown'} • ${coursesCount} courses`,
+      location: entity.location || 'Unknown',
       score: Math.round(score * 10) / 10,
       badge,
       imageUrl: entity.logo || 'https://via.placeholder.com/150',

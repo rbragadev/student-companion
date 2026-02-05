@@ -1,4 +1,12 @@
-export type PlaceCategory = 'bars' | 'restaurants' | 'cafes' | 'parks' | 'museums' | 'shopping' | 'nightlife' | 'sports';
+export type PlaceCategory =
+  | 'bars'
+  | 'restaurants'
+  | 'cafes'
+  | 'parks'
+  | 'museums'
+  | 'shopping'
+  | 'nightlife'
+  | 'sports';
 
 export interface Place {
   id: string;
@@ -10,7 +18,7 @@ export interface Place {
   rating: number;
   ratingCount: number;
   address: string;
-  neighborhood?: string;
+  location?: string;
   latitude?: number;
   longitude?: number;
   isStudentFavorite?: boolean;

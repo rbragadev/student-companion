@@ -10,21 +10,21 @@ export class CourseBudgetRule extends BaseScoringRule<Course, UserPreferences> {
   }
 
   isEligible(context: ScoringContext<Course, UserPreferences>): boolean {
-    const priceInCents = context.entity.priceInCents;
+    const priceInCents = context.entity.price_in_cents;
     const { budgetCourseMin, budgetCourseMax } = context.userPreferences;
-    
+
     // Se não houver preço ou budget definido, aceita
     if (!priceInCents || !budgetCourseMin || !budgetCourseMax) {
       return true;
     }
-    
+
     const price = priceInCents / 100;
     const maxAcceptable = budgetCourseMax * 1.2;
     return price >= budgetCourseMin && price <= maxAcceptable;
   }
 
   calculate(context: ScoringContext<Course, UserPreferences>): number {
-    const priceInCents = context.entity.priceInCents;
+    const priceInCents = context.entity.price_in_cents;
     const { budgetCourseMin, budgetCourseMax } = context.userPreferences;
 
     // Se não houver preço ou budget, retorna score neutro

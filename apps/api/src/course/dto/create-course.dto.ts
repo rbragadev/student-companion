@@ -31,6 +31,11 @@ export class CreateCourseDto {
   priceInCents?: number; // Preço em centavos (ex: 145000 = $1,450.00 CAD)
 
   @IsString()
+  @IsOptional()
+  @MaxLength(20)
+  priceUnit?: string; // Ex: "month", "week"
+
+  @IsString()
   @IsNotEmpty()
   description: string;
 
@@ -58,10 +63,10 @@ export class CreateCourseDto {
   @IsOptional()
   images?: string[]; // Array de URLs de imagens
 
-  @IsString()
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  @MaxLength(100)
-  badge?: string; // Ex: "Parceiro", "Popular"
+  badges?: string[]; // Ex: ["Parceiro", "Popular"]
 
   @IsBoolean()
   @IsOptional()

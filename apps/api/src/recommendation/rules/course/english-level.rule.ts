@@ -11,7 +11,7 @@ export class CourseEnglishLevelRule extends BaseScoringRule<Course, UserPreferen
 
   calculate(context: ScoringContext<Course, UserPreferences>): number {
     const userLevel = context.userPreferences.englishLevel || 'intermediate';
-    const targetAudience = context.entity.targetAudience || '';
+    const targetAudience = context.entity.target_audience || '';
 
     // Se o curso não especifica audience, score neutro
     if (!targetAudience) {

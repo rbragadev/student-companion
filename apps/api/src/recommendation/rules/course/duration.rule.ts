@@ -10,7 +10,7 @@ export class CourseDurationRule extends BaseScoringRule<Course, UserPreferences>
   }
 
   calculate(context: ScoringContext<Course, UserPreferences>): number {
-    const weeklyHours = context.entity.weeklyHours || 20;
+    const weeklyHours = context.entity.weekly_hours || 20;
 
     // Normaliza: 20h = 50, 40h = 100, mais que 40h = 100
     const score = Math.min(100, (weeklyHours / 40) * 100);

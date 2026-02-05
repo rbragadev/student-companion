@@ -29,15 +29,18 @@ export class PlaceStrategy implements RecommendationStrategy {
 
   mapToRecommendation(entity: RecommendableEntity, score: number): Recommendation {
     const place = entity as Place;
-    
+
     // Usa o primeiro badge do array de badges
     const badge = place.badges?.[0] || '';
+
+    const subtitle = `${place.location || 'Unknown'}`;
 
     return {
       id: place.id,
       type: 'place',
       title: place.name,
-      subtitle: place.category,
+      subtitle,
+      location: place.location || 'Unknown',
       score: Math.round(score * 10) / 10,
       badge,
       imageUrl: place.images?.[0] || 'https://via.placeholder.com/150',

@@ -39,7 +39,7 @@ export class AccommodationStrategy implements RecommendationStrategy {
 
   mapToRecommendation(entity: RecommendableEntity, score: number): Recommendation {
     const accommodation = entity as Accommodation;
-    
+
     // Usa o primeiro badge do array de badges
     const badge = accommodation.badges?.[0] || '';
 
@@ -48,6 +48,7 @@ export class AccommodationStrategy implements RecommendationStrategy {
       type: 'accommodation',
       title: accommodation.title,
       subtitle: `${accommodation.accommodationType} • $${(accommodation.priceInCents / 100).toFixed(0)}/${accommodation.priceUnit}`,
+      location: accommodation.location || 'Unknown',
       score: Math.round(score * 10) / 10,
       badge,
       imageUrl: accommodation.images?.[0] || 'https://via.placeholder.com/150',

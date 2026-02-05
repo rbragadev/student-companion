@@ -1,6 +1,13 @@
 import React from 'react';
 import { View, ScrollView } from 'react-native';
-import { Screen, Text, HomeHeader, HeroCard, RecommendationCard, SecondaryAction } from '../components';
+import {
+  Screen,
+  Text,
+  HomeHeader,
+  HeroCard,
+  RecommendationCard,
+  SecondaryAction,
+} from '../components';
 import { useHeroContent } from '../services/mockData';
 import { useRecommendations } from '../hooks/api/useRecommendations';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
@@ -16,13 +23,18 @@ type HomeScreenNavigationProp = CompositeNavigationProp<
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { data: user, isLoading: userLoading, error: userError } = useUserProfile('a8ee8202-7adb-48d9-a2c7-6a03ffc75b48');
+  const {
+    data: user,
+    isLoading: userLoading,
+    error: userError,
+  } = useUserProfile('a8ee8202-7adb-48d9-a2c7-6a03ffc75b48');
   const { content: heroContent, loading: heroLoading } = useHeroContent();
-  
+
   // Usando API real de recomendações (accommodations)
   const { data: recommendations = [], isLoading: recsLoading } = useRecommendations(
     'a8ee8202-7adb-48d9-a2c7-6a03ffc75b48',
-    10
+    'accommodation',
+    10,
   );
 
   if (userLoading || heroLoading || recsLoading) {
@@ -68,7 +80,10 @@ export default function HomeScreen() {
     navigation.navigate(TabRoutes.COPILOT, { intent: heroContent.ctaIntent });
   };
 
-  const handleRecommendationPress = (id: string, type: 'accommodation' | 'course' | 'place' | 'school') => {
+  const handleRecommendationPress = (
+    id: string,
+    type: 'accommodation' | 'course' | 'place' | 'school',
+  ) => {
     if (type === 'accommodation') {
       navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, { accommodationId: id });
     } else if (type === 'course') {
@@ -117,9 +132,9 @@ export default function HomeScreen() {
           <Text variant="h3" className="text-lg font-semibold">
             Recommended for you
           </Text>
-          
-          <ScrollView 
-            horizontal 
+
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             className="-mx-6 px-6"
             contentContainerStyle={{ gap: 12 }}
@@ -136,6 +151,7 @@ export default function HomeScreen() {
                 price={rec.price}
                 priceUnit={rec.priceUnit}
                 rating={rec.rating}
+                score={rec.score}
                 features={rec.features}
                 distance={rec.distance}
                 onPress={() => handleRecommendationPress(rec.id, rec.type)}
@@ -150,14 +166,14 @@ export default function HomeScreen() {
         <Text variant="h3" className="mt-4">
           Or explore other options
         </Text>
-        
+
         <View className="flex-row gap-3">
           <SecondaryAction
             icon="home-outline"
             label="Browse accommodations"
             onPress={handleBrowseAccommodations}
           />
-          
+
           <SecondaryAction
             icon="school-outline"
             label="Browse courses"

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { recommendationApi } from '../../services/api/recommendationApi';
+import { recommendationApi, RecommendationType } from '../../services/api/recommendationApi';
 import { Recommendation as ApiRecommendation } from '../../types/recommendation.types';
-import { extractCityFromSubtitle, extractPriceFromSubtitle } from '../../utils/formatters';
+import { extractPriceFromSubtitle } from '../../utils/formatters';
 
 /**
  * Interface compatível com os componentes atuais
@@ -17,6 +17,7 @@ interface ComponentRecommendation {
   price?: string;
   priceUnit?: string;
   rating?: number;
+  score?: number;
   features?: string[];
   distance?: string;
 }
@@ -27,9 +28,8 @@ interface ComponentRecommendation {
  */
 const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecommendation => {
   // Extrai campos comuns usando formatters
-  const location = extractCityFromSubtitle(apiRec.subtitle);
   const price = extractPriceFromSubtitle(apiRec.subtitle);
-  
+
   // Extrai priceUnit do subtitle
   const priceUnitMatch = apiRec.subtitle.match(/\/(week|month|day|year)/);
   const priceUnit = priceUnitMatch ? priceUnitMatch[1] : undefined;
@@ -46,10 +46,11 @@ const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecomme
     title: apiRec.title,
     image: apiRec.imageUrl,
     badge: apiRec.badge || undefined,
-    location,
+    location: apiRec.location,
     price,
     priceUnit,
     rating: validRating,
+    score: apiRec.score,
   };
 
   // Lógica específica por tipo
@@ -99,7 +100,8 @@ const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecomme
 
 const recommendationQueryKeys = {
   all: (userId: string) => ['recommendations', userId] as const,
-  accommodations: (userId: string, limit: number) => ['recommendations', userId, 'accommodation', limit] as const,
+  recommendations: (userId: string, type: RecommendationType, limit: number) =>
+    ['recommendations', userId, type, limit] as const,
 };
 
 /**
@@ -108,15 +110,19 @@ const recommendationQueryKeys = {
  * @param userId - ID do usuário
  * @param limit - Número de resultados (padrão 10)
  */
-export const useRecommendations = (userId: string, limit: number = 10) => {
+export const useRecommendations = (
+  userId: string,
+  type: RecommendationType,
+  limit: number = 10,
+) => {
   return useQuery({
-    queryKey: recommendationQueryKeys.accommodations(userId, limit),
+    queryKey: recommendationQueryKeys.recommendations(userId, type, limit),
     queryFn: async () => {
-      const apiData = await recommendationApi.getRecommendations(userId, 'accommodation', limit);
+      const apiData = await recommendationApi.getRecommendations(userId, type, limit);
       return apiData.map(transformToComponentFormat);
     },
     staleTime: 5 * 60 * 1000, // 5 minutos
-    gcTime: 10 * 60 * 1000,   // 10 minutos
+    gcTime: 10 * 60 * 1000, // 10 minutos
     retry: 2,
     enabled: !!userId,
     refetchOnWindowFocus: false,

@@ -49,24 +49,25 @@ model UserPreferences {
 }
 
 model Course {
-  id             String   @id(map: "Course_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  schoolId       String   @db.Uuid
-  programName    String   @db.VarChar(255)
-  weeklyHours    Int
-  priceInCents   Int?
-  description    String
-  duration       String   @db.VarChar(100)
-  visaType       String   @db.VarChar(100)
-  targetAudience String
-  image          String   @db.VarChar(500)
-  images         String[] @default([])
-  badges         String[]
-  rating         Decimal? @default(0.00) @db.Decimal(3, 2)
-  ratingCount    Int?     @default(0)
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now())
-  school         School   @relation(fields: [schoolId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
+  id              String   @id(map: "Course_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  school_id       String   @db.Uuid
+  program_name    String   @db.VarChar(255)
+  weekly_hours    Int
+  price_in_cents  Int?
+  description     String
+  duration        String   @db.VarChar(100)
+  visa_type       String   @db.VarChar(100)
+  target_audience String
+  image           String   @db.VarChar(500)
+  images          String[] @default([])
+  badges          String[]
+  rating          Decimal? @default(0.00) @db.Decimal(3, 2)
+  rating_count    Int?     @default(0)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @default(now())
+  price_unit      String?  @db.VarChar(20)
+  school          School   @relation(fields: [school_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
 
   @@map("course")
 }
@@ -100,7 +101,7 @@ model School {
   rating       Decimal? @db.Decimal
   rating_count Int?
   badges       String[]
-  courses      Course[]
+  course       Course[]
 
   @@map("school")
 }
@@ -147,7 +148,7 @@ model Place {
   rating            Decimal?  @default(0) @db.Decimal(2, 1)
   ratingCount       Int?      @default(0) @map("rating_count")
   address           String
-  neighborhood      String?   @db.VarChar(100)
+  location          String?   @db.VarChar(100)
   latitude          Decimal?  @db.Decimal(10, 8)
   longitude         Decimal?  @db.Decimal(11, 8)
   isStudentFavorite Boolean?  @default(false) @map("is_student_favorite")

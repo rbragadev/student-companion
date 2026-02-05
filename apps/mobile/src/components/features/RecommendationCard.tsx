@@ -14,6 +14,7 @@ interface RecommendationCardProps {
   price?: string;
   priceUnit?: string;
   rating?: number;
+  score?: number;
   features?: string[];
   distance?: string;
   onPress: () => void;
@@ -28,6 +29,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   price,
   priceUnit,
   rating,
+  score,
   features,
   distance,
   onPress,
@@ -57,20 +59,31 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
 
       {/* Conteúdo */}
       <View className="p-4 gap-2">
-        {/* Título e Localização */}
+        {/* Título e Rating/Score */}
         <View className="gap-1">
-          <View className="flex-row items-center gap-2">
+          <View className="flex-row items-start gap-2">
             <Text variant="h3" className="text-base font-semibold flex-1">
               {title}
             </Text>
-            {rating && rating > 0 && (
-              <View className="flex-row items-center gap-1">
-                <Ionicons name="star" size={18} color="#FFC107" />
-                <Text variant="caption" className="text-textPrimary font-medium">
-                  {typeof rating === 'number' ? rating.toFixed(1) : '0.0'}
-                </Text>
-              </View>
-            )}
+            {/* Rating e Score alinhados verticalmente à direita */}
+            <View className="gap-1 items-end">
+              {rating && rating > 0 && (
+                <View className="flex-row items-center gap-1">
+                  <Ionicons name="star" size={16} color="#FFC107" />
+                  <Text variant="caption" className="text-textPrimary font-medium">
+                    {typeof rating === 'number' ? rating.toFixed(1) : '0.0'}
+                  </Text>
+                </View>
+              )}
+              {score && (
+                <View className="flex-row items-center gap-1">
+                  <Ionicons name="trending-up" size={14} color={colorValues.primary[500]} />
+                  <Text variant="caption" className="text-primary-500 font-semibold">
+                    {score.toFixed(0)}%
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
           {location && (

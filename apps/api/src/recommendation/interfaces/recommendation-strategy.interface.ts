@@ -6,6 +6,7 @@ export interface Recommendation {
   type: 'accommodation' | 'course' | 'place' | 'school';
   title: string;
   subtitle?: string;
+  location: string;
   score: number;
   badge?: string;
   imageUrl: string;
