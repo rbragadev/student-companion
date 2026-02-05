@@ -1,6 +1,55 @@
-# 📱 Student Companion - Mobile App
+# 📱 Student Companion Mobile
 
-Aplicativo React Native desenvolvido com Expo, TypeScript e NativeWind para ajudar estudantes a se organizarem.
+App React Native + Expo + NativeWind
+
+## 🚀 Quick Start
+
+```bash
+# 1. Instalar dependências (da raiz do projeto)
+npm install
+
+# 2. Iniciar o app
+npm run dev:mobile
+
+# 3. Escanear QR code no Expo Go
+```
+
+## 📚 Documentação Completa
+
+Para documentação detalhada, consulte:
+
+- **[Documentação Mobile](../../docs/MOBILE.md)** - Design system, componentes, navegação
+- **[README Principal](../../README.md)** - Setup geral do projeto
+- **[TODO](../../docs/TODO.md)** - Roadmap de features
+
+## 🎨 Stack
+
+- **React Native** + **Expo**
+- **TypeScript**
+- **NativeWind** (Tailwind CSS)
+- **React Navigation**
+- **TanStack Query** (React Query)
+
+## 🧩 Componentes
+
+```tsx
+import { Button, Card, Text, Container } from '@/src/components';
+
+<Container padding="lg">
+  <Card variant="elevated">
+    <Text variant="h2">Título</Text>
+    <Button variant="primary">Ação</Button>
+  </Card>
+</Container>
+```
+
+## 📱 Telas
+
+- Home, Courses, Accommodation, Places, Profile
+- Details screens para cada tipo
+- Tab Navigation
+
+Veja a [documentação completa do mobile](../../docs/MOBILE.md) para mais detalhes.
 
 ## 🚀 Tecnologias
 
