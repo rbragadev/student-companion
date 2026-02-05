@@ -6,7 +6,7 @@ import { colorValues } from '../../utils/design-tokens';
 
 interface RecommendationCardProps {
   id: string;
-  type: 'accommodation' | 'course';
+  type: 'accommodation' | 'course' | 'school' | 'place';
   title: string;
   image: string;
   badge?: string;

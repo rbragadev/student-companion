@@ -1,5 +1,126 @@
 # 📋 TODO - Student Companion
 
+## 🔴 CRÍTICO - Integração Mobile com API
+
+### Migração Mock → API Real (apps/mobile)
+
+#### 1. Atualizar Interface `Recommendation` (mockData.ts)
+- [ ] Adicionar campo `subtitle: string` - Gerado pela strategy (ex: "Vancouver • $950/month")
+- [ ] Adicionar campo `score: number` - Score de recomendação (0-100)
+- [ ] Alterar `badge?: string` para `badge: string` - Sempre presente (pode ser vazio)
+- [ ] Alterar `image` para `imageUrl: string` - Nome usado pela API
+- [ ] Adicionar campo `data: any` - Dados completos da entidade (Accommodation | Course | Place | School)
+- [ ] Alterar type union para incluir `'place' | 'school'`
+- [ ] **REMOVER campos descontinuados:**
+  - ❌ `location?: string` → usar `data.location` ou extrair de `subtitle`
+  - ❌ `price?: string` → calcular de `data.priceInCents`
+  - ❌ `priceUnit?: string` → usar `data.priceUnit`
+  - ❌ `rating?: number` → usar `data.rating`
+  - ❌ `ratingCount?: number` → usar `data.ratingCount`
+  - ❌ `features?: string[]` → usar `data.amenities` ou `data.features`
+  - ❌ `distance?: string` → calcular de `data.distanceToSchool`
+  - ❌ `isTopTrip?: boolean` → usar `data.isTopTrip`
+  - ❌ `isPartner?: boolean` → usar `data.isPartner`
+  - ❌ `accommodationType?` → usar `data.accommodationType`
+  - ❌ `areaHint?: string` → usar `data.areaHint`
+
+#### 2. Criar Interface `ApiResponse<T>` (mockData.ts ou types/)
+```typescript
+export interface ApiResponse<T> {
+  statusCode: number;
+  message: string;
+  data: T;
+}
+```
+
+#### 3. Atualizar Mock Data (mockData.ts)
+- [ ] Alterar `getRecommendations()` para retornar formato da API:
+  ```typescript
+  {
+    id: string,
+    type: 'accommodation' | 'course' | 'place' | 'school',
+    title: string,
+    subtitle: string,  // Novo
+    score: number,      // Novo
+    badge: string,
+    imageUrl: string,   // Renomeado
+    data: {...}         // Novo
+  }
+  ```
+
+#### 4. Atualizar Componentes que usam Recommendation
+- [ ] **RecommendationCard.tsx** - Adaptar para usar `imageUrl` e extrair dados de `data.*`
+- [ ] **AccommodationListCard.tsx** - Usar `data.priceInCents`, `data.rating`, etc
+- [ ] **CourseCard.tsx** - Usar `data.school.name`, `data.weeklyHours`, etc
+- [ ] **PlaceCard.tsx** - Usar `data.category`, `data.address`, etc
+- [ ] **TopTripCard.tsx** - Usar `data.isTopTrip`, `data.goodFor`, etc
+- [ ] **HomeHeader.tsx** - Se usa Recommendation, atualizar
+
+#### 5. Criar Service de API Real (services/api/)
+- [ ] Criar `recommendationApi.ts`:
+  ```typescript
+  export const recommendationApi = {
+    getRecommendations: async (
+      userId: string,
+      type: 'accommodation' | 'course' | 'place' | 'school',
+      limit?: number
+    ) => {
+      const { data } = await apiClient.get<ApiResponse<Recommendation[]>>(
+        `/recommendation/${userId}`,
+        { params: { type, limit } }
+      );
+      return data.data; // Extrai o array de dentro de "data"
+    },
+    
+    getMixedRecommendations: async (userId: string, limit?: number) => {
+      const { data } = await apiClient.get<ApiResponse<Recommendation[]>>(
+        `/recommendation/${userId}/mixed`,
+        { params: { limit } }
+      );
+      return data.data;
+    },
+  };
+  ```
+
+#### 6. Criar React Query Hook (hooks/api/)
+- [ ] Criar `useRecommendations.ts`:
+  ```typescript
+  export const useRecommendations = (
+    userId: string,
+    type: 'accommodation' | 'course' | 'place' | 'school',
+    limit?: number
+  ) => {
+    return useQuery({
+      queryKey: ['recommendations', userId, type, limit],
+      queryFn: () => recommendationApi.getRecommendations(userId, type, limit),
+      staleTime: 5 * 60 * 1000, // 5 minutos
+    });
+  };
+  
+  export const useMixedRecommendations = (userId: string, limit?: number) => {
+    return useQuery({
+      queryKey: ['recommendations', userId, 'mixed', limit],
+      queryFn: () => recommendationApi.getMixedRecommendations(userId, limit),
+      staleTime: 5 * 60 * 1000,
+    });
+  };
+  ```
+
+#### 7. Migrar Telas
+- [ ] **HomeScreen.tsx** - Trocar `getRecommendations()` por `useMixedRecommendations(userId, 10)`
+- [ ] **CourseScreen.tsx** - Usar `useRecommendations(userId, 'course', 20)`
+- [ ] **AccommodationScreen.tsx** - Usar `useRecommendations(userId, 'accommodation', 20)`
+- [ ] **PlacesScreen.tsx** - Usar `useRecommendations(userId, 'place', 20)`
+
+#### 8. Testes de Integração
+- [ ] Testar com API local rodando
+- [ ] Verificar estados de loading/error
+- [ ] Validar formatação de preços (cents → display)
+- [ ] Validar formatação de distância (km → display)
+- [ ] Verificar badges e imagens
+
+---
+
 ## 🔴 CRÍTICO - Database Schema (Prisma)
 
 ### School Model

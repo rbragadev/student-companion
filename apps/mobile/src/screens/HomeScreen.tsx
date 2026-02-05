@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { Screen, Text, HomeHeader, HeroCard, RecommendationCard, SecondaryAction } from '../components';
-import { useHeroContent, useRecommendations } from '../services/mockData';
+import { useHeroContent } from '../services/mockData';
+import { useRecommendations } from '../hooks/api/useRecommendations';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,7 +18,12 @@ export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { data: user, isLoading: userLoading, error: userError } = useUserProfile('a8ee8202-7adb-48d9-a2c7-6a03ffc75b48');
   const { content: heroContent, loading: heroLoading } = useHeroContent();
-  const { recommendations, loading: recsLoading } = useRecommendations();
+  
+  // Usando API real de recomendações (accommodations)
+  const { data: recommendations = [], isLoading: recsLoading } = useRecommendations(
+    'a8ee8202-7adb-48d9-a2c7-6a03ffc75b48',
+    10
+  );
 
   if (userLoading || heroLoading || recsLoading) {
     return (
