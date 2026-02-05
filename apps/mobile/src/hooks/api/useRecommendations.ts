@@ -9,7 +9,7 @@ import { extractCityFromSubtitle, extractPriceFromSubtitle } from '../../utils/f
  */
 interface ComponentRecommendation {
   id: string;
-  type: 'accommodation' | 'course';  // Por enquanto só estes dois tipos
+  type: 'accommodation' | 'course' | 'place' | 'school';
   title: string;
   image: string;
   badge?: string;
@@ -42,7 +42,7 @@ const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecomme
   // Base comum para todos os tipos
   const baseRecommendation = {
     id: apiRec.id,
-    type: apiRec.type as 'accommodation' | 'course',
+    type: apiRec.type as 'accommodation' | 'course' | 'place' | 'school',
     title: apiRec.title,
     image: apiRec.imageUrl,
     badge: apiRec.badge || undefined,
@@ -112,7 +112,7 @@ export const useRecommendations = (userId: string, limit: number = 10) => {
   return useQuery({
     queryKey: recommendationQueryKeys.accommodations(userId, limit),
     queryFn: async () => {
-      const apiData = await recommendationApi.getRecommendations(userId, 'accommodation', limit);
+      const apiData = await recommendationApi.getRecommendations(userId, 'course', limit);
       return apiData.map(transformToComponentFormat);
     },
     staleTime: 5 * 60 * 1000, // 5 minutos

@@ -68,11 +68,16 @@ export default function HomeScreen() {
     navigation.navigate(TabRoutes.COPILOT, { intent: heroContent.ctaIntent });
   };
 
-  const handleRecommendationPress = (id: string, type: 'accommodation' | 'course') => {
+  const handleRecommendationPress = (id: string, type: 'accommodation' | 'course' | 'place' | 'school') => {
     if (type === 'accommodation') {
       navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, { accommodationId: id });
-    } else {
-      console.log('Course detail not implemented yet:', id);
+    } else if (type === 'course') {
+      navigation.navigate(StackRoutes.COURSE_DETAIL, { courseId: id });
+    } else if (type === 'place') {
+      navigation.navigate(StackRoutes.PLACE_DETAIL, { placeId: id });
+    } else if (type === 'school') {
+      // Schools ainda não têm tela de detalhe, navega para a tab de cursos
+      navigation.navigate(TabRoutes.COURSES);
     }
   };
 
