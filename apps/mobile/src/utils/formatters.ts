@@ -53,13 +53,15 @@ export const extractCityFromSubtitle = (subtitle: string): string => {
 };
 
 /**
- * Extrai preço do subtitle da recomendação
+ * Extrai preço do subtitle da recomendação (sem o /unit)
  * @param subtitle - Subtitle da recomendação (ex: "Vancouver • $950/month")
- * @returns Preço extraído
+ * @returns Preço extraído (ex: "$950")
  */
 export const extractPriceFromSubtitle = (subtitle: string): string => {
   const parts = subtitle.split('•');
-  return parts[1]?.trim() || '';
+  const priceWithUnit = parts[1]?.trim() || '';
+  // Remove o /unit do final (ex: "$950/month" -> "$950")
+  return priceWithUnit.split('/')[0]?.trim() || '';
 };
 
 /**

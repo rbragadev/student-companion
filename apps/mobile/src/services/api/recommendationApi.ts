@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { Recommendation } from '../../types/api.types';
+import { Recommendation } from '../../types/recommendation.types';
 
 /**
  * Tipos de recomendação disponíveis

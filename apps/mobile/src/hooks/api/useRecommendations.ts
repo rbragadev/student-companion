@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { recommendationApi } from '../../services/api/recommendationApi';
-import { Recommendation as ApiRecommendation } from '../../types/api.types';
+import { Recommendation as ApiRecommendation } from '../../types/recommendation.types';
 import { extractCityFromSubtitle, extractPriceFromSubtitle } from '../../utils/formatters';
 
 /**
@@ -34,15 +34,15 @@ const transformToComponentFormat = (apiRec: ApiRecommendation): ComponentRecomme
   const priceUnitMatch = apiRec.subtitle.match(/\/(week|month|day|year)/);
   const priceUnit = priceUnitMatch ? priceUnitMatch[1] : undefined;
 
-  // Extrai e valida rating (converte string para número)
+  // Rating: garante conversão para number (Prisma Decimal pode vir como string)
   const ratingRaw = (apiRec.data as any)?.rating;
-  const rating = ratingRaw ? parseFloat(ratingRaw) : undefined;
-  const validRating = rating && rating > 0 ? rating : undefined;
+  const ratingNumber = typeof ratingRaw === 'string' ? parseFloat(ratingRaw) : ratingRaw;
+  const validRating = ratingNumber && ratingNumber > 0 ? ratingNumber : undefined;
 
   // Base comum para todos os tipos
   const baseRecommendation = {
     id: apiRec.id,
-    type: apiRec.type as 'accommodation' | 'course' | 'place' | 'school',
+    type: apiRec.type,
     title: apiRec.title,
     image: apiRec.imageUrl,
     badge: apiRec.badge || undefined,
@@ -112,7 +112,7 @@ export const useRecommendations = (userId: string, limit: number = 10) => {
   return useQuery({
     queryKey: recommendationQueryKeys.accommodations(userId, limit),
     queryFn: async () => {
-      const apiData = await recommendationApi.getRecommendations(userId, 'course', limit);
+      const apiData = await recommendationApi.getRecommendations(userId, 'accommodation', limit);
       return apiData.map(transformToComponentFormat);
     },
     staleTime: 5 * 60 * 1000, // 5 minutos

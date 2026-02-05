@@ -41,7 +41,8 @@ export class SchoolStrategy implements RecommendationStrategy {
   }
 
   mapToRecommendation(entity: School, score: number): Recommendation {
-    const badge = entity.isPartner ? '⭐ Partner' : '';
+    // Usa o primeiro badge do array de badges
+    const badge = entity.badges?.[0] || '';
 
     // Pega a contagem de cursos do _count
     const coursesCount = (entity as any)._count?.courses || 0;

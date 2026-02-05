@@ -11,6 +11,8 @@
   "scripts": {
     "dev:api": "npm run start:dev -w apps/api",
     "dev:mobile": "npm run start -w apps/mobile",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "lint": "npm run lint -ws",
     "test": "npm run test -ws"
   },

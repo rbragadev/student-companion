@@ -16,7 +16,7 @@ export interface Course {
   targetAudience: string;
   image: string;
   images: string[];
-  badge?: string;
+  badges: string[];
   rating: number;
   ratingCount: number;
   isActive: boolean;

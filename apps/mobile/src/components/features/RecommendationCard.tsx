@@ -40,12 +40,8 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
     >
       {/* Imagem */}
       <View className="relative w-full h-40">
-        <Image
-          source={{ uri: image }}
-          className="w-full h-full"
-          resizeMode="cover"
-        />
-        
+        <Image source={{ uri: image }} className="w-full h-full" resizeMode="cover" />
+
         {/* Badge */}
         {badge && (
           <View className="absolute top-3 left-3">
@@ -67,17 +63,16 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             <Text variant="h3" className="text-base font-semibold flex-1">
               {title}
             </Text>
-            {features && features.length > 0 && (
+            {rating && rating > 0 && (
               <View className="flex-row items-center gap-1">
-                {features.map((feature, index) => (
-                  <Text key={index} variant="caption" className="text-textMuted">
-                    {feature}
-                  </Text>
-                ))}
+                <Ionicons name="star" size={18} color="#FFC107" />
+                <Text variant="caption" className="text-textPrimary font-medium">
+                  {typeof rating === 'number' ? rating.toFixed(1) : '0.0'}
+                </Text>
               </View>
             )}
           </View>
-          
+
           {location && (
             <View className="flex-row items-center gap-1">
               <Ionicons name="location-outline" size={14} color="#6C757D" />
@@ -88,39 +83,38 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
           )}
         </View>
 
-        {/* Footer - Preço, Distância, Rating */}
+        {/* Footer - Preço, Distância*/}
         <View className="flex-row items-center justify-between pt-1">
-          <View className="flex-row items-center gap-3">
-            {price && (
-              <Text variant="body" className="font-semibold text-textPrimary">
-                {price}
-                {priceUnit && (
-                  <Text variant="caption" className="text-textSecondary">
-                    /{priceUnit}
-                  </Text>
-                )}
-              </Text>
-            )}
-            
-            {distance && (
-              <View className="flex-row items-center gap-1">
-                <Ionicons name="school-outline" size={14} color="#6C757D" />
+          {price && (
+            <Text variant="body" className="font-semibold text-textPrimary">
+              {price}
+              {priceUnit && (
                 <Text variant="caption" className="text-textSecondary">
-                  {distance}
+                  /{priceUnit}
                 </Text>
-              </View>
-            )}
-          </View>
+              )}
+            </Text>
+          )}
 
-          {rating && (
+          {distance && (
             <View className="flex-row items-center gap-1">
-              <Ionicons name="star" size={14} color="#FFC107" />
-              <Text variant="caption" className="text-textPrimary font-medium">
-                {rating.toFixed(1)}
+              <Ionicons name="school-outline" size={14} color="#6C757D" />
+              <Text variant="caption" className="text-textSecondary">
+                {distance}
               </Text>
             </View>
           )}
         </View>
+        {/* Footer - features*/}
+        {features && features.length > 0 && (
+          <View className="flex-row items-center gap-1">
+            {features.map((feature, index) => (
+              <Text key={index} variant="caption" className="text-textMuted">
+                {feature}
+              </Text>
+            ))}
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );

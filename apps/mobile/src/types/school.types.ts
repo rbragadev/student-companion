@@ -12,6 +12,9 @@ export interface School {
   email?: string;
   logo?: string;
   isPartner: boolean;
+  badges: string[];
+  rating?: number;
+  ratingCount?: number;
   createdAt: string;
   updatedAt: string;
 }

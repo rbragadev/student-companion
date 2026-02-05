@@ -13,6 +13,7 @@ export interface Accommodation {
   amenities: string[];
   image: string;
   images: string[];
+  badges: string[];
   rating?: number;
   ratingCount?: number;
   ratingCleanliness?: number;

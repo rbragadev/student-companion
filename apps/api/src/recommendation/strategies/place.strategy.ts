@@ -30,12 +30,8 @@ export class PlaceStrategy implements RecommendationStrategy {
   mapToRecommendation(entity: RecommendableEntity, score: number): Recommendation {
     const place = entity as Place;
     
-    let badge = '';
-    if (place.isStudentFavorite) {
-      badge = '⭐ Student Favorite';
-    } else if (place.hasDeal) {
-      badge = '🎉 Deal';
-    }
+    // Usa o primeiro badge do array de badges
+    const badge = place.badges?.[0] || '';
 
     return {
       id: place.id,

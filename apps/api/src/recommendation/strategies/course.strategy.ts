@@ -41,13 +41,16 @@ export class CourseStrategy implements RecommendationStrategy {
   mapToRecommendation(entity: RecommendableEntity, score: number): Recommendation {
     const course = entity as Course & { school: { name: string } };
     
+    // Usa o primeiro badge do array de badges
+    const badge = course.badges?.[0] || '';
+    
     return {
       id: course.id,
       type: 'course',
       title: course.programName,
       subtitle: `${course.weeklyHours}h/week • ${course.school.name}`,
       score: Math.round(score * 10) / 10,
-      badge: course.badge || '',
+      badge,
       imageUrl: course.images?.[0] || 'https://via.placeholder.com/150',
       data: course,
     };

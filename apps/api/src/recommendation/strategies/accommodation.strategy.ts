@@ -40,12 +40,8 @@ export class AccommodationStrategy implements RecommendationStrategy {
   mapToRecommendation(entity: RecommendableEntity, score: number): Recommendation {
     const accommodation = entity as Accommodation;
     
-    let badge = '';
-    if (accommodation.isTopTrip) {
-      badge = 'Top Trip';
-    } else if (accommodation.goodFor) {
-      badge = accommodation.goodFor.substring(0, 30);
-    }
+    // Usa o primeiro badge do array de badges
+    const badge = accommodation.badges?.[0] || '';
 
     return {
       id: accommodation.id,

@@ -6,6 +6,7 @@ export interface Place {
   category: PlaceCategory;
   image: string;
   images: string[];
+  badges: string[];
   rating: number;
   ratingCount: number;
   address: string;

@@ -1,7 +1,5 @@
 // Mock API Data - Será substituído por chamadas reais posteriormente
 
-
-
 export interface UserInterest {
   id: string;
   type: 'accommodation' | 'course';
@@ -9,16 +7,6 @@ export interface UserInterest {
   subtitle: string;
   date: string;
   status: 'pending' | 'contacted' | 'closed';
-}
-
-export interface UserReview {
-  id: string;
-  itemId: string;
-  itemType: 'accommodation' | 'course' | 'place';
-  itemName: string;
-  rating: number;
-  comment: string;
-  date: string;
 }
 
 export interface CopilotRecommendation {
@@ -51,31 +39,10 @@ export interface HeroContent {
   ctaIntent: 'accommodation' | 'courses' | 'general';
 }
 
-export interface Recommendation {
-  id: string;
-  type: 'accommodation' | 'course';
-  title: string;
-  image: string;
-  badge?: string;
-  location?: string;
-  price?: string;
-  priceUnit?: string;
-  rating?: number;
-  ratingCount?: number;
-  features?: string[];
-  distance?: string;
-  isTopTrip?: boolean;
-  isPartner?: boolean;
-  accommodationType?: 'Homestay' | 'Shared' | 'Studio' | 'Apartment';
-  areaHint?: string;
-}
-
-
-
 // Simula uma chamada à API que retorna interesses/leads do usuário
 export const getUserInterests = async (): Promise<UserInterest[]> => {
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
   return [
     {
       id: '1',
@@ -104,11 +71,10 @@ export const getUserInterests = async (): Promise<UserInterest[]> => {
   ];
 };
 
-
 // Simula uma chamada à API que retorna o conteúdo do Hero Card
 export const getHeroContent = async (): Promise<HeroContent> => {
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
   return {
     image: 'https://images.unsplash.com/photo-1559511260-66a654ae982a?w=800&h=600&fit=crop',
     title: 'Find the best accommodation for your profile',
@@ -118,60 +84,13 @@ export const getHeroContent = async (): Promise<HeroContent> => {
   };
 };
 
-// Simula uma chamada à API que retorna recomendações personalizadas
-export const getRecommendations = async (): Promise<Recommendation[]> => {
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  return [
-    {
-      id: '1',
-      type: 'accommodation',
-      title: 'Kitsilano Homestay',
-      image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&h=600&fit=crop',
-      badge: 'Good fit for ESL students',
-      location: 'Kitsilano',
-      price: 'CAD 1,150',
-      priceUnit: 'month',
-      rating: 4.5,
-      features: ['🇨🇦', '📚', '1'],
-      distance: '20 min to school',
-    },
-    {
-      id: '2',
-      type: 'accommodation',
-      title: 'Vancouver Shared Apartment',
-      image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop',
-      badge: 'Good fit for ESL students',
-      location: 'Vancouver Downtown',
-      price: 'CAD 40',
-      priceUnit: 'week',
-      rating: 4.3,
-      features: ['🏙️'],
-      distance: '10 min to school',
-    },
-    {
-      id: '3',
-      type: 'course',
-      title: 'ILSC Vancouver - Intensive English',
-      image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&h=600&fit=crop',
-      badge: 'Oficial Partner',
-      location: 'Richmond, BC',
-      price: 'CAD 1,000',
-      priceUnit: 'month',
-      rating: 4.7,
-      features: ['🇨🇦', '📚', '10'],
-      distance: '20 min to school',
-    },
-  ];
-};
-
 // Hook para usar o conteúdo do Hero Card
 export const useHeroContent = () => {
   const [content, setContent] = React.useState<HeroContent | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    getHeroContent().then(data => {
+    getHeroContent().then((data) => {
       setContent(data);
       setLoading(false);
     });
@@ -180,24 +99,8 @@ export const useHeroContent = () => {
   return { content, loading };
 };
 
-// Hook para usar as recomendações
-export const useRecommendations = () => {
-  const [recommendations, setRecommendations] = React.useState<Recommendation[]>([]);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    getRecommendations().then(data => {
-      setRecommendations(data);
-      setLoading(false);
-    });
-  }, []);
-
-  return { recommendations, loading };
-};
-
 // Exporta React para os hooks
 import React from 'react';
-import { UserProfile } from '../types/user.types';
 
 // Hook para usar interesses do usuário
 export const useUserInterests = () => {
@@ -205,7 +108,7 @@ export const useUserInterests = () => {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    getUserInterests().then(data => {
+    getUserInterests().then((data) => {
       setInterests(data);
       setLoading(false);
     });
@@ -217,14 +120,19 @@ export const useUserInterests = () => {
 // Simula uma chamada à API do Copilot
 const getCopilotResponse = async (question: string): Promise<CopilotResponse> => {
   // Simula delay de IA
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // Detecta o tipo de pergunta e retorna resposta apropriada
   const lowerQuestion = question.toLowerCase();
 
-  if (lowerQuestion.includes('morar') || lowerQuestion.includes('accommodation') || lowerQuestion.includes('1200')) {
+  if (
+    lowerQuestion.includes('morar') ||
+    lowerQuestion.includes('accommodation') ||
+    lowerQuestion.includes('1200')
+  ) {
     return {
-      summary: 'Based on your budget of CAD 1,200/month, you have good options in Vancouver. Homestays and shared accommodations are the most affordable choices, offering a balance between cost and comfort.',
+      summary:
+        'Based on your budget of CAD 1,200/month, you have good options in Vancouver. Homestays and shared accommodations are the most affordable choices, offering a balance between cost and comfort.',
       tradeoffs: {
         pros: [
           'Homestays include meals and utilities',
@@ -255,7 +163,8 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
           type: 'accommodation',
           title: 'Shared House Downtown',
           subtitle: 'West End • Fully furnished',
-          image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop',
+          image:
+            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop',
           price: 'CAD 1,150/month',
           rating: 4.5,
           highlights: ['Private bedroom', 'Shared kitchen', 'Walking distance to schools'],
@@ -265,7 +174,8 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
           type: 'accommodation',
           title: 'Student Residence',
           subtitle: 'Mount Pleasant • All utilities',
-          image: 'https://images.unsplash.com/photo-1502672260066-6bc36a0d5c01?w=400&h=300&fit=crop',
+          image:
+            'https://images.unsplash.com/photo-1502672260066-6bc36a0d5c01?w=400&h=300&fit=crop',
           price: 'CAD 1,200/month',
           rating: 4.6,
           highlights: ['Utilities included', 'Study lounge', 'International community'],
@@ -275,9 +185,15 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
     };
   }
 
-  if (lowerQuestion.includes('escola') || lowerQuestion.includes('school') || lowerQuestion.includes('worth') || lowerQuestion.includes('custo')) {
+  if (
+    lowerQuestion.includes('escola') ||
+    lowerQuestion.includes('school') ||
+    lowerQuestion.includes('worth') ||
+    lowerQuestion.includes('custo')
+  ) {
     return {
-      summary: 'When choosing a school, consider factors beyond just price: teacher quality, class size, location, and student reviews are crucial. The best value schools offer a balance of affordability and quality education.',
+      summary:
+        'When choosing a school, consider factors beyond just price: teacher quality, class size, location, and student reviews are crucial. The best value schools offer a balance of affordability and quality education.',
       tradeoffs: {
         pros: [
           'Smaller schools offer personalized attention',
@@ -298,7 +214,8 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
           type: 'course',
           title: 'ILSC Vancouver',
           subtitle: 'General English - Full Time',
-          image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=400&h=300&fit=crop',
+          image:
+            'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=400&h=300&fit=crop',
           price: 'CAD 1,450/month',
           rating: 4.8,
           highlights: ['28h/week', 'Small classes', 'Downtown location'],
@@ -308,7 +225,8 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
           type: 'course',
           title: 'VanWest College',
           subtitle: 'Business English',
-          image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=400&h=300&fit=crop',
+          image:
+            'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=400&h=300&fit=crop',
           price: 'CAD 1,320/month',
           rating: 4.7,
           highlights: ['25h/week', 'Career focused', 'Student discounts'],
@@ -318,7 +236,8 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
           type: 'course',
           title: 'ILAC Vancouver',
           subtitle: 'Pathway Program',
-          image: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=400&h=300&fit=crop',
+          image:
+            'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=400&h=300&fit=crop',
           price: 'CAD 1,890/month',
           rating: 4.8,
           highlights: ['38h/week', 'University pathway', 'Intensive program'],
@@ -330,7 +249,8 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
 
   if (lowerQuestion.includes('homestay') && lowerQuestion.includes('shared')) {
     return {
-      summary: 'Both options have their merits. Homestays are ideal for cultural immersion and included meals, while shared houses offer more independence and flexibility. Your choice depends on your lifestyle preferences and budget.',
+      summary:
+        'Both options have their merits. Homestays are ideal for cultural immersion and included meals, while shared houses offer more independence and flexibility. Your choice depends on your lifestyle preferences and budget.',
       tradeoffs: {
         pros: [
           'Homestay: Cultural immersion and language practice',
@@ -361,7 +281,8 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
           type: 'accommodation',
           title: 'Modern Shared House',
           subtitle: 'Kitsilano • Beachside',
-          image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop',
+          image:
+            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop',
           price: 'CAD 1,250/month',
           rating: 4.6,
           highlights: ['Near beach', '4 roommates', 'Fully equipped'],
@@ -371,7 +292,8 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
           type: 'accommodation',
           title: 'Hybrid Option',
           subtitle: 'West End • Best of both',
-          image: 'https://images.unsplash.com/photo-1502672260066-6bc36a0d5c01?w=400&h=300&fit=crop',
+          image:
+            'https://images.unsplash.com/photo-1502672260066-6bc36a0d5c01?w=400&h=300&fit=crop',
           price: 'CAD 1,180/month',
           rating: 4.7,
           highlights: ['Breakfast included', 'Independent living', 'Central location'],
@@ -383,7 +305,8 @@ const getCopilotResponse = async (question: string): Promise<CopilotResponse> =>
 
   // Resposta genérica com baixa confiança
   return {
-    summary: 'I need more information to give you the best recommendations. Please provide more details about your preferences and situation.',
+    summary:
+      'I need more information to give you the best recommendations. Please provide more details about your preferences and situation.',
     tradeoffs: {
       pros: [],
       cons: [],
