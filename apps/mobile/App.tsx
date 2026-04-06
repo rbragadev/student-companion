@@ -1,12 +1,16 @@
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import './global.css';
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TabNavigator from './src/navigation/TabNavigator';
-import { AccommodationDetailScreen, CourseDetailScreen, PlaceDetailScreen, ProfileScreen } from './src/screens';
+import {
+  AccommodationDetailScreen,
+  CourseDetailScreen,
+  PlaceDetailScreen,
+  ProfileScreen,
+} from './src/screens';
 import { RootStackParamList, StackRoutes } from './src/types/navigation';
 import { QueryProvider } from './src/providers/QueryProvider';
 
@@ -19,30 +23,30 @@ export default function App() {
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name={StackRoutes.MAIN_TABS} component={TabNavigator} />
-            <Stack.Screen 
-              name={StackRoutes.ACCOMMODATION_DETAIL} 
+            <Stack.Screen
+              name={StackRoutes.ACCOMMODATION_DETAIL}
               component={AccommodationDetailScreen}
               options={{ presentation: 'card' }}
             />
-            <Stack.Screen 
-              name={StackRoutes.COURSE_DETAIL} 
+            <Stack.Screen
+              name={StackRoutes.COURSE_DETAIL}
               component={CourseDetailScreen}
               options={{ presentation: 'card' }}
             />
-            <Stack.Screen 
-            name={StackRoutes.PLACE_DETAIL} 
-            component={PlaceDetailScreen}
-            options={{ presentation: 'card' }}
-          />
-          <Stack.Screen 
-            name={StackRoutes.PROFILE} 
-            component={ProfileScreen}
-            options={{ presentation: 'card' }}
-          />
-        </Stack.Navigator>
-        <StatusBar style="auto" />
-      </NavigationContainer>
-    </SafeAreaProvider>
+            <Stack.Screen
+              name={StackRoutes.PLACE_DETAIL}
+              component={PlaceDetailScreen}
+              options={{ presentation: 'card' }}
+            />
+            <Stack.Screen
+              name={StackRoutes.PROFILE}
+              component={ProfileScreen}
+              options={{ presentation: 'card' }}
+            />
+          </Stack.Navigator>
+          <StatusBar style="auto" />
+        </NavigationContainer>
+      </SafeAreaProvider>
     </QueryProvider>
   );
 }
