@@ -7,19 +7,20 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
-  // Enable validation globally
+
+  app.enableCors();
+
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Remove propriedades não definidas no DTO
-      forbidNonWhitelisted: true, // Retorna erro se enviar campos extras
-      transform: true, // Transforma payload em instâncias de DTO (class-transformer)
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
     }),
   );
 
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
-  
+
   // 0.0.0.0 permite conexões de qualquer interface (necessário para mobile)
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }

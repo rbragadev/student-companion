@@ -9,39 +9,30 @@ import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList } from '../types/navigation';
 import { useUserProfile } from '../hooks/api/useUserProfile';
 import { useReviewsByUser } from '../hooks/api/useReviews';
+import { useAuth } from '../contexts/AuthContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const userId = 'a8ee8202-7adb-48d9-a2c7-6a03ffc75b48';
-  const { data: user, isLoading: userLoading, error: userError } = useUserProfile(userId);
+  const { userId, logout } = useAuth();
+  const { data: user, isLoading: userLoading } = useUserProfile(userId ?? '');
   const { interests, loading: interestsLoading } = useUserInterests();
-  const { data: reviews, isLoading: reviewsLoading } = useReviewsByUser(userId);
+  const { data: reviews, isLoading: reviewsLoading } = useReviewsByUser(userId ?? '');
 
   const handleEditProfile = () => {
     console.log('Edit profile');
-    // TODO: Navegar para tela de edição
   };
 
   const handleInterestPress = (id: string) => {
     console.log('View interest:', id);
-    // TODO: Navegar para detalhe do interesse
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
-          style: 'destructive',
-          onPress: () => console.log('Logout confirmed')
-        }
-      ]
-    );
+    Alert.alert('Logout', 'Tem certeza que deseja sair?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sair', style: 'destructive', onPress: logout },
+    ]);
   };
 
   if (userLoading) {

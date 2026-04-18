@@ -1,125 +1,136 @@
-# 🎓 Student Companion
+# Student Companion
 
 Plataforma para estudantes internacionais encontrarem acomodações, cursos e lugares em suas cidades de destino.
 
-## 📋 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 student-companion/
 ├── apps/
-│   ├── api/          # Backend NestJS + Prisma
-│   └── mobile/       # App React Native + Expo
-├── infra/
-│   └── docker/       # Docker Compose (PostgreSQL)
-└── docs/             # Documentação técnica
+│   ├── api/        # Backend NestJS + Prisma + PostgreSQL
+│   └── mobile/     # App React Native + Expo
+├── docs/           # Documentação técnica
+├── docker-compose.yml
+└── Makefile
 ```
 
-## 🚀 Como Rodar o Projeto
-
-### Pré-requisitos
+## Pré-requisitos
 
 - Node.js 18+
 - Docker & Docker Compose
 - npm
 
-### 1. Instalar dependências
+---
+
+## Setup rápido (primeira vez)
 
 ```bash
+make setup
+```
+
+Esse comando faz tudo: instala dependências, sobe o banco, aplica o schema e popula com dados de teste.
+
+---
+
+## Rodando em desenvolvimento
+
+Após o setup, em dois terminais separados:
+
+```bash
+# Terminal 1 — backend
+make api
+
+# Terminal 2 — mobile
+make mobile
+```
+
+A API sobe em `http://localhost:3000`.  
+O Expo abre o QR code para rodar no simulador ou dispositivo físico.
+
+---
+
+## Rodando via Docker (API + banco juntos)
+
+```bash
+make up       # sobe postgres + API (seed automático na primeira vez)
+make logs     # acompanha os logs da API
+make down     # para tudo
+```
+
+---
+
+## Usuários de teste
+
+Senha padrão para todos: **`senha123`**
+
+| Nome | E-mail | Perfil |
+|------|--------|--------|
+| Raphael Braga | `raphael@studentcompanion.dev` | Vancouver · study · intermediate |
+| Emily Chen | `emily@studentcompanion.dev` | Vancouver · college · advanced |
+| Lucas Costa | `lucas@studentcompanion.dev` | Toronto · language exchange · beginner |
+
+No simulador, a tela de login exibe automaticamente as credenciais do Raphael.
+
+---
+
+## Todos os comandos disponíveis
+
+```bash
+make help
+```
+
+| Comando | O que faz |
+|---------|-----------|
+| `make setup` | Setup completo (instalar + banco + schema + seed) |
+| `make api` | Inicia a API em modo watch (dev local) |
+| `make mobile` | Inicia o Expo |
+| `make up` | Sobe postgres + API via Docker |
+| `make down` | Para os containers |
+| `make build` | Rebuilda a imagem Docker da API |
+| `make logs` | Logs da API em tempo real |
+| `make db-push` | Aplica schema no banco sem migrations |
+| `make seed` | Executa o seed manualmente |
+| `make install` | Instala todas as dependências |
+
+---
+
+## Configuração manual (sem Makefile)
+
+```bash
+# 1. Instalar dependências
 npm install
-```
 
-### 2. Subir o banco de dados
+# 2. Banco de dados
+docker compose up -d postgres
 
-```bash
-cd infra/docker
-docker-compose up -d
-```
-
-### 3. Configurar a API
-
-```bash
+# 3. Schema + seed
 cd apps/api
+npx prisma db push
+npm run db:seed
 
-# Rodar migrations
-npx prisma migrate dev
-
-# (Opcional) Abrir Prisma Studio
-npx prisma studio
-```
-
-### 4. Iniciar os serviços
-
-#### Backend (API)
-```bash
-# Da raiz do projeto
-npm run dev:api
-
-# Ou direto da pasta apps/api
-cd apps/api
+# 4. API
 npm run start:dev
-```
 
-API rodará em: `http://localhost:3000`
-
-#### Mobile (Expo)
-```bash
-# Da raiz do projeto
-npm run dev:mobile
-
-# Ou direto da pasta apps/mobile
+# 5. Mobile (outro terminal)
 cd apps/mobile
 npx expo start
 ```
 
-## 📚 Documentação
+---
 
-Toda documentação técnica está em [`/docs`](./docs/):
+## Documentação técnica
 
-- **[Sistema de Recomendação](./docs/RECOMMENDATION_SYSTEM.md)** - Arquitetura SOLID, regras de scoring, estratégias
-- **[API Backend](./docs/API.md)** - Endpoints, estrutura, tecnologias
-- **[Mobile App](./docs/MOBILE.md)** - Design system, componentes, navegação
-- **[TODO](./docs/TODO.md)** - Roadmap de melhorias e features
+- [Sistema de Recomendação](./docs/RECOMMENDATION_SYSTEM.md)
+- [API Backend](./docs/API.md)
+- [Mobile App](./docs/MOBILE.md)
+- [TODO / Roadmap](./docs/TODO.md)
 
-## 🛠 Tecnologias
+---
 
-### Backend
-- NestJS
-- Prisma ORM
-- PostgreSQL
-- TypeScript
+## Stack
 
-### Mobile
-- React Native
-- Expo
-- NativeWind (Tailwind CSS)
-- TypeScript
-
-## 📝 Scripts Úteis
-
-```bash
-# Rodar testes
-npm test
-
-# Gerar Prisma Client
-cd apps/api
-npx prisma generate
-
-# Criar nova migration
-cd apps/api
-npx prisma migrate dev --name nome_da_migration
-
-# Limpar e rebuild
-npm run clean
-npm install
-```
-
-## 🤝 Contribuindo
-
-1. Leia a documentação em [`/docs`](./docs/)
-2. Crie uma branch para sua feature
-3. Faça commit das mudanças
-4. Abra um Pull Request
-
-## 📄 Licença
-
-MIT
+| Camada | Tecnologias |
+|--------|-------------|
+| Backend | NestJS 11, Prisma 7, PostgreSQL 16, JWT |
+| Mobile | React Native 0.81, Expo SDK 54, NativeWind, TanStack Query |
+| Infra | Docker, Docker Compose |

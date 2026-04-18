@@ -7,16 +7,17 @@ datasource db {
 }
 
 model User {
-  id          String           @id @default(cuid()) @db.Uuid
-  email       String           @unique
-  phone       String?
-  avatar      String?
-  createdAt   DateTime         @default(now())
-  firstName   String
-  lastName    String
-  updatedAt   DateTime         @updatedAt
-  reviews     Review[]
-  preferences UserPreferences?
+  id           String           @id @default(cuid()) @db.Uuid
+  email        String           @unique
+  phone        String?
+  avatar       String?
+  passwordHash String?          @map("password_hash")
+  createdAt    DateTime         @default(now())
+  firstName    String
+  lastName     String
+  updatedAt    DateTime         @updatedAt
+  reviews      Review[]
+  preferences  UserPreferences?
 
   @@map("users")
 }

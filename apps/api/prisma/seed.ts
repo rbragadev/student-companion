@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import * as bcrypt from 'bcrypt';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -69,6 +70,8 @@ const ids = {
 } as const;
 
 async function main() {
+  const passwordHash = await bcrypt.hash('senha123', 10);
+
   await prisma.user.createMany({
     data: [
       {
@@ -78,6 +81,7 @@ async function main() {
         email: 'raphael@studentcompanion.dev',
         phone: '+55 11 99999-0001',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Raphael',
+        passwordHash,
       },
       {
         id: ids.users.emily,
@@ -86,6 +90,7 @@ async function main() {
         email: 'emily@studentcompanion.dev',
         phone: '+1 604 555 1002',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Emily',
+        passwordHash,
       },
       {
         id: ids.users.lucas,
@@ -94,6 +99,7 @@ async function main() {
         email: 'lucas@studentcompanion.dev',
         phone: '+55 21 98888-4400',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Lucas',
+        passwordHash,
       },
     ],
     skipDuplicates: true,

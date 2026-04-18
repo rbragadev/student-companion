@@ -15,6 +15,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootTabParamList, RootStackParamList, TabRoutes, StackRoutes } from '../types/navigation';
 import { useUserProfile } from '../hooks/api/useUserProfile';
+import { useAuth } from '../contexts/AuthContext';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, typeof TabRoutes.HOME>,
@@ -23,16 +24,16 @@ type HomeScreenNavigationProp = CompositeNavigationProp<
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { userId } = useAuth();
   const {
     data: user,
     isLoading: userLoading,
     error: userError,
-  } = useUserProfile('a8ee8202-7adb-48d9-a2c7-6a03ffc75b48');
+  } = useUserProfile(userId ?? '');
   const { content: heroContent, loading: heroLoading } = useHeroContent();
 
-  // Usando API real de recomendações (accommodations)
   const { data: recommendations = [], isLoading: recsLoading } = useRecommendations(
-    'a8ee8202-7adb-48d9-a2c7-6a03ffc75b48',
+    userId ?? '',
     'accommodation',
     10,
   );
