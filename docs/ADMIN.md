@@ -66,6 +66,8 @@ Permissões atuais de navegação:
 - `roles.read`
 - `roles.write`
 - `permissions.read`
+- `structure.read`
+- `structure.write`
 - `admin.full`
 
 ---
@@ -88,6 +90,10 @@ apps/admin/
     │       ├── layout.tsx      # Shell com Sidebar
     │       ├── dashboard/      # Dashboard com stats reais da API
     │       ├── admin-users/    # Lista, criação e edição de usuários admin
+    │       ├── institutions/   # CRUD de instituições
+    │       ├── units/          # CRUD de unidades
+    │       ├── academic-periods/ # CRUD de períodos letivos
+    │       ├── class-groups/   # CRUD de turmas
     │       ├── profiles/       # Lista, criação e edição de perfis
     │       └── permissions/    # Catálogo de permissões
     ├── components/
@@ -145,12 +151,28 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
 - `/permissions`:
   Catálogo somente leitura de permissões (`GET /permission`).
 
+## Cadastro Estrutural (Integração Real)
+
+- `/institutions`, `/institutions/new`, `/institutions/[id]`
+  CRUD real em `/institution`.
+- `/units`, `/units/new`, `/units/[id]`
+  CRUD real em `/unit` (com vínculo de instituição).
+- `/academic-periods`, `/academic-periods/new`, `/academic-periods/[id]`
+  CRUD real em `/academic-period`.
+- `/class-groups`, `/class-groups/new`, `/class-groups/[id]`
+  CRUD real em `/class-group` (com vínculo de unidade + período).
+
+Fluxo único de dados:
+- Admin atualiza dados reais.
+- Backend central persiste e expõe.
+- Mobile permanece consumindo o mesmo backend (sem fonte paralela).
+
 ## Regras de Autorização na UI
 
 - Rotas server-side críticas usam `requirePermission(permission)`:
-  `users.read`, `users.write`, `roles.read`, `roles.write`, `permissions.read`.
+  `users.read`, `users.write`, `roles.read`, `roles.write`, `permissions.read`, `structure.read`, `structure.write`.
 - Server actions sensíveis usam `assertActionPermission(permission)`:
-  criação/edição/exclusão de usuários e perfis.
+  criação/edição/exclusão de usuários, perfis e cadastro estrutural.
 - A sidebar continua filtrando navegação por permissão, mas agora não é o único gate.
 
 ---

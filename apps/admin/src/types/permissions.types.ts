@@ -5,4 +5,6 @@ export type NavPermission =
   | 'roles.read'
   | 'roles.write'
   | 'permissions.read'
+  | 'structure.read'
+  | 'structure.write'
   | 'admin.full';

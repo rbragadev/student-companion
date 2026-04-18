@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, RecordStatus, Role, Shift } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as bcrypt from 'bcrypt';
@@ -37,6 +37,24 @@ const ids = {
     ilsc: '3bf8b3bf-8420-46c4-b2d6-17f46be8322e',
     vgc: '2036e73f-1f1d-4c66-9db8-2f4287d2fd80',
     cornerstone: 'd17a5348-4104-4266-919c-647e7279d6ab',
+  },
+  institutions: {
+    global: '11111111-1111-4111-8111-111111111111',
+    exchange: '22222222-2222-4222-8222-222222222222',
+  },
+  units: {
+    downtown: '33333333-3333-4333-8333-333333333333',
+    burnaby: '44444444-4444-4444-8444-444444444444',
+    toronto: '55555555-5555-4555-8555-555555555555',
+  },
+  academicPeriods: {
+    spring2026: '66666666-6666-4666-8666-666666666666',
+    fall2026: '77777777-7777-4777-8777-777777777777',
+  },
+  classGroups: {
+    engA1Morning: '88888888-8888-4888-8888-888888888881',
+    engB2Evening: '88888888-8888-4888-8888-888888888882',
+    businessAfternoon: '88888888-8888-4888-8888-888888888883',
   },
   courses: {
     generalEnglishIlsc: 'd0efb89f-3d37-4607-9eaa-032832ec2b8e',
@@ -187,6 +205,114 @@ async function main() {
         maxDistanceToSchool: 15,
         hasUnreadNotifications: true,
         notificationCount: 1,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  await prisma.institution.createMany({
+    data: [
+      {
+        id: ids.institutions.global,
+        name: 'Global Education Group',
+        description: 'Instituição focada em programas internacionais de idioma e carreira.',
+      },
+      {
+        id: ids.institutions.exchange,
+        name: 'Exchange Learning Network',
+        description: 'Rede de unidades com foco em intercâmbio acadêmico.',
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  await prisma.unit.createMany({
+    data: [
+      {
+        id: ids.units.downtown,
+        institutionId: ids.institutions.global,
+        name: 'Unidade Downtown Vancouver',
+        code: 'VAN-DT',
+        address: '101 Burrard St',
+        city: 'Vancouver',
+        state: 'BC',
+        country: 'Canada',
+      },
+      {
+        id: ids.units.burnaby,
+        institutionId: ids.institutions.global,
+        name: 'Unidade Burnaby',
+        code: 'VAN-BBY',
+        address: '4550 Kingsway',
+        city: 'Burnaby',
+        state: 'BC',
+        country: 'Canada',
+      },
+      {
+        id: ids.units.toronto,
+        institutionId: ids.institutions.exchange,
+        name: 'Unidade Toronto Central',
+        code: 'TOR-CTR',
+        address: '250 Yonge St',
+        city: 'Toronto',
+        state: 'ON',
+        country: 'Canada',
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  await prisma.academicPeriod.createMany({
+    data: [
+      {
+        id: ids.academicPeriods.spring2026,
+        name: 'Spring 2026',
+        startDate: new Date('2026-03-01T00:00:00.000Z'),
+        endDate: new Date('2026-06-30T00:00:00.000Z'),
+        status: RecordStatus.INACTIVE,
+      },
+      {
+        id: ids.academicPeriods.fall2026,
+        name: 'Fall 2026',
+        startDate: new Date('2026-08-01T00:00:00.000Z'),
+        endDate: new Date('2026-12-20T00:00:00.000Z'),
+        status: RecordStatus.ACTIVE,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  await prisma.classGroup.createMany({
+    data: [
+      {
+        id: ids.classGroups.engA1Morning,
+        unitId: ids.units.downtown,
+        periodId: ids.academicPeriods.fall2026,
+        name: 'English Starter A1',
+        code: 'ENG-A1-01',
+        shift: Shift.MORNING,
+        status: RecordStatus.ACTIVE,
+        capacity: 24,
+      },
+      {
+        id: ids.classGroups.engB2Evening,
+        unitId: ids.units.burnaby,
+        periodId: ids.academicPeriods.fall2026,
+        name: 'English B2 Fluency',
+        code: 'ENG-B2-05',
+        shift: Shift.EVENING,
+        status: RecordStatus.ACTIVE,
+        capacity: 20,
+      },
+      {
+        id: ids.classGroups.businessAfternoon,
+        unitId: ids.units.toronto,
+        periodId: ids.academicPeriods.spring2026,
+        name: 'Business English Foundations',
+        code: 'BUS-EN-03',
+        shift: Shift.AFTERNOON,
+        status: RecordStatus.INACTIVE,
+        capacity: 18,
       },
     ],
     skipDuplicates: true,
@@ -788,6 +914,8 @@ async function main() {
     { key: 'roles.read',        description: 'Visualizar perfis de acesso' },
     { key: 'roles.write',       description: 'Criar e editar perfis de acesso' },
     { key: 'permissions.read',  description: 'Visualizar permissões do sistema' },
+    { key: 'structure.read',    description: 'Visualizar instituições, unidades, períodos e turmas' },
+    { key: 'structure.write',   description: 'Criar e editar instituições, unidades, períodos e turmas' },
   ];
 
   const permMap: Record<string, string> = {};
@@ -814,14 +942,14 @@ async function main() {
       label: 'Admin',
       description: 'Gestão de conteúdo e usuários',
       isSystem: true,
-      permissions: ['users.read', 'users.write', 'roles.read', 'roles.write', 'permissions.read'],
+      permissions: ['users.read', 'users.write', 'roles.read', 'roles.write', 'permissions.read', 'structure.read', 'structure.write'],
     },
     {
       name: 'operador',
       label: 'Operador',
       description: 'Visualização de usuários e perfis',
       isSystem: false,
-      permissions: ['users.read', 'roles.read', 'permissions.read'],
+      permissions: ['users.read', 'roles.read', 'permissions.read', 'structure.read'],
     },
   ];
 

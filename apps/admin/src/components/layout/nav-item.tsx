@@ -4,6 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
+  University,
+  Building,
+  CalendarDays,
+  GraduationCap,
   Building2,
   BookOpen,
   Home,
@@ -18,6 +22,10 @@ import type { NavIconName } from '@/config/navigation';
 
 const ICONS: Record<NavIconName, React.ElementType> = {
   LayoutDashboard,
+  University,
+  Building,
+  CalendarDays,
+  GraduationCap,
   Building2,
   BookOpen,
   Home,

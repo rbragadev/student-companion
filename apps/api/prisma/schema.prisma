@@ -12,6 +12,19 @@ enum Role {
   SUPER_ADMIN
 }
 
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum Shift {
+  MORNING
+  AFTERNOON
+  EVENING
+  FULL_TIME
+}
+
 model User {
   id            String             @id @default(cuid()) @db.Uuid
   email         String             @unique
@@ -28,6 +41,70 @@ model User {
   adminProfiles UserAdminProfile[]
 
   @@map("users")
+}
+
+model Institution {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique @db.VarChar(255)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  units       Unit[]
+
+  @@map("institution")
+}
+
+model Unit {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institutionId String      @map("institution_id") @db.Uuid
+  name          String      @db.VarChar(255)
+  code          String      @db.VarChar(80)
+  address       String?
+  city          String?     @db.VarChar(120)
+  state         String?     @db.VarChar(120)
+  country       String?     @db.VarChar(120)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  classes       ClassGroup[]
+
+  @@unique([institutionId, code])
+  @@index([institutionId])
+  @@map("unit")
+}
+
+model AcademicPeriod {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String      @db.VarChar(150)
+  startDate  DateTime    @map("start_date")
+  endDate    DateTime    @map("end_date")
+  status     RecordStatus @default(ACTIVE)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  classes    ClassGroup[]
+
+  @@index([startDate, endDate])
+  @@map("academic_period")
+}
+
+model ClassGroup {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unitId     String       @map("unit_id") @db.Uuid
+  periodId   String       @map("period_id") @db.Uuid
+  name       String       @db.VarChar(255)
+  code       String       @db.VarChar(80)
+  shift      Shift
+  status     RecordStatus @default(ACTIVE)
+  capacity   Int?
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  unit       Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  period     AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+
+  @@unique([unitId, code])
+  @@index([unitId])
+  @@index([periodId])
+  @@map("class_group")
 }
 
 model Permission {

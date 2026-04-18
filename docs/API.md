@@ -22,6 +22,10 @@ apps/api/
 │   ├── user/               # UserModule, UserService, UserController
 │   ├── permission/         # PermissionModule (GET /permission)
 │   ├── admin-profile/      # CRUD de perfis + set de permissões
+│   ├── institution/         # CRUD de instituições
+│   ├── unit/                # CRUD de unidades (vínculo com instituição)
+│   ├── academic-period/     # CRUD de períodos letivos
+│   ├── class-group/         # CRUD de turmas (vínculo com unidade + período)
 │   ├── school/
 │   ├── course/
 │   ├── accommodation/
@@ -127,6 +131,26 @@ Exemplo `PUT /admin-profile/:id/permissions`:
 
 ---
 
+### Cadastro Estrutural
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET/POST` | `/institution` | Listar / criar instituição |
+| `GET/PATCH/DELETE` | `/institution/:id` | Detalhe / editar / excluir instituição |
+| `GET/POST` | `/unit` | Listar / criar unidade (`?institutionId=` opcional) |
+| `GET/PATCH/DELETE` | `/unit/:id` | Detalhe / editar / excluir unidade |
+| `GET/POST` | `/academic-period` | Listar / criar período letivo |
+| `GET/PATCH/DELETE` | `/academic-period/:id` | Detalhe / editar / excluir período |
+| `GET/POST` | `/class-group` | Listar / criar turma (`?unitId=`/`?periodId=` opcionais) |
+| `GET/PATCH/DELETE` | `/class-group/:id` | Detalhe / editar / excluir turma |
+
+Regras de relacionamento:
+- Unidade pertence a uma instituição.
+- Turma pertence a uma unidade.
+- Turma pertence a um período letivo.
+
+---
+
 ### Escolas · Cursos · Acomodações · Lugares · Avaliações
 
 | Recurso | Endpoints |
@@ -192,6 +216,10 @@ Exemplo `PUT /admin-profile/:id/permissions`:
 | `admin_profile` | name, label, isSystem |
 | `admin_profile_permission` | profileId + permissionId |
 | `user_admin_profile` | userId + profileId |
+| `institution` | name, description |
+| `unit` | institutionId, name, code, localização |
+| `academic_period` | name, startDate, endDate, status |
+| `class_group` | unitId, periodId, name, code, shift, status, capacity |
 
 ### Roles
 
@@ -214,7 +242,7 @@ enum Role {
 | `superadmin@studentcompanion.dev` | SUPER_ADMIN |
 | `operador@studentcompanion.dev` | ADMIN |
 
-Seed cria também: 3 escolas · 6 cursos · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto) + permissões administrativas + perfis (`super_admin`, `admin`, `operador`) + vínculos iniciais de usuários admin.
+Seed cria também: 3 escolas · 6 cursos · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto) + permissões administrativas + perfis (`super_admin`, `admin`, `operador`) + vínculos iniciais de usuários admin + cenário estrutural inicial (instituições, unidades, períodos e turmas).
 
 ---
 

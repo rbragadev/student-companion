@@ -12,6 +12,10 @@ import { RecommendationModule } from './recommendation/recommendation.module';
 import { AuthModule } from './auth/auth.module';
 import { PermissionModule } from './permission/permission.module';
 import { AdminProfileModule } from './admin-profile/admin-profile.module';
+import { InstitutionModule } from './institution/institution.module';
+import { UnitModule } from './unit/unit.module';
+import { AcademicPeriodModule } from './academic-period/academic-period.module';
+import { ClassGroupModule } from './class-group/class-group.module';
 
 @Module({
   imports: [
@@ -26,6 +30,10 @@ import { AdminProfileModule } from './admin-profile/admin-profile.module';
     RecommendationModule,
     PermissionModule,
     AdminProfileModule,
+    InstitutionModule,
+    UnitModule,
+    AcademicPeriodModule,
+    ClassGroupModule,
   ],
   controllers: [AppController],
   providers: [AppService],
