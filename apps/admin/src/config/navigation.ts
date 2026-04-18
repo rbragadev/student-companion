@@ -3,6 +3,7 @@ export type NavIconName =
   | 'University'
   | 'Building'
   | 'CalendarDays'
+  | 'Network'
   | 'GraduationCap'
   | 'Building2'
   | 'BookOpen'
@@ -73,6 +74,12 @@ export const navigationGroups: NavGroup[] = [
         icon: 'CalendarDays',
         permission: 'structure.read',
         dependsOn: ['classes'],
+      },
+      {
+        label: 'Estrutura Acadêmica',
+        href: '/academic-structure',
+        icon: 'Network',
+        permission: 'structure.read',
       },
     ],
   },

@@ -119,6 +119,7 @@ apps/admin/
     │       ├── courses/        # CRUD de cursos (catálogo mobile)
     │       ├── class-groups/   # CRUD de turmas (por curso)
     │       ├── academic-periods/ # CRUD de períodos da turma
+    │       ├── academic-structure/ # Consulta relacional com filtros encadeados
     │       ├── accommodations/ # Lista integrada com dados reais
     │       ├── places/         # Lista integrada com dados reais
     │       ├── students/       # Lista de usuários STUDENT
@@ -146,7 +147,7 @@ apps/admin/
 
 | Componente | Uso |
 |-----------|-----|
-| `DataTable<T>` | Tabela tipada com colunas `Column<T>[]`, loading/empty state, `onRowClick` |
+| `DataTable<T>` | Tabela tipada com colunas `Column<T>[]`, loading/empty state, `getRowHref` |
 | `FilterBar` | Barra de busca + selects dinâmicos configuráveis |
 | `PageHeader` | Título + descrição + slot de ações (children) |
 | `LoadingState` | Skeleton rows animados |
@@ -193,6 +194,10 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   CRUD real em `/class-group` (com vínculo obrigatório de curso).
 - `/academic-periods`, `/academic-periods/new`, `/academic-periods/[id]`
   CRUD real em `/academic-period` (cada período pertence a uma turma).
+- `/academic-structure`
+  Consulta operacional da cadeia acadêmica com filtros dependentes:
+  instituição -> escola -> unidade -> curso -> turma.
+  Exibe de forma consolidada escolas, unidades, cursos, turmas e períodos relacionados.
 - `/accommodations`, `/places`, `/students`
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
 
@@ -205,7 +210,7 @@ Fluxo único de dados:
 
 - Dashboard
 - Configuração Acadêmica
-  Instituições → Escolas (Catálogo App) → Unidades → Cursos → Turmas → Períodos da Turma
+  Instituições → Escolas (Catálogo App) → Unidades → Cursos → Turmas → Períodos da Turma → Estrutura Acadêmica
 - Estrutura Física
   Acomodações → Lugares
 - Pessoas e Acesso

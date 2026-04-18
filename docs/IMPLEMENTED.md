@@ -181,7 +181,8 @@ apps/admin/
     │   ├── (auth)/login/       # LoginForm (client) + Server Action
     │   └── (admin)/
     │       ├── layout.tsx      # Shell com Sidebar
-    │       └── dashboard/      # Dashboard com stats reais da API
+    │       ├── dashboard/      # Dashboard com stats reais da API
+    │       └── academic-structure/ # Consulta da cadeia acadêmica com filtros encadeados
     ├── components/
     │   ├── layout/             # Sidebar, Header, NavItem, LogoutButton
     │   ├── ui/                 # Button, Input, Badge, DataTable, PageHeader
@@ -196,11 +197,17 @@ apps/admin/
 
 Busca contagens reais da API (`/school`, `/course`, `/accommodation`, `/place`) em paralelo via `Promise.all`. Mostra cards de stats + grid de módulos futuros (Alunos, Instituições, Unidades, Turmas, Matrículas).
 
+### Estrutura Acadêmica
+
+Tela de consulta operacional (`/academic-structure`) com dados reais da API:
+`/institution`, `/school`, `/unit`, `/course`, `/class-group`, `/academic-period`.
+Permite filtros encadeados por instituição, escola, unidade, curso e turma, e exibe os vínculos entre as entidades em cadeia.
+
 ### Componentes genéricos prontos
 
 | Componente | Uso |
 |-----------|-----|
-| `DataTable<T>` | Tabela tipada com loading/empty state e onRowClick |
+| `DataTable<T>` | Tabela tipada com loading/empty state e getRowHref |
 | `FilterBar` | Barra de busca + selects dinâmicos |
 | `PageHeader` | Título + descrição + slot de ações |
 | `LoadingState` | Skeleton rows animados |
