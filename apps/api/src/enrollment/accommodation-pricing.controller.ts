@@ -25,8 +25,13 @@ export class AccommodationPricingController {
   resolve(
     @Query('accommodationId') accommodationId: string,
     @Query('periodOption') periodOption?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
-    return this.accommodationPricingService.resolvePrice(accommodationId, periodOption);
+    return this.accommodationPricingService.resolvePrice(accommodationId, periodOption, {
+      startDate,
+      endDate,
+    });
   }
 
   @Patch(':id')

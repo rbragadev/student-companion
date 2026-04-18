@@ -47,6 +47,12 @@ export class EnrollmentQuoteService {
     }
   }
 
+  private weeksBetween(startDate: Date, endDate: Date): number {
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays / 7;
+  }
+
   async create(dto: CreateEnrollmentQuoteDto) {
     const resolvedIntent = dto.enrollmentIntentId
       ? await this.prisma.enrollmentIntent.findUnique({
@@ -271,7 +277,15 @@ export class EnrollmentQuoteService {
         });
         const pct = this.toNumber(cfg?.percentage);
         const fixed = this.toNumber(cfg?.fixedAmount ?? 0);
-        const amount = this.toNumber(resolvedCoursePricing.basePrice);
+        const amount =
+          resolvedCoursePricing.course.period_type === 'weekly'
+            ? Number(
+                (
+                  this.toNumber(resolvedCoursePricing.basePrice) *
+                  this.weeksBetween(startDate, endDate)
+                ).toFixed(2),
+              )
+            : this.toNumber(resolvedCoursePricing.basePrice);
         const commissionAmount = Number((amount * (pct / 100) + fixed).toFixed(2));
 
         resolvedItems.push({
@@ -309,7 +323,12 @@ export class EnrollmentQuoteService {
       );
       const pct = this.toNumber(cfg?.percentage);
       const fixed = this.toNumber(cfg?.fixedAmount ?? 0);
-      const amount = this.toNumber(resolvedAccommodationPricing.basePrice);
+      const amount = Number(
+        (
+          this.toNumber(resolvedAccommodationPricing.basePrice) *
+          this.weeksBetween(startDate, endDate)
+        ).toFixed(2),
+      );
       const commissionAmount = Number((amount * (pct / 100) + fixed).toFixed(2));
 
       resolvedItems.push({

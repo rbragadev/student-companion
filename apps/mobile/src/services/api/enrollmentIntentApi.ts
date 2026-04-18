@@ -59,9 +59,16 @@ export const enrollmentIntentApi = {
   getCoursePricing: async (
     courseId: string,
     academicPeriodId: string,
+    options?: { startDate?: string; endDate?: string },
   ): Promise<CoursePricing> => {
+    const query = new URLSearchParams({
+      courseId,
+      academicPeriodId,
+      ...(options?.startDate ? { startDate: options.startDate } : {}),
+      ...(options?.endDate ? { endDate: options.endDate } : {}),
+    });
     const { data } = await apiClient.get(
-      `/course-pricing/resolve?courseId=${courseId}&academicPeriodId=${academicPeriodId}`,
+      `/course-pricing/resolve?${query.toString()}`,
     );
     return data as CoursePricing;
   },
@@ -69,11 +76,15 @@ export const enrollmentIntentApi = {
   getAccommodationPricing: async (
     accommodationId: string,
     periodOption?: string,
+    options?: { startDate?: string; endDate?: string },
   ): Promise<AccommodationPricing> => {
-    const query = periodOption
-      ? `accommodationId=${accommodationId}&periodOption=${encodeURIComponent(periodOption)}`
-      : `accommodationId=${accommodationId}`;
-    const { data } = await apiClient.get(`/accommodation-pricing/resolve?${query}`);
+    const query = new URLSearchParams({
+      accommodationId,
+      ...(periodOption ? { periodOption } : {}),
+      ...(options?.startDate ? { startDate: options.startDate } : {}),
+      ...(options?.endDate ? { endDate: options.endDate } : {}),
+    });
+    const { data } = await apiClient.get(`/accommodation-pricing/resolve?${query.toString()}`);
     return data as AccommodationPricing;
   },
 

@@ -21,6 +21,9 @@ export interface CoursePricing {
   academicPeriodId: string;
   duration?: string | null;
   basePrice: number;
+  calculatedAmount?: number;
+  weeks?: number;
+  pricingLabel?: 'per week' | 'total price' | string;
   currency: string;
   isActive: boolean;
   academicPeriod?: { id: string; name: string };
@@ -31,6 +34,9 @@ export interface AccommodationPricing {
   accommodationId: string;
   periodOption: string;
   basePrice: number;
+  calculatedAmount?: number;
+  weeks?: number;
+  pricingLabel?: 'per week' | string;
   currency: string;
   isActive: boolean;
 }

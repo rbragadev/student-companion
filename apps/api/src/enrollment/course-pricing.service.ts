@@ -7,6 +7,24 @@ import { UpdateCoursePricingDto } from './dto/update-course-pricing.dto';
 export class CoursePricingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private parseIsoDate(value?: string): Date | null {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  private validateWeeklyRange(startDate: Date, endDate: Date) {
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    const isSundayToSunday = startDate.getUTCDay() === 0 && endDate.getUTCDay() === 0;
+    if (diffDays <= 0 || diffDays % 7 !== 0 || !isSundayToSunday) {
+      throw new BadRequestException(
+        'Período semanal inválido: use intervalo múltiplo de 7 dias e datas de domingo a domingo',
+      );
+    }
+    return diffDays / 7;
+  }
+
   async create(dto: CreateCoursePricingDto) {
     const [course, period] = await Promise.all([
       this.prisma.course.findUnique({ where: { id: dto.courseId }, select: { id: true } }),
@@ -72,12 +90,23 @@ export class CoursePricingService {
     });
   }
 
-  async resolvePrice(courseId: string, academicPeriodId: string) {
+  async resolvePrice(
+    courseId: string,
+    academicPeriodId: string,
+    options?: { startDate?: string; endDate?: string },
+  ) {
     const pricing = await this.prisma.coursePricing.findFirst({
       where: { courseId, academicPeriodId, isActive: true },
       include: {
-        course: { select: { id: true, program_name: true, school: { select: { id: true, institutionId: true } } } },
-        academicPeriod: { select: { id: true, name: true } },
+        course: {
+          select: {
+            id: true,
+            program_name: true,
+            period_type: true,
+            school: { select: { id: true, institutionId: true } },
+          },
+        },
+        academicPeriod: { select: { id: true, name: true, startDate: true, endDate: true } },
       },
     });
     if (!pricing) {
@@ -85,7 +114,36 @@ export class CoursePricingService {
         `Preço de curso não encontrado para courseId=${courseId} e academicPeriodId=${academicPeriodId}`,
       );
     }
-    return pricing;
+
+    const startDate = this.parseIsoDate(options?.startDate);
+    const endDate = this.parseIsoDate(options?.endDate);
+    let weeks = 0;
+    let calculatedAmount = Number(pricing.basePrice);
+    let pricingLabel = 'total price';
+
+    if (pricing.course.period_type === 'weekly') {
+      if (!startDate || !endDate) {
+        throw new BadRequestException('startDate e endDate são obrigatórios para cursos weekly');
+      }
+      weeks = this.validateWeeklyRange(startDate, endDate);
+      calculatedAmount = Number((Number(pricing.basePrice) * weeks).toFixed(2));
+      pricingLabel = 'per week';
+    } else {
+      if (startDate && endDate) {
+        if (startDate < pricing.academicPeriod.startDate || endDate > pricing.academicPeriod.endDate) {
+          throw new BadRequestException(
+            'Período fixo inválido: datas fora da janela do período acadêmico',
+          );
+        }
+      }
+    }
+
+    return {
+      ...pricing,
+      calculatedAmount,
+      weeks,
+      pricingLabel,
+    };
   }
 
   async update(id: string, dto: UpdateCoursePricingDto) {

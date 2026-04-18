@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import type { CourseAdmin, SchoolAdmin } from '@/types/catalog.types';
+import type { CourseAdmin, CoursePricingAdmin, SchoolAdmin } from '@/types/catalog.types';
 import type { Unit } from '@/types/structure.types';
 import { CourseHierarchyFields } from '../course-hierarchy-fields';
 import { deleteCourseAction, updateCourseAction } from '../actions';
@@ -19,10 +19,11 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
   const session = await requirePermission('structure.read');
   const canWrite = session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
-  const [course, schools, units] = await Promise.all([
+  const [course, schools, units, pricingRows] = await Promise.all([
     apiFetch<CourseAdmin>(`/course/${id}`).catch(() => null),
     apiFetch<SchoolAdmin[]>('/school').catch(() => []),
     apiFetch<Unit[]>('/unit').catch(() => []),
+    apiFetch<CoursePricingAdmin[]>(`/course-pricing?courseId=${id}`).catch(() => []),
   ]);
 
   if (!course) notFound();
@@ -77,6 +78,36 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
           </div>
         )}
       </form>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-slate-900">Oferta e períodos do curso</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          {course.period_type === 'weekly'
+            ? 'Curso semanal: o app calcula valor por semana (per week) conforme duração selecionada em datas válidas.'
+            : 'Curso fixo: o app exibe total price da oferta para o período selecionado.'}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Os períodos continuam vinculados às turmas, mas a regra de cálculo/preço da oferta fica centralizada no curso.
+        </p>
+
+        <div className="mt-4 space-y-2">
+          {pricingRows.map((row) => (
+            <div key={row.id} className="rounded-lg border border-slate-200 p-3 text-sm">
+              <p className="font-medium text-slate-900">{row.academicPeriod?.name ?? 'Período'}</p>
+              <p className="text-slate-600">
+                Preço base: {Number(row.basePrice).toFixed(2)} {row.currency}
+              </p>
+              <p className="text-slate-500">
+                Janela: {row.academicPeriod?.startDate ? new Date(row.academicPeriod.startDate).toLocaleDateString() : '-'} -{' '}
+                {row.academicPeriod?.endDate ? new Date(row.academicPeriod.endDate).toLocaleDateString() : '-'}
+              </p>
+            </div>
+          ))}
+          {pricingRows.length === 0 && (
+            <p className="text-xs text-slate-500">Nenhum pricing configurado para este curso.</p>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

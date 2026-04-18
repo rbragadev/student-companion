@@ -7,6 +7,24 @@ import { UpdateAccommodationPricingDto } from './dto/update-accommodation-pricin
 export class AccommodationPricingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private parseIsoDate(value?: string): Date | null {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  private validateWeeklyRange(startDate: Date, endDate: Date) {
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    const isSundayToSunday = startDate.getUTCDay() === 0 && endDate.getUTCDay() === 0;
+    if (diffDays <= 0 || diffDays % 7 !== 0 || !isSundayToSunday) {
+      throw new BadRequestException(
+        'Período semanal inválido: use intervalo múltiplo de 7 dias e datas de domingo a domingo',
+      );
+    }
+    return diffDays / 7;
+  }
+
   async create(dto: CreateAccommodationPricingDto) {
     const accommodation = await this.prisma.accommodation.findUnique({
       where: { id: dto.accommodationId },
@@ -62,7 +80,11 @@ export class AccommodationPricingService {
     });
   }
 
-  async resolvePrice(accommodationId: string, periodOption?: string) {
+  async resolvePrice(
+    accommodationId: string,
+    periodOption?: string,
+    options?: { startDate?: string; endDate?: string },
+  ) {
     if (!accommodationId) {
       throw new BadRequestException('accommodationId é obrigatório');
     }
@@ -99,7 +121,23 @@ export class AccommodationPricingService {
         }`,
       );
     }
-    return pricing;
+
+    const startDate = this.parseIsoDate(options?.startDate);
+    const endDate = this.parseIsoDate(options?.endDate);
+    let weeks = 0;
+    let calculatedAmount = Number(pricing.basePrice);
+
+    if (startDate && endDate) {
+      weeks = this.validateWeeklyRange(startDate, endDate);
+      calculatedAmount = Number((Number(pricing.basePrice) * weeks).toFixed(2));
+    }
+
+    return {
+      ...pricing,
+      calculatedAmount,
+      weeks,
+      pricingLabel: 'per week',
+    };
   }
 
   async update(id: string, dto: UpdateAccommodationPricingDto) {

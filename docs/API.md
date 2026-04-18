@@ -225,11 +225,11 @@ Regras:
 | `GET` | `/course-pricing` | Lista preços de curso por período (`?courseId=&academicPeriodId=&isActive=`) |
 | `POST` | `/course-pricing` | Cria/atualiza preço por curso+período (upsert) |
 | `PATCH` | `/course-pricing/:id` | Atualiza preço de curso |
-| `GET` | `/course-pricing/resolve?courseId=...&academicPeriodId=...` | Resolve preço ativo para seleção no fluxo do aluno |
+| `GET` | `/course-pricing/resolve?courseId=...&academicPeriodId=...&startDate=...&endDate=...` | Resolve preço ativo e valor calculado conforme período selecionado |
 | `GET` | `/accommodation-pricing` | Lista preços de acomodação (`?accommodationId=&periodOption=&isActive=`) |
 | `POST` | `/accommodation-pricing` | Cria/atualiza preço por acomodação+período (upsert) |
 | `PATCH` | `/accommodation-pricing/:id` | Atualiza preço de acomodação |
-| `GET` | `/accommodation-pricing/resolve?accommodationId=...&periodOption=...` | Resolve preço ativo para upsell |
+| `GET` | `/accommodation-pricing/resolve?accommodationId=...&periodOption=...&startDate=...&endDate=...` | Resolve preço ativo e valor calculado para o período selecionado |
 | `POST` | `/quotes` | Gera quote consolidada do pacote (curso, acomodação opcional, entrada, saldo, comissão) |
 | `GET` | `/quotes/:id` | Retorna detalhe da quote |
 | `GET` | `/quotes/by-intent/:intentId` | Retorna a quote mais recente associada à intenção |
@@ -246,7 +246,7 @@ Regras:
 - confirmação marca intenção como `converted` (`converted_at` preenchido)
 - intenção pendente só pode ser criada/alterada com preço ativo de curso para `course + academicPeriod`
 - cursos suportam `period_type`:
-  - `weekly`: validação por múltiplos de 7 dias
+  - `weekly`: validação por múltiplos de 7 dias com datas de domingo a domingo
   - `fixed`: datas dentro da janela do período acadêmico
 - `auto_approve_intent` em curso prepara avanço automático do fluxo por regra do catálogo
 - no fluxo mobile de fechamento:

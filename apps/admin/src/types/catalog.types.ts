@@ -57,6 +57,11 @@ export interface AccommodationAdmin {
   priceInCents: number;
   priceUnit: string;
   score?: number | null;
+  description?: string;
+  image?: string;
+  goodFor?: string | null;
+  isPartner?: boolean;
+  isTopTrip?: boolean;
   badges?: string[];
   recommendationBadge?: string | null;
   recommendationPriority?: number;

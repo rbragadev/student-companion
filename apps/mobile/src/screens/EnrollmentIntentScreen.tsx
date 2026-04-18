@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Modal, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -251,7 +251,10 @@ export default function EnrollmentIntentScreen() {
       }
 
       try {
-        const pricing = await enrollmentIntentApi.getCoursePricing(courseId, selectedPeriodId);
+        const pricing = await enrollmentIntentApi.getCoursePricing(courseId, selectedPeriodId, {
+          startDate: toIsoDate(courseStartDate),
+          endDate: toIsoDate(courseEndDate),
+        });
         setCoursePricing(pricing);
       } catch (err) {
         setCoursePricing(null);
@@ -260,7 +263,7 @@ export default function EnrollmentIntentScreen() {
     };
 
     void run();
-  }, [courseId, selectedPeriodId]);
+  }, [courseEndDate, courseId, courseStartDate, selectedPeriodId]);
 
   React.useEffect(() => {
     const run = async () => {
@@ -274,6 +277,10 @@ export default function EnrollmentIntentScreen() {
         const pricing = await enrollmentIntentApi.getAccommodationPricing(
           selectedAccommodationId,
           periodName,
+          {
+            startDate: toIsoDate(accommodationStartDate),
+            endDate: toIsoDate(accommodationEndDate),
+          },
         );
         setAccommodationPricing(pricing);
       } catch (err) {
@@ -287,7 +294,13 @@ export default function EnrollmentIntentScreen() {
     };
 
     void run();
-  }, [selectedAccommodationId, periods, selectedPeriodId]);
+  }, [
+    selectedAccommodationId,
+    periods,
+    selectedPeriodId,
+    accommodationStartDate,
+    accommodationEndDate,
+  ]);
 
   const selectAccommodation = React.useCallback(
     (accommodationId: string) => {
@@ -313,6 +326,10 @@ export default function EnrollmentIntentScreen() {
         const pricing = await enrollmentIntentApi.getAccommodationPricing(
           item.id,
           selectedPeriod?.name,
+          {
+            startDate: toIsoDate(accommodationStartDate),
+            endDate: toIsoDate(accommodationEndDate),
+          },
         );
         setModalAccommodationPricing(pricing);
       } catch {
@@ -321,7 +338,7 @@ export default function EnrollmentIntentScreen() {
         setModalPricingLoading(false);
       }
     },
-    [selectedPeriod?.name],
+    [selectedPeriod?.name, accommodationStartDate, accommodationEndDate],
   );
 
   const canGoToStep2 = React.useMemo(() => {
@@ -624,13 +641,28 @@ export default function EnrollmentIntentScreen() {
 
       <Card>
         <Text variant="h3" className="font-semibold">Preço do curso</Text>
-        <Text variant="body" className="mt-2">
-          {coursePricing ? formatMoney(coursePricing.basePrice, coursePricing.currency) : 'Selecione período válido'}
-        </Text>
-        {course?.periodType === 'weekly' && (
-          <Text variant="caption" className="mt-1">
-            Duração selecionada: {Math.max(1, diffDays(courseStartDate, courseEndDate) / 7)} semana(s)
-          </Text>
+        {coursePricing ? (
+          <>
+            {course?.periodType === 'weekly' ? (
+              <>
+                <Text variant="body" className="mt-2">
+                  {formatMoney(coursePricing.basePrice, coursePricing.currency)} per week
+                </Text>
+                <Text variant="caption" className="mt-1">
+                  Total do período: {formatMoney(coursePricing.calculatedAmount ?? 0, coursePricing.currency)}
+                </Text>
+                <Text variant="caption" className="mt-1">
+                  Duração selecionada: {coursePricing.weeks ?? Math.max(1, diffDays(courseStartDate, courseEndDate) / 7)} semana(s)
+                </Text>
+              </>
+            ) : (
+              <Text variant="body" className="mt-2">
+                Total price: {formatMoney(coursePricing.calculatedAmount ?? coursePricing.basePrice, coursePricing.currency)}
+              </Text>
+            )}
+          </>
+        ) : (
+          <Text variant="body" className="mt-2">Selecione período válido</Text>
         )}
       </Card>
 
@@ -669,6 +701,11 @@ export default function EnrollmentIntentScreen() {
               <Text variant="caption">
                 {item.accommodationType} • CAD {(item.priceInCents / 100).toLocaleString()}/{item.priceUnit}
               </Text>
+              {selectedAccommodationId === item.id && accommodationPricing && (
+                <Text variant="caption" className="text-primary-700">
+                  Preço período atual: {formatMoney(accommodationPricing.calculatedAmount ?? 0, accommodationPricing.currency)}
+                </Text>
+              )}
               {!!item.recommendationBadge && (
                 <Text variant="caption" className="text-primary-700">{item.recommendationBadge}</Text>
               )}
@@ -708,6 +745,11 @@ export default function EnrollmentIntentScreen() {
                 <Text variant="caption">
                   Score {Number(item.score ?? 0).toFixed(1)} • CAD {(item.priceInCents / 100).toLocaleString()}/{item.priceUnit}
                 </Text>
+                {selectedAccommodationId === item.id && accommodationPricing && (
+                  <Text variant="caption" className="text-primary-700">
+                    Preço período atual: {formatMoney(accommodationPricing.calculatedAmount ?? 0, accommodationPricing.currency)}
+                  </Text>
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -813,7 +855,7 @@ export default function EnrollmentIntentScreen() {
           )}
           <Text variant="caption">
             {selectedAccommodationId && accommodationPricing
-              ? `Preço: ${formatMoney(accommodationPricing.basePrice, accommodationPricing.currency)}`
+              ? `Preço final do período: ${formatMoney(accommodationPricing.calculatedAmount ?? 0, accommodationPricing.currency)}`
               : 'Sem acomodação selecionada'}
           </Text>
         </View>
@@ -972,11 +1014,11 @@ export default function EnrollmentIntentScreen() {
           transparent={true}
           onRequestClose={() => setSelectedAccommodationPreview(null)}
         >
-          <View className="flex-1 justify-end bg-black/40">
-            <View className="max-h-[85%] rounded-t-3xl bg-white p-4">
+          <View className="flex-1 justify-center bg-black/40 px-3 py-8">
+            <View className="h-[86%] rounded-2xl bg-white p-4">
               {selectedAccommodationPreview && (
                 <>
-                  <View className="flex-row items-start justify-between">
+                  <View className="flex-row items-start justify-between border-b border-slate-100 pb-3">
                     <View className="flex-1 pr-3">
                       <Text variant="h3" className="font-semibold">
                         {selectedAccommodationPreview.title}
@@ -993,41 +1035,42 @@ export default function EnrollmentIntentScreen() {
                       <Ionicons name="close" size={18} color={colorValues.textPrimary} />
                     </TouchableOpacity>
                   </View>
-
-                  {!!selectedAccommodationPreview.image && (
-                    <Image
-                      source={{ uri: selectedAccommodationPreview.image }}
-                      resizeMode="cover"
-                      className="mt-3 h-40 w-full rounded-xl"
-                    />
-                  )}
-
-                  <View className="mt-3 gap-1">
-                    <Text variant="caption">
-                      Score: {Number(selectedAccommodationPreview.score ?? 0).toFixed(1)}
-                    </Text>
-                    {!!selectedAccommodationPreview.recommendationBadge && (
-                      <Text variant="caption" className="text-primary-700">
-                        {selectedAccommodationPreview.recommendationBadge}
-                      </Text>
+                  <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 16 }}>
+                    {!!selectedAccommodationPreview.image && (
+                      <Image
+                        source={{ uri: selectedAccommodationPreview.image }}
+                        resizeMode="cover"
+                        className="mt-3 h-48 w-full rounded-xl"
+                      />
                     )}
-                    <Text variant="caption">
-                      Período atual: {new Date(`${accommodationStartDate}T00:00:00.000Z`).toLocaleDateString()} -{' '}
-                      {new Date(`${accommodationEndDate}T00:00:00.000Z`).toLocaleDateString()}
-                    </Text>
-                    <Text variant="body" className="font-medium">
-                      {modalPricingLoading
-                        ? 'Calculando preço...'
-                        : modalAccommodationPricing
-                          ? formatMoney(
-                              modalAccommodationPricing.basePrice,
-                              modalAccommodationPricing.currency,
-                            )
-                          : `CAD ${(selectedAccommodationPreview.priceInCents / 100).toLocaleString()}/${selectedAccommodationPreview.priceUnit}`}
-                    </Text>
-                  </View>
 
-                  <View className="mt-4 flex-row gap-2">
+                    <View className="mt-3 gap-1">
+                      <Text variant="caption">
+                        Score: {Number(selectedAccommodationPreview.score ?? 0).toFixed(1)}
+                      </Text>
+                      {!!selectedAccommodationPreview.recommendationBadge && (
+                        <Text variant="caption" className="text-primary-700">
+                          {selectedAccommodationPreview.recommendationBadge}
+                        </Text>
+                      )}
+                      <Text variant="caption">
+                        Período atual: {new Date(`${accommodationStartDate}T00:00:00.000Z`).toLocaleDateString()} -{' '}
+                        {new Date(`${accommodationEndDate}T00:00:00.000Z`).toLocaleDateString()}
+                      </Text>
+                      <Text variant="body" className="font-medium">
+                        {modalPricingLoading
+                          ? 'Calculando preço...'
+                          : modalAccommodationPricing
+                            ? `Preço final: ${formatMoney(
+                                modalAccommodationPricing.calculatedAmount ?? 0,
+                                modalAccommodationPricing.currency,
+                              )}`
+                            : `Base: CAD ${(selectedAccommodationPreview.priceInCents / 100).toLocaleString()}/${selectedAccommodationPreview.priceUnit}`}
+                      </Text>
+                    </View>
+                  </ScrollView>
+
+                  <View className="mt-3 flex-row gap-2 border-t border-slate-100 pt-3">
                     <Button
                       variant="outline"
                       className="flex-1"

@@ -76,6 +76,7 @@ export default async function AccommodationsPage() {
         columns={catalogColumns}
         data={accommodations}
         keyExtractor={(item) => item.id}
+        getRowHref={(item) => `/accommodations/${item.id}`}
         emptyTitle="Nenhuma acomodação cadastrada"
         emptyDescription="O catálogo de acomodações está vazio."
       />

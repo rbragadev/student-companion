@@ -126,8 +126,9 @@ apps/admin/
     │       ├── accommodation-operations/ # Fechamento/faturamento de acomodação por matrícula
     │       ├── commission-config/ # Configuração de comissão por instituição/curso
     │       ├── financial-overview/ # Visão financeira inicial das comissões geradas
-    │       ├── accommodations/ # Lista integrada com dados reais
-    │       ├── accommodation-pricing/ # Preço de acomodação por período/opção
+    │       ├── accommodations/ # Catálogo + detalhe por acomodação (dados, pricing e recomendação)
+    │       ├── accommodations/[id]/ # Centro do domínio da acomodação
+    │       ├── accommodation-pricing/ # (legado) visão tabular de preços por acomodação/período
     │       ├── places/         # Lista integrada com dados reais
     │       ├── students/       # Lista de usuários STUDENT
     │       ├── profiles/       # Lista, criação e edição de perfis
@@ -225,10 +226,9 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Visão financeira operacional com matrícula, aluno, instituição, escola, curso, valor de matrícula e comissão.
 - `/accommodations`, `/places`, `/students`
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
-- `/accommodation-pricing`
-  Configuração de preço por acomodação e opção de período (texto legível).
-- `/accommodations` (evolução de upsell contextual)
-  Catálogo independente + configuração de recomendação por escola (recomendada, prioridade e badge), com visualização de uso em intenções e matrículas.
+- `/accommodations` e `/accommodations/[id]`
+  Catálogo independente com detalhe centralizado por acomodação: dados gerais, pricing por período e recomendação por escola (recomendada, prioridade e badge), com visualização de uso em intenções e matrículas.
+  A página `/accommodation-pricing` segue disponível apenas como visão tabular legada.
   Regra operacional: máximo de 3 recomendações ativas por escola/contexto.
 
 Fluxo único de dados:
@@ -255,6 +255,7 @@ Status da integração mobile (escopo acadêmico já coberto):
   - matrícula aceita seleção/troca/remoção de acomodação via `PATCH /enrollments/:id/accommodation`;
   - financeiro consolidado do pacote é exposto por `GET /enrollments/:id/package-summary` e refletido no SaaS/mobile.
   - quote consolidada é gerada por `POST /quotes` e consultada por `GET /quotes/by-intent/:intentId`.
+  - pricing de curso/acomodação pode ser resolvido com datas (`startDate`/`endDate`) para cálculo dinâmico durante seleção no app.
   - quote exibe tipo do pacote (`course_only`, `course_with_accommodation`), total, entrada, saldo e comissão.
   - quote aceita montagem por itens (`course` e `accommodation`) com datas por item; suporta `accommodation_only` (standalone) no backend.
   - no mobile, o fechamento de pacote é em 4 etapas:

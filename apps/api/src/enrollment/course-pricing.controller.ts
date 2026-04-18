@@ -25,8 +25,13 @@ export class CoursePricingController {
   resolve(
     @Query('courseId') courseId: string,
     @Query('academicPeriodId') academicPeriodId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
-    return this.coursePricingService.resolvePrice(courseId, academicPeriodId);
+    return this.coursePricingService.resolvePrice(courseId, academicPeriodId, {
+      startDate,
+      endDate,
+    });
   }
 
   @Patch(':id')
