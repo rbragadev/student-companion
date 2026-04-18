@@ -43,7 +43,7 @@ export class CourseService {
         is_active: data.isActive ?? true,
       },
       include: {
-        school: { select: { id: true, name: true, location: true } },
+        school: { select: { id: true, name: true, location: true, isPartner: true } },
         unit: {
           select: {
             id: true,
@@ -65,7 +65,7 @@ export class CourseService {
   async getAllCourses() {
     return this.prisma.course.findMany({
       include: {
-        school: { select: { id: true, name: true, location: true } },
+        school: { select: { id: true, name: true, location: true, isPartner: true } },
         unit: {
           select: {
             id: true,
@@ -91,7 +91,7 @@ export class CourseService {
     const course = await this.prisma.course.findUnique({
       where: { id },
       include: {
-        school: { select: { id: true, name: true, location: true } },
+        school: { select: { id: true, name: true, location: true, isPartner: true } },
         unit: {
           select: {
             id: true,
@@ -144,7 +144,7 @@ export class CourseService {
         is_active: data.isActive,
       },
       include: {
-        school: { select: { id: true, name: true, location: true } },
+        school: { select: { id: true, name: true, location: true, isPartner: true } },
         unit: {
           select: {
             id: true,

@@ -206,6 +206,11 @@ Fluxo único de dados:
 - Backend central persiste e expõe.
 - Mobile permanece consumindo o mesmo backend (sem fonte paralela).
 
+Status da integração mobile (escopo acadêmico já coberto):
+- `school`: mobile consome `GET /school` real.
+- `course`: mobile consome `GET /course` e `GET /course/:id` reais.
+- Normalização de contrato (`snake_case` -> `camelCase`) ocorre no mobile em `services/api/mappers/catalogMappers.ts`, sem duplicar domínio no backend.
+
 ## Sidebar (Ordem de Operação)
 
 - Dashboard

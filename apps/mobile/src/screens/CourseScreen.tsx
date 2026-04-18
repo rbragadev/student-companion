@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, TextInput } from 'react-native';
+import { View, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,39 +15,41 @@ export default function CourseScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { data: courses = [], isLoading: loading } = useCourses();
   const [searchText, setSearchText] = React.useState('');
-  const [selectedSchool, setSelectedSchool] = React.useState<string | null>(null);
+  const [selectedSchoolId, setSelectedSchoolId] = React.useState<string | null>(null);
 
-  // Extrai escolas únicas dos cursos
+  // Extrai escolas únicas dos cursos para filtro real
   const schools = React.useMemo(() => {
-    const uniqueSchools = Array.from(new Set(courses.map(course => course.school?.name || 'Unknown School')));
-    return uniqueSchools.sort();
+    const mapById = new Map<string, string>();
+    courses.forEach((course) => {
+      if (course.school?.id && course.school.name) {
+        mapById.set(course.school.id, course.school.name);
+      }
+    });
+    return Array.from(mapById.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [courses]);
 
   // Filtra cursos com base na busca e escola selecionada
   const filteredCourses = React.useMemo(() => {
     return courses.filter(course => {
-      const schoolName = course.school?.name || 'Unknown School';
+      const schoolName = course.school?.name ?? '';
       const matchesSearch = searchText === '' || 
         course.programName.toLowerCase().includes(searchText.toLowerCase()) ||
         schoolName.toLowerCase().includes(searchText.toLowerCase());
       
-      const matchesSchool = !selectedSchool || schoolName === selectedSchool;
+      const matchesSchool = !selectedSchoolId || course.school?.id === selectedSchoolId;
       
       return matchesSearch && matchesSchool;
     });
-  }, [courses, searchText, selectedSchool]);
+  }, [courses, searchText, selectedSchoolId]);
 
   const handleCoursePress = (id: string) => {
     navigation.navigate(StackRoutes.COURSE_DETAIL, { courseId: id });
   };
 
-  const handleSchoolFilter = () => {
-    console.log('Open school filter modal');
-    // TODO: Implementar modal de seleção de escola
-  };
-
   const clearSchoolFilter = () => {
-    setSelectedSchool(null);
+    setSelectedSchoolId(null);
   };
 
   if (loading) {
@@ -98,28 +100,44 @@ export default function CourseScreen() {
         </View>
 
         {/* School Filter */}
-        <View className="flex-row items-center gap-2">
-          <TouchableOpacity
-            onPress={handleSchoolFilter}
-            activeOpacity={0.7}
-            className="flex-row items-center gap-2 bg-surface px-4 py-3 rounded-xl flex-1"
-          >
-            <Ionicons name="school-outline" size={20} color={colorValues.textMuted} />
-            <Text variant="body" className="text-textMuted flex-1">
-              {selectedSchool || 'All Schools'}
+        <View className="gap-2">
+          <View className="flex-row items-center justify-between">
+            <Text variant="caption" className="text-textMuted">
+              School filter
             </Text>
-            <Ionicons name="chevron-down" size={16} color={colorValues.textMuted} />
-          </TouchableOpacity>
-
-          {selectedSchool && (
+            {selectedSchoolId && (
+              <TouchableOpacity onPress={clearSchoolFilter} activeOpacity={0.7}>
+                <Text variant="caption" className="text-primary-500">Clear</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             <TouchableOpacity
-              onPress={clearSchoolFilter}
+              onPress={() => setSelectedSchoolId(null)}
               activeOpacity={0.7}
-              className="bg-surface p-3 rounded-xl"
+              className={`flex-row items-center gap-2 rounded-full border px-3 py-2 ${!selectedSchoolId ? 'border-primary-500 bg-primary-50' : 'border-border bg-surface'}`}
             >
-              <Ionicons name="close" size={24} color={colorValues.textMuted} />
+              <Ionicons name="school-outline" size={16} color={!selectedSchoolId ? colorValues.primary[500] : colorValues.textMuted} />
+              <Text variant="caption" className={!selectedSchoolId ? 'text-primary-500' : 'text-textMuted'}>
+                All schools
+              </Text>
             </TouchableOpacity>
-          )}
+            {schools.map((school) => {
+              const selected = selectedSchoolId === school.id;
+              return (
+                <TouchableOpacity
+                  key={school.id}
+                  onPress={() => setSelectedSchoolId(school.id)}
+                  activeOpacity={0.7}
+                  className={`rounded-full border px-3 py-2 ${selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-surface'}`}
+                >
+                  <Text variant="caption" className={selected ? 'text-primary-500' : 'text-textMuted'}>
+                    {school.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       </View>
 
@@ -141,7 +159,8 @@ export default function CourseScreen() {
           </View>
         ) : (
           filteredCourses.map((course) => {
-            const schoolName = course.school?.name || 'Unknown School';
+            const schoolName = course.school?.name ?? '-';
+            const courseBadge = course.badges.length > 0 ? course.badges[0] : undefined;
             const priceCad = course.priceInCents 
               ? `$${(course.priceInCents / 100).toFixed(2)}` 
               : undefined;
@@ -155,9 +174,9 @@ export default function CourseScreen() {
                 weeklyHours={course.weeklyHours}
                 priceCad={priceCad}
                 rating={course.rating ? Number(course.rating) : 0}
-                ratingCount={course.ratingCount}
+                ratingCount={course.ratingCount ?? 0}
                 isPartner={course.school?.isPartner || false}
-                badge={course.badge}
+                badge={courseBadge}
                 image={course.image}
                 onPress={() => handleCoursePress(course.id)}
               />

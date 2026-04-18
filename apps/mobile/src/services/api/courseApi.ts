@@ -5,6 +5,7 @@
 
 import { Course } from '../../types/course.types';
 import { apiClient } from './client';
+import { mapCoursePayload } from './mappers/catalogMappers';
 
 export const courseApi = {
   /**
@@ -12,7 +13,7 @@ export const courseApi = {
    */
   getCourses: async (): Promise<Course[]> => {
     const { data } = await apiClient.get('/course');
-    return data;
+    return Array.isArray(data) ? data.map(mapCoursePayload) : [];
   },
 
   /**
@@ -20,6 +21,6 @@ export const courseApi = {
    */
   getCourseById: async (courseId: string): Promise<Course> => {
     const { data } = await apiClient.get(`/course/${courseId}`);
-    return data;
+    return mapCoursePayload(data);
   },
 };

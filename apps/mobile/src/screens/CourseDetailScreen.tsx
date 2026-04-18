@@ -24,6 +24,8 @@ export default function CourseDetailScreen() {
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
 
   const loading = courseLoading || reviewsLoading;
+  const courseBadge = course?.badges.length ? course.badges[0] : undefined;
+  const priceUnit = course?.priceUnit || 'month';
 
   if (loading || !course) {
     return (
@@ -103,12 +105,12 @@ export default function CourseDetailScreen() {
           <View className="gap-2">
             <View className="flex-row items-center justify-between">
               <Text variant="caption" className="text-textSecondary font-medium">
-                {course.school?.name || 'Unknown School'}
+                {course.school?.name ?? '-'}
               </Text>
-              {course.school?.isPartner && course.badge && (
+              {course.school?.isPartner && courseBadge && (
                 <View className="bg-success/10 px-3 py-1 rounded-full">
                   <Text variant="caption" className="text-success font-medium">
-                    {course.badge}
+                    {courseBadge}
                   </Text>
                 </View>
               )}
@@ -117,7 +119,7 @@ export default function CourseDetailScreen() {
               {course.programName}
             </Text>
             <Text variant="body" className="text-textMuted">
-              {course.school?.location || 'Location not specified'}
+              {course.school?.location ?? '-'}
             </Text>
           </View>
 
@@ -163,7 +165,7 @@ export default function CourseDetailScreen() {
                     <Text variant="h2" className="text-xl font-bold text-primary-500">
                       ${(course.priceInCents / 100).toFixed(2)}
                       <Text variant="body" className="text-textMuted font-normal">
-                        {' '}/month
+                        {' '}/{priceUnit}
                       </Text>
                     </Text>
                   </View>
@@ -235,12 +237,12 @@ export default function CourseDetailScreen() {
                   <View className="gap-3">
                     <View className="flex-row items-center gap-3">
                       <Image
-                        source={{ uri: review.user?.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/png?seed=' + review.userId }}
+                        source={{ uri: review.user?.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${review.userId}` }}
                         className="w-10 h-10 rounded-full"
                       />
                       <View className="flex-1">
                         <Text variant="body" className="font-semibold">
-                          {review.user?.name || 'Anonymous'}
+                          {review.user ? `${review.user.firstName} ${review.user.lastName}` : 'Anonymous'}
                         </Text>
                         <Text variant="caption" className="text-textMuted">
                           {new Date(review.createdAt).toLocaleDateString()}
@@ -276,7 +278,7 @@ export default function CourseDetailScreen() {
                 <Text variant="h2" className="text-xl font-bold text-primary-500">
                   ${(course.priceInCents / 100).toFixed(2)}
                   <Text variant="body" className="text-textMuted font-normal text-sm">
-                    {' '}/month
+                    {' '}/{priceUnit}
                   </Text>
                 </Text>
               </>

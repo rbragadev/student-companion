@@ -138,6 +138,26 @@ Usuários de teste (senha: `senha123`):
 Todos usam TanStack Query (5min stale · 10min GC · retry 2x):
 `useUserProfile` · `useSchools` · `useCourses` · `useAccommodations` · `usePlaces` · `useReviews` · `useRecommendations`
 
+### Integração Real (Escopo Acadêmico Coberto)
+
+Diagnóstico atual:
+
+| Recurso | Status | Observação |
+|---------|--------|------------|
+| Escolas (`/school`) | Integrado | Mobile consome endpoint real (`schoolApi`, `useSchools`) |
+| Cursos (`/course`) | Integrado | Mobile consome endpoints reais (`courseApi`, `useCourses`, `useCourseById`) |
+| Instituições | Parcial (admin/backend) | Disponível no SaaS/backend; não consumido diretamente no mobile neste step |
+| Unidades | Parcial (admin/backend) | Disponível no SaaS/backend; não consumido diretamente no mobile neste step |
+| Turmas | Parcial (admin/backend) | Disponível no SaaS/backend; não consumido diretamente no mobile neste step |
+| Períodos da turma | Parcial (admin/backend) | Disponível no SaaS/backend; não consumido diretamente no mobile neste step |
+
+Ajustes aplicados para fechar compatibilidade mobile:
+- Normalização centralizada de payload em `apps/mobile/src/services/api/mappers/catalogMappers.ts` (snake_case -> camelCase).
+- `schoolApi` e `courseApi` passaram a retornar dados mapeados e consistentes para hooks/telas.
+- Remoção de fallback artificial de escola (`Unknown School`) no fluxo de cursos.
+- Filtro de escola na lista de cursos passou a usar IDs reais do backend (sem modal fake/TODO).
+- Endpoint de cursos passou a incluir `school.isPartner` no backend para refletir o estado real no mobile.
+
 ---
 
 ## Admin (Next.js 15)

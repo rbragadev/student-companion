@@ -5,6 +5,7 @@
 
 import { School } from '../../types/school.types';
 import { apiClient } from './client';
+import { mapSchoolPayload } from './mappers/catalogMappers';
 
 export const schoolApi = {
   /**
@@ -12,7 +13,7 @@ export const schoolApi = {
    */
   getSchools: async (): Promise<School[]> => {
     const { data } = await apiClient.get('/school');
-    return data;
+    return Array.isArray(data) ? data.map(mapSchoolPayload) : [];
   },
 
   /**
@@ -20,6 +21,6 @@ export const schoolApi = {
    */
   getSchoolById: async (schoolId: string): Promise<School> => {
     const { data } = await apiClient.get(`/school/${schoolId}`);
-    return data;
+    return mapSchoolPayload(data);
   },
 };

@@ -154,7 +154,9 @@ Regras de relacionamento:
 - Curso também mantém vínculo com escola (compatibilidade do mobile).
 
 Compatibilidade mobile:
-- O app mobile continua consumindo `GET /school` e `GET /course` sem exigir mudanças de contrato.
+- O app mobile continua consumindo `GET /school` e `GET /course`.
+- No domínio de cursos, a API mantém campos persistidos em `snake_case` (ex.: `program_name`, `price_in_cents`, `rating_count`) por compatibilidade histórica.
+- O mobile normaliza esse contrato na camada `services/api/mappers/catalogMappers.ts`, convertendo para `camelCase` antes de chegar nas telas/hooks.
 - O vínculo `course.school_id` permanece ativo para não quebrar a navegação/listagem no app.
 
 Distinção conceitual:
