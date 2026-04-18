@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -33,6 +34,13 @@ export default async function EditEnrollmentIntentPage({
   if (intent.status !== 'pending') {
     return (
       <div className="flex flex-col gap-4">
+        <Breadcrumbs
+          items={[
+            { label: 'Intenções', href: '/enrollment-intents' },
+            { label: intent.student.firstName + ' ' + intent.student.lastName, href: `/enrollment-intents/${id}` },
+            { label: 'Editar' },
+          ]}
+        />
         <PageHeader title="Intenção não editável" description="Apenas intenções pendentes podem ser alteradas." />
         <Link href={`/enrollment-intents/${id}`}>
           <Button size="sm" variant="outline"><ArrowLeft size={14} />Voltar ao detalhe</Button>
@@ -43,6 +51,13 @@ export default async function EditEnrollmentIntentPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Intenções', href: '/enrollment-intents' },
+          { label: intent.student.firstName + ' ' + intent.student.lastName, href: `/enrollment-intents/${id}` },
+          { label: 'Editar' },
+        ]}
+      />
       <PageHeader
         title="Editar Intenção de Matrícula"
         description="Troque curso, turma e período antes da confirmação."

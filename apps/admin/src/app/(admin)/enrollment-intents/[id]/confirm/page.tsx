@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -28,6 +29,13 @@ export default async function ConfirmEnrollmentIntentPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Intenções', href: '/enrollment-intents' },
+          { label: intent.student.firstName + ' ' + intent.student.lastName, href: `/enrollment-intents/${id}` },
+          { label: 'Confirmar matrícula' },
+        ]}
+      />
       <PageHeader
         title="Confirmar Matrícula"
         description="Esta ação converte a intenção pendente em matrícula real e atualiza o aluno para enrolled."

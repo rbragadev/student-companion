@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { requirePermission } from '@/lib/authorization';
 import { createInstitutionAction } from '../actions';
@@ -10,6 +11,7 @@ export default async function NewInstitutionPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs items={[{ label: 'Instituições', href: '/institutions' }, { label: 'Nova instituição' }]} />
       <PageHeader
         title="Nova instituição"
         description="Escopo administrativo do cliente no SaaS"

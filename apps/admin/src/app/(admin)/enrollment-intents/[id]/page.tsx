@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Pencil } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -46,6 +47,13 @@ export default async function EnrollmentIntentDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Intenções', href: '/enrollment-intents' },
+          { label: intent.student.firstName + ' ' + intent.student.lastName },
+          { label: intent.course.program_name },
+        ]}
+      />
       <PageHeader
         title="Detalhe da Intenção de Matrícula"
         description="Consulta de vínculo aluno > curso > turma > período"

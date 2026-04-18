@@ -156,6 +156,7 @@ apps/admin/
 |-----------|-----|
 | `DataTable<T>` | Tabela tipada com colunas `Column<T>[]`, loading/empty state, `getRowHref` |
 | `FilterBar` | Barra de busca + selects dinâmicos configuráveis |
+| `Breadcrumbs` | Trilha hierárquica de contexto em páginas internas (detalhe/edição/confirmação) |
 | `PageHeader` | Título + descrição + slot de ações (children) |
 | `LoadingState` | Skeleton rows animados |
 | `EmptyState` | Estado vazio com ícone, texto e ação opcional |
@@ -197,6 +198,7 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   CRUD real em `/unit` (com vínculo de escola).
 - `/courses`, `/courses/new`, `/courses/[id]`
   CRUD real em `/course` (com vínculo obrigatório de unidade e escola, preservando contrato do mobile).
+  Listagem com busca e filtros hierárquicos (instituição, escola, unidade, status e tipo de oferta) e páginas internas com breadcrumb de contexto.
 - `class-group` e `academic-period` seguem no backend para operação interna e validação da matrícula, mas deixaram de ser contexto principal de navegação para o usuário administrativo de negócio.
 - pricing de curso foi centralizado no detalhe do próprio curso (`/courses/[id]`).
 - `/academic-structure`
@@ -205,6 +207,7 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Exibe de forma consolidada escolas, unidades, cursos, turmas e períodos relacionados.
 - `/enrollment-intents`, `/enrollment-intents/[id]`
   Lista e detalhe das intenções de matrícula com filtros por status do aluno, instituição e escola.
+  Inclui busca por aluno/e-mail/curso e breadcrumbs nas páginas internas.
 - `/enrollment-intents/[id]/edit`
   Página dedicada para alterar curso/turma/período e acomodação da intenção pendente.
 - `/enrollment-intents/[id]/confirm`
@@ -213,6 +216,7 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Jornada acadêmica do aluno com intenção pendente, matrícula ativa e histórico completo.
 - `/enrollments`, `/enrollments/[id]`
   Lista e detalhe de matrículas com workflow operacional (`application_started`, `documents_pending`, `under_review`, `approved`, `enrolled`, `rejected`, `cancelled`), pricing de pacote (matrícula + acomodação), comissão, documentos, mensagens e timeline.
+  Inclui busca por aluno/e-mail/curso e breadcrumbs nas páginas internas.
 - `/accommodation-operations`
   Operação dedicada para fechamento de acomodação e faturamento no contexto da matrícula (status da acomodação + acesso rápido ao detalhe da matrícula).
 - `/commission-config`
@@ -223,6 +227,7 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
 - `/accommodations` e `/accommodations/[id]`
   Catálogo independente com detalhe centralizado por acomodação: dados gerais, pricing por período e recomendação por escola (recomendada, prioridade e badge), com visualização de uso em intenções e matrículas.
+  Listagem com busca e filtros por tipo/status/escola de recomendação e breadcrumb no detalhe.
   A página `/accommodation-pricing` segue disponível apenas como visão tabular interna/legada.
   Regra operacional: máximo de 3 recomendações ativas por escola/contexto.
 

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -85,6 +86,13 @@ export default async function EnrollmentDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Matrículas', href: '/enrollments' },
+          { label: enrollment.student.firstName + ' ' + enrollment.student.lastName },
+          { label: enrollment.course.program_name },
+        ]}
+      />
       <PageHeader
         title="Detalhe da Matrícula"
         description="Fluxo operacional, documentos, mensagens, timeline e pricing."

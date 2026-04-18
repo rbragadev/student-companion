@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -23,6 +24,7 @@ export default async function InstitutionDetailPage({ params }: Readonly<PagePro
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs items={[{ label: 'Instituições', href: '/institutions' }, { label: institution.name }]} />
       <PageHeader
         title={`Instituição: ${institution.name}`}
         description="Escopo administrativo do cliente no SaaS"

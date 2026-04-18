@@ -1,5 +1,4 @@
 import { PageHeader } from '@/components/ui/page-header';
-import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
@@ -12,34 +11,7 @@ import type {
   SchoolAdmin,
 } from '@/types/catalog.types';
 import { updateSchoolAccommodationRecommendationAction } from './actions';
-
-const catalogColumns: Column<AccommodationAdmin>[] = [
-  {
-    key: 'title',
-    label: 'Acomodação',
-    render: (item) => (
-      <div>
-        <p className="font-medium text-slate-900">{item.title}</p>
-        <p className="text-xs text-slate-500">{item.location} • {item.accommodationType}</p>
-      </div>
-    ),
-  },
-  {
-    key: 'price',
-    label: 'Preço',
-    render: (item) => `$${(item.priceInCents / 100).toFixed(0)}/${item.priceUnit}`,
-  },
-  {
-    key: 'score',
-    label: 'Score',
-    render: (item) => Number(item.score ?? 0).toFixed(1),
-  },
-  {
-    key: 'status',
-    label: 'Status',
-    render: (item) => <Badge variant={item.isActive ? 'success' : 'default'}>{item.isActive ? 'Ativa' : 'Inativa'}</Badge>,
-  },
-];
+import { AccommodationsView } from './view';
 
 export default async function AccommodationsPage() {
   const session = await requirePermission('structure.read');
@@ -64,6 +36,10 @@ export default async function AccommodationsPage() {
   const recommendationsBySchool = new Map<string, SchoolAccommodationRecommendationAdmin[]>(
     recommendationEntries,
   );
+  const recommendationScope = recommendationEntries.map(([schoolId, rows]) => ({
+    schoolId,
+    accommodationIds: rows.filter((item) => item.isRecommendedBySchool).map((item) => item.id),
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,13 +48,10 @@ export default async function AccommodationsPage() {
         description="Catálogo independente de acomodações e recomendação contextual por escola para upsell da matrícula"
       />
 
-      <DataTable<AccommodationAdmin>
-        columns={catalogColumns}
-        data={accommodations}
-        keyExtractor={(item) => item.id}
-        getRowHref={(item) => `/accommodations/${item.id}`}
-        emptyTitle="Nenhuma acomodação cadastrada"
-        emptyDescription="O catálogo de acomodações está vazio."
+      <AccommodationsView
+        accommodations={accommodations}
+        schools={schools}
+        recommendationScope={recommendationScope}
       />
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">

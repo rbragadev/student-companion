@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { apiFetch } from '@/lib/api';
@@ -51,9 +52,19 @@ export default async function AccommodationDetailPage({ params }: Readonly<PageP
   const recommendationsBySchool = new Map<string, SchoolAccommodationRecommendationAdmin | null>(
     recommendationEntries,
   );
+  const primarySchoolContext =
+    schools.find((school) => recommendationsBySchool.get(school.id)?.isRecommendedBySchool) ?? null;
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Acomodações', href: '/accommodations' },
+          ...(primarySchoolContext?.institution?.name ? [{ label: primarySchoolContext.institution.name }] : []),
+          ...(primarySchoolContext ? [{ label: primarySchoolContext.name }] : []),
+          { label: accommodation.title },
+        ]}
+      />
       <PageHeader
         title={`Acomodação: ${accommodation.title}`}
         description="Gerencie dados gerais, pricing e recomendação por escola no mesmo contexto da acomodação."

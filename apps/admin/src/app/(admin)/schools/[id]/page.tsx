@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -24,6 +25,14 @@ export default async function SchoolDetailPage({ params }: Readonly<PageProps>) 
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Instituições', href: '/institutions' },
+          { label: school.institution?.name ?? 'Instituição' },
+          { label: 'Escolas', href: '/schools' },
+          { label: school.name },
+        ]}
+      />
       <PageHeader
         title={`Escola: ${school.name}`}
         description="Catálogo acadêmico exibido no app"

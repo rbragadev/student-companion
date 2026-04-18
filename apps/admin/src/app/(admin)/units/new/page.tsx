@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -13,6 +14,7 @@ export default async function NewUnitPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs items={[{ label: 'Unidades', href: '/units' }, { label: 'Nova unidade' }]} />
       <PageHeader
         title="Nova unidade"
         description="Cadastre unidade vinculada a uma escola"

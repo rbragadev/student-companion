@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -27,6 +28,15 @@ export default async function UnitDetailPage({ params }: Readonly<PageProps>) {
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Instituições', href: '/institutions' },
+          { label: unit.school?.institution?.name ?? 'Instituição' },
+          { label: unit.school?.name ?? 'Escola' },
+          { label: 'Unidades', href: '/units' },
+          { label: unit.name },
+        ]}
+      />
       <PageHeader
         title={`Unidade: ${unit.name}`}
         description="Edite os dados estruturais da unidade vinculada à escola"

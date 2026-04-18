@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -18,6 +19,7 @@ export default async function NewCoursePage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs items={[{ label: 'Cursos', href: '/courses' }, { label: 'Novo curso' }]} />
       <PageHeader
         title="Novo curso"
         description="Cadastre curso vinculado a uma unidade (e escola) do catálogo"

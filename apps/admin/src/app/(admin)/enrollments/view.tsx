@@ -17,6 +17,7 @@ export function EnrollmentView({
   institutions,
   schools,
 }: Readonly<EnrollmentViewProps>) {
+  const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [institutionFilter, setInstitutionFilter] = useState('');
   const [schoolFilter, setSchoolFilter] = useState('');
@@ -28,15 +29,28 @@ export function EnrollmentView({
   );
 
   const filtered = useMemo(() => {
+    const search = searchFilter.trim().toLowerCase();
     return enrollments.filter((enrollment) => {
       const statusMatch = !statusFilter || enrollment.status === statusFilter;
       const institutionMatch = !institutionFilter || enrollment.institution.id === institutionFilter;
       const schoolMatch = !schoolFilter || enrollment.school.id === schoolFilter;
       const accommodationStatusMatch =
         !accommodationStatusFilter || enrollment.accommodationStatus === accommodationStatusFilter;
-      return statusMatch && institutionMatch && schoolMatch && accommodationStatusMatch;
+      const searchMatch =
+        !search ||
+        `${enrollment.student.firstName} ${enrollment.student.lastName}`.toLowerCase().includes(search) ||
+        enrollment.student.email.toLowerCase().includes(search) ||
+        enrollment.course.program_name.toLowerCase().includes(search);
+      return statusMatch && institutionMatch && schoolMatch && accommodationStatusMatch && searchMatch;
     });
-  }, [enrollments, statusFilter, institutionFilter, schoolFilter, accommodationStatusFilter]);
+  }, [
+    enrollments,
+    statusFilter,
+    institutionFilter,
+    schoolFilter,
+    accommodationStatusFilter,
+    searchFilter,
+  ]);
 
   const columns: Column<EnrollmentAdmin>[] = [
     {
@@ -91,6 +105,9 @@ export function EnrollmentView({
   return (
     <div className="flex flex-col gap-4">
       <FilterBar
+        searchValue={searchFilter}
+        onSearchChange={setSearchFilter}
+        searchPlaceholder="Buscar aluno, e-mail ou curso"
         filters={[
           {
             key: 'status',

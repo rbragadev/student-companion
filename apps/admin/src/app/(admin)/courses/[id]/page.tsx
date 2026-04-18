@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
@@ -36,6 +37,14 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
   if (!course) notFound();
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs
+        items={[
+          { label: 'Cursos', href: '/courses' },
+          { label: course.school?.institution?.name ?? 'Instituição' },
+          { label: course.school?.name ?? 'Escola' },
+          { label: course.program_name },
+        ]}
+      />
       <PageHeader
         title={`Curso: ${course.program_name}`}
         description="Edite dados do curso vinculado à unidade e exibido no app"

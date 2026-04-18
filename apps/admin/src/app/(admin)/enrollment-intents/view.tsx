@@ -24,6 +24,7 @@ export function EnrollmentIntentsView({
   institutions,
   schools,
 }: Readonly<EnrollmentIntentsViewProps>) {
+  const [searchFilter, setSearchFilter] = useState('');
   const [institutionFilter, setInstitutionFilter] = useState('');
   const [schoolFilter, setSchoolFilter] = useState('');
   const [intentStatusFilter, setIntentStatusFilter] = useState('');
@@ -34,14 +35,20 @@ export function EnrollmentIntentsView({
   );
 
   const filtered = useMemo(() => {
+    const search = searchFilter.trim().toLowerCase();
     return intents.filter((intent) => {
       const school = intent.course.school;
       const intentStatusMatch = !intentStatusFilter || intent.status === intentStatusFilter;
       const institutionMatch = !institutionFilter || school?.institution?.id === institutionFilter;
       const schoolMatch = !schoolFilter || school?.id === schoolFilter;
-      return intentStatusMatch && institutionMatch && schoolMatch;
+      const searchMatch =
+        !search ||
+        `${intent.student.firstName} ${intent.student.lastName}`.toLowerCase().includes(search) ||
+        intent.student.email.toLowerCase().includes(search) ||
+        intent.course.program_name.toLowerCase().includes(search);
+      return intentStatusMatch && institutionMatch && schoolMatch && searchMatch;
     });
-  }, [intents, intentStatusFilter, institutionFilter, schoolFilter]);
+  }, [intents, intentStatusFilter, institutionFilter, schoolFilter, searchFilter]);
 
   const columns: Column<EnrollmentIntentAdmin>[] = [
     {
@@ -102,6 +109,9 @@ export function EnrollmentIntentsView({
   return (
     <div className="flex flex-col gap-4">
       <FilterBar
+        searchValue={searchFilter}
+        onSearchChange={setSearchFilter}
+        searchPlaceholder="Buscar aluno, e-mail ou curso"
         filters={[
           {
             key: 'intentStatus',
