@@ -12,7 +12,7 @@ export default async function NewInstitutionPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Nova instituição"
-        description="Cadastre uma instituição para uso no módulo estrutural"
+        description="Escopo administrativo do cliente no SaaS"
         actions={(
           <Link href="/institutions">
             <Button variant="outline" size="sm"><ArrowLeft size={14} />Voltar</Button>

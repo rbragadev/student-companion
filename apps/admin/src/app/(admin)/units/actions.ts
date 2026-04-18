@@ -20,7 +20,7 @@ export async function createUnitAction(formData: FormData) {
   await apiFetch('/unit', {
     method: 'POST',
     body: JSON.stringify({
-      institutionId: getText(formData, 'institutionId'),
+      schoolId: getText(formData, 'schoolId'),
       name: getText(formData, 'name'),
       code: getText(formData, 'code'),
       address: getOptional(formData, 'address'),
@@ -40,7 +40,7 @@ export async function updateUnitAction(id: string, formData: FormData) {
   await apiFetch(`/unit/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({
-      institutionId: getText(formData, 'institutionId'),
+      schoolId: getText(formData, 'schoolId'),
       name: getText(formData, 'name'),
       code: getText(formData, 'code'),
       address: getOptional(formData, 'address'),

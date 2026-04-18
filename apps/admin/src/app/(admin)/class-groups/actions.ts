@@ -22,8 +22,7 @@ export async function createClassGroupAction(formData: FormData) {
   await apiFetch('/class-group', {
     method: 'POST',
     body: JSON.stringify({
-      unitId: getText(formData, 'unitId'),
-      periodId: getText(formData, 'periodId'),
+      courseId: getText(formData, 'courseId'),
       name: getText(formData, 'name'),
       code: getText(formData, 'code'),
       shift: getText(formData, 'shift'),
@@ -42,8 +41,7 @@ export async function updateClassGroupAction(id: string, formData: FormData) {
   await apiFetch(`/class-group/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({
-      unitId: getText(formData, 'unitId'),
-      periodId: getText(formData, 'periodId'),
+      courseId: getText(formData, 'courseId'),
       name: getText(formData, 'name'),
       code: getText(formData, 'code'),
       shift: getText(formData, 'shift'),

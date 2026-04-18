@@ -19,14 +19,19 @@ const columns: Column<Unit>[] = [
     ),
   },
   {
-    key: 'institution',
-    label: 'Instituição',
-    render: (item) => item.institution?.name ?? '-',
+    key: 'school',
+    label: 'Escola',
+    render: (item) => item.school?.name ?? '-',
   },
   {
-    key: 'classes',
-    label: 'Turmas',
-    render: (item) => String(item._count?.classes ?? 0),
+    key: 'institution',
+    label: 'Instituição',
+    render: (item) => item.school?.institution?.name ?? '-',
+  },
+  {
+    key: 'courses',
+    label: 'Cursos',
+    render: (item) => String(item._count?.courses ?? 0),
   },
   {
     key: 'location',
@@ -45,7 +50,7 @@ export default async function UnitsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Unidades"
-        description="Gerencie unidades vinculadas às instituições"
+        description="Gerencie unidades vinculadas às escolas"
         actions={canWrite ? (
           <Link href="/units/new"><Button size="sm"><Plus size={14} />Nova unidade</Button></Link>
         ) : undefined}
@@ -57,7 +62,7 @@ export default async function UnitsPage() {
         keyExtractor={(item) => item.id}
         getRowHref={(item) => `/units/${item.id}`}
         emptyTitle="Nenhuma unidade cadastrada"
-        emptyDescription="Crie unidades para organizar turmas por instituição."
+        emptyDescription="Crie unidades para organizar cursos e turmas por escola."
         emptyAction={canWrite ? (
           <Link href="/units/new"><Button size="sm"><Building size={14} />Criar unidade</Button></Link>
         ) : undefined}

@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import { RECORD_STATUS_LABEL, RECORD_STATUS_OPTIONS, SHIFT_LABEL, SHIFT_OPTIONS } from '@/lib/structure';
-import type { AcademicPeriod, ClassGroup, Unit } from '@/types/structure.types';
+import type { CourseAdmin } from '@/types/catalog.types';
+import type { ClassGroup } from '@/types/structure.types';
 import { deleteClassGroupAction, updateClassGroupAction } from '../actions';
 
 interface PageProps {
@@ -18,10 +19,9 @@ export default async function ClassGroupDetailPage({ params }: Readonly<PageProp
   const session = await requirePermission('structure.read');
   const canWrite = session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
-  const [classGroup, units, periods] = await Promise.all([
+  const [classGroup, courses] = await Promise.all([
     apiFetch<ClassGroup>(`/class-group/${id}`).catch(() => null),
-    apiFetch<Unit[]>('/unit').catch(() => []),
-    apiFetch<AcademicPeriod[]>('/academic-period').catch(() => []),
+    apiFetch<CourseAdmin[]>('/course').catch(() => []),
   ]);
 
   if (!classGroup) notFound();
@@ -30,7 +30,7 @@ export default async function ClassGroupDetailPage({ params }: Readonly<PageProp
     <div className="flex flex-col gap-6">
       <PageHeader
         title={`Turma: ${classGroup.name}`}
-        description="Edite dados e vínculos estruturais da turma"
+        description="Edite dados e vínculo da turma com o curso"
         actions={(
           <Link href="/class-groups"><Button variant="outline" size="sm"><ArrowLeft size={14} />Voltar</Button></Link>
         )}
@@ -39,16 +39,15 @@ export default async function ClassGroupDetailPage({ params }: Readonly<PageProp
       <form action={updateClassGroupAction.bind(null, classGroup.id)} className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="space-y-1 sm:col-span-2">
-            <span className="text-sm font-medium text-slate-700">Unidade</span>
-            <select name="unitId" required defaultValue={classGroup.unitId} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100">
-              {units.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}
+            <span className="text-sm font-medium text-slate-700">Curso</span>
+            <select name="courseId" required defaultValue={classGroup.courseId} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100">
+              {courses.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.program_name} ({item.unit?.name ?? 'Sem unidade'})
+                </option>
+              ))}
             </select>
-          </label>
-          <label className="space-y-1 sm:col-span-2">
-            <span className="text-sm font-medium text-slate-700">Período letivo</span>
-            <select name="periodId" required defaultValue={classGroup.periodId} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100">
-              {periods.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            <p className="text-xs text-slate-500">A turma deve pertencer a um curso.</p>
           </label>
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Nome</span><input name="name" required minLength={2} defaultValue={classGroup.name} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" /></label>
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Código</span><input name="code" required minLength={2} defaultValue={classGroup.code} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" /></label>

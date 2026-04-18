@@ -38,8 +38,8 @@ JWT payload: `{ sub, email, role }`. Campo `passwordHash` no model `User` (bcryp
 
 | Recurso | Endpoints |
 |---------|-----------|
-| Escolas | `GET/POST /school`, `GET /school/:id` |
-| Cursos | `GET/POST /course`, `GET /course/:id` |
+| Escolas | `GET/POST /school`, `GET/PATCH/DELETE /school/:id` |
+| Cursos | `GET/POST /course`, `GET/PATCH/DELETE /course/:id` |
 | Acomodações | `GET/POST /accommodation`, `GET/PATCH /accommodation/:id` |
 | Lugares | `GET/POST /place`, `GET/PATCH/DELETE /place/:id`, `?category=X` |
 | Avaliações | `GET/POST /review`, `GET /review/:id`, `PATCH /review/:id`, `GET /review/user/:userId`, `GET /review?reviewableType=X&reviewableId=Y` |
@@ -83,8 +83,11 @@ PostgreSQL 16 · Prisma 7 · adapter `@prisma/adapter-pg`
 |-------|-------------|
 | `users` | id, email, passwordHash, role, firstName, lastName |
 | `user_preferences` | userId, destinationCity, budget ranges, englishLevel, preferredAccommodationTypes |
-| `school` | name, location, isPartner, rating, badges |
-| `course` | school_id, program_name, weekly_hours, price_in_cents, target_audience |
+| `school` | institutionId, name, location, isPartner, rating, badges |
+| `unit` | schoolId, name, code, localização |
+| `course` | unitId, school_id, program_name, weekly_hours, price_in_cents, target_audience |
+| `class_group` | courseId, name, code, shift, status, capacity |
+| `academic_period` | classGroupId, name, startDate, endDate, status |
 | `accommodation` | title, accommodationType, price, coords, ratings detalhados, isPartner, isTopTrip |
 | `place` | name, category, coords, isStudentFavorite, hasDeal, hours (JSON) |
 | `review` | userId, reviewableType, reviewableId, rating, comment |
@@ -101,7 +104,7 @@ Usuários de teste (senha: `senha123`):
 | `admin@studentcompanion.dev` | ADMIN | — |
 | `superadmin@studentcompanion.dev` | SUPER_ADMIN | — |
 
-3 escolas · 6 cursos · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto).
+1 instituição + 3 escolas + 3 unidades + 6 cursos + 3 turmas + 3 períodos da turma · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto).
 
 ---
 

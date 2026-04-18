@@ -4,6 +4,8 @@
 
 export interface School {
   id: string;
+  // Mantido opcional para compatibilidade: mobile não depende deste vínculo.
+  institutionId?: string;
   name: string;
   location: string;
   description?: string;

@@ -4,18 +4,18 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import type { Institution } from '@/types/structure.types';
+import type { SchoolAdmin } from '@/types/catalog.types';
 import { createUnitAction } from '../actions';
 
 export default async function NewUnitPage() {
   await requirePermission('structure.write');
-  const institutions = await apiFetch<Institution[]>('/institution').catch(() => []);
+  const schools = await apiFetch<SchoolAdmin[]>('/school').catch(() => []);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Nova unidade"
-        description="Cadastre unidade vinculada a uma instituição"
+        description="Cadastre unidade vinculada a uma escola"
         actions={(
           <Link href="/units"><Button variant="outline" size="sm"><ArrowLeft size={14} />Voltar</Button></Link>
         )}
@@ -24,10 +24,10 @@ export default async function NewUnitPage() {
       <form action={createUnitAction} className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="space-y-1 sm:col-span-2">
-            <span className="text-sm font-medium text-slate-700">Instituição</span>
-            <select name="institutionId" required className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
+            <span className="text-sm font-medium text-slate-700">Escola</span>
+            <select name="schoolId" required className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
               <option value="">Selecione</option>
-              {institutions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {schools.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </label>
           <label className="space-y-1">

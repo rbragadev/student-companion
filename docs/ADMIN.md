@@ -70,6 +70,29 @@ Permissões atuais de navegação:
 - `structure.write`
 - `admin.full`
 
+## Hierarquia Funcional (Fonte Única)
+
+Ordem de setup no SaaS:
+
+1. Instituições
+2. Escolas (catálogo mobile, vinculadas à instituição)
+3. Unidades (dependem de escola)
+4. Cursos (dependem de unidade + escola)
+5. Turmas (dependem de curso)
+6. Períodos da turma (dependem de turma)
+
+Definição de papéis para evitar sobreposição:
+- `Instituição`: escopo administrativo do cliente no SaaS.
+- `Escola`: catálogo acadêmico exibido no app (`/school`) e vinculado a uma instituição.
+- `Unidade`: campus/unidade operacional vinculada à escola.
+- `Curso`: oferta acadêmica vinculada à unidade e à escola; permanece consumida no mobile (`/course`).
+- `Turma`: execução acadêmica vinculada a um curso.
+- `Período da turma`: janela temporal interna vinculada a uma turma.
+
+Observação:
+- O backend mantém `course.school_id` para compatibilidade do mobile.
+- A hierarquia administrativa agora usa `school -> unit -> course -> class_group -> academic_period`.
+
 ---
 
 ## Estrutura
@@ -91,9 +114,14 @@ apps/admin/
     │       ├── dashboard/      # Dashboard com stats reais da API
     │       ├── admin-users/    # Lista, criação e edição de usuários admin
     │       ├── institutions/   # CRUD de instituições
+    │       ├── schools/        # CRUD de escolas (catálogo mobile)
     │       ├── units/          # CRUD de unidades
-    │       ├── academic-periods/ # CRUD de períodos letivos
-    │       ├── class-groups/   # CRUD de turmas
+    │       ├── courses/        # CRUD de cursos (catálogo mobile)
+    │       ├── class-groups/   # CRUD de turmas (por curso)
+    │       ├── academic-periods/ # CRUD de períodos da turma
+    │       ├── accommodations/ # Lista integrada com dados reais
+    │       ├── places/         # Lista integrada com dados reais
+    │       ├── students/       # Lista de usuários STUDENT
     │       ├── profiles/       # Lista, criação e edição de perfis
     │       └── permissions/    # Catálogo de permissões
     ├── components/
@@ -155,17 +183,36 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
 
 - `/institutions`, `/institutions/new`, `/institutions/[id]`
   CRUD real em `/institution`.
+- `/schools`, `/schools/new`, `/schools/[id]`
+  CRUD real em `/school` (catálogo acadêmico consumido no mobile).
 - `/units`, `/units/new`, `/units/[id]`
-  CRUD real em `/unit` (com vínculo de instituição).
-- `/academic-periods`, `/academic-periods/new`, `/academic-periods/[id]`
-  CRUD real em `/academic-period`.
+  CRUD real em `/unit` (com vínculo de escola).
+- `/courses`, `/courses/new`, `/courses/[id]`
+  CRUD real em `/course` (com vínculo obrigatório de unidade e escola, preservando contrato do mobile).
 - `/class-groups`, `/class-groups/new`, `/class-groups/[id]`
-  CRUD real em `/class-group` (com vínculo de unidade + período).
+  CRUD real em `/class-group` (com vínculo obrigatório de curso).
+- `/academic-periods`, `/academic-periods/new`, `/academic-periods/[id]`
+  CRUD real em `/academic-period` (cada período pertence a uma turma).
+- `/accommodations`, `/places`, `/students`
+  Telas conectadas ao backend real para evitar módulos “soltos” no menu.
 
 Fluxo único de dados:
 - Admin atualiza dados reais.
 - Backend central persiste e expõe.
 - Mobile permanece consumindo o mesmo backend (sem fonte paralela).
+
+## Sidebar (Ordem de Operação)
+
+- Dashboard
+- Configuração Acadêmica
+  Instituições → Escolas (Catálogo App) → Unidades → Cursos → Turmas → Períodos da Turma
+- Estrutura Física
+  Acomodações → Lugares
+- Pessoas e Acesso
+  Alunos → Usuários Admin → Perfis → Permissões
+
+Regras de exposição no menu:
+- Itens dependentes só aparecem quando pré-requisitos existem (ex.: Turmas exige Curso; Períodos exige Turma).
 
 ## Regras de Autorização na UI
 

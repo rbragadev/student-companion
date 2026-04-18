@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { AcademicPeriodService } from './academic-period.service';
 import { CreateAcademicPeriodDto } from './dto/create-academic-period.dto';
 import { UpdateAcademicPeriodDto } from './dto/update-academic-period.dto';
@@ -13,8 +13,8 @@ export class AcademicPeriodController {
   }
 
   @Get()
-  findAll() {
-    return this.academicPeriodService.findAll();
+  findAll(@Query('classGroupId') classGroupId?: string) {
+    return this.academicPeriodService.findAll(classGroupId);
   }
 
   @Get(':id')

@@ -13,8 +13,8 @@ export class ClassGroupController {
   }
 
   @Get()
-  findAll(@Query('unitId') unitId?: string, @Query('periodId') periodId?: string) {
-    return this.classGroupService.findAll(unitId, periodId);
+  findAll(@Query('courseId') courseId?: string) {
+    return this.classGroupService.findAll(courseId);
   }
 
   @Get(':id')

@@ -25,6 +25,11 @@ export class UserController {
     return this.userService.findAdminUsers();
   }
 
+  @Get('student')
+  findStudents() {
+    return this.userService.findStudents();
+  }
+
   @Get('admin/:id')
   findAdminUserById(@Param('id') id: string) {
     return this.userService.findAdminUserById(id);

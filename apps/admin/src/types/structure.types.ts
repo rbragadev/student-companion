@@ -7,13 +7,13 @@ export interface Institution {
   description: string | null;
   createdAt: string;
   updatedAt: string;
-  _count?: { units: number };
-  units?: { id: string; name: string; code: string }[];
+  _count?: { schools: number };
+  schools?: { id: string; name: string; location: string; units?: { id: string; name: string; code: string }[] }[];
 }
 
 export interface Unit {
   id: string;
-  institutionId: string;
+  schoolId: string;
   name: string;
   code: string;
   address: string | null;
@@ -22,27 +22,40 @@ export interface Unit {
   country: string | null;
   createdAt: string;
   updatedAt: string;
-  institution?: { id: string; name: string };
-  _count?: { classes: number };
-  classes?: { id: string; name: string; code: string; status: RecordStatus }[];
+  school?: { id: string; name: string; institution?: { id: string; name: string } };
+  _count?: { courses: number };
+  courses?: { id: string; program_name: string; is_active: boolean }[];
 }
 
 export interface AcademicPeriod {
   id: string;
+  classGroupId: string;
   name: string;
   startDate: string;
   endDate: string;
   status: RecordStatus;
   createdAt: string;
   updatedAt: string;
-  _count?: { classes: number };
-  classes?: { id: string; name: string; code: string; status: RecordStatus; shift: Shift }[];
+  classGroup?: {
+    id: string;
+    name: string;
+    code: string;
+    course?: {
+      id: string;
+      program_name: string;
+      unit?: {
+        id: string;
+        name: string;
+        code: string;
+        school?: { id: string; name: string; institution?: { id: string; name: string } };
+      };
+    };
+  };
 }
 
 export interface ClassGroup {
   id: string;
-  unitId: string;
-  periodId: string;
+  courseId: string;
   name: string;
   code: string;
   shift: Shift;
@@ -50,17 +63,16 @@ export interface ClassGroup {
   capacity: number | null;
   createdAt: string;
   updatedAt: string;
-  unit?: {
+  course?: {
     id: string;
-    name: string;
-    code: string;
-    institution?: { id: string; name: string };
+    program_name: string;
+    unit?: {
+      id: string;
+      name: string;
+      code: string;
+      school?: { id: string; name: string; institution?: { id: string; name: string } };
+    };
   };
-  period?: {
-    id: string;
-    name: string;
-    startDate?: string;
-    endDate?: string;
-    status: RecordStatus;
-  };
+  periods?: { id: string; name: string; startDate: string; endDate: string; status: RecordStatus }[];
+  _count?: { periods: number };
 }

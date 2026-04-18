@@ -7,30 +7,42 @@ import { UpdateClassGroupDto } from './dto/update-class-group.dto';
 export class ClassGroupService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureReferencesExist(unitId: string, periodId: string) {
-    const [unit, period] = await Promise.all([
-      this.prisma.unit.findUnique({ where: { id: unitId }, select: { id: true } }),
-      this.prisma.academicPeriod.findUnique({ where: { id: periodId }, select: { id: true } }),
-    ]);
-    if (!unit) throw new NotFoundException(`Unidade ${unitId} não encontrada`);
-    if (!period) throw new NotFoundException(`Período letivo ${periodId} não encontrado`);
+  private async ensureCourseExists(courseId: string) {
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
+    if (!course) throw new NotFoundException(`Curso ${courseId} não encontrado`);
   }
 
   async create(dto: CreateClassGroupDto) {
-    await this.ensureReferencesExist(dto.unitId, dto.periodId);
+    await this.ensureCourseExists(dto.courseId);
     return this.prisma.classGroup.create({ data: dto });
   }
 
-  findAll(unitId?: string, periodId?: string) {
+  findAll(courseId?: string) {
     return this.prisma.classGroup.findMany({
-      where: {
-        ...(unitId ? { unitId } : {}),
-        ...(periodId ? { periodId } : {}),
-      },
-      orderBy: [{ unit: { name: 'asc' } }, { name: 'asc' }],
+      where: courseId ? { courseId } : undefined,
+      orderBy: [{ course: { program_name: 'asc' } }, { name: 'asc' }],
       include: {
-        unit: { select: { id: true, name: true, code: true } },
-        period: { select: { id: true, name: true, status: true } },
+        course: {
+          select: {
+            id: true,
+            program_name: true,
+            unit: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                school: {
+                  select: {
+                    id: true,
+                    name: true,
+                    institution: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        _count: { select: { periods: true } },
       },
     });
   }
@@ -39,15 +51,30 @@ export class ClassGroupService {
     const classGroup = await this.prisma.classGroup.findUnique({
       where: { id },
       include: {
-        unit: {
+        course: {
           select: {
             id: true,
-            name: true,
-            code: true,
-            institution: { select: { id: true, name: true } },
+            program_name: true,
+            unit: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                school: {
+                  select: {
+                    id: true,
+                    name: true,
+                    institution: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
           },
         },
-        period: { select: { id: true, name: true, startDate: true, endDate: true, status: true } },
+        periods: {
+          orderBy: { startDate: 'asc' },
+          select: { id: true, name: true, startDate: true, endDate: true, status: true },
+        },
       },
     });
 
@@ -56,9 +83,9 @@ export class ClassGroupService {
   }
 
   async update(id: string, dto: UpdateClassGroupDto) {
-    const current = await this.findOne(id);
-    if (dto.unitId || dto.periodId) {
-      await this.ensureReferencesExist(dto.unitId ?? current.unitId, dto.periodId ?? current.periodId);
+    await this.findOne(id);
+    if (dto.courseId) {
+      await this.ensureCourseExists(dto.courseId);
     }
     return this.prisma.classGroup.update({ where: { id }, data: dto });
   }

@@ -50,6 +50,7 @@ const ids = {
   academicPeriods: {
     spring2026: '66666666-6666-4666-8666-666666666666',
     fall2026: '77777777-7777-4777-8777-777777777777',
+    winter2027: '99999999-9999-4999-8999-999999999999',
   },
   classGroups: {
     engA1Morning: '88888888-8888-4888-8888-888888888881',
@@ -215,104 +216,12 @@ async function main() {
       {
         id: ids.institutions.global,
         name: 'Global Education Group',
-        description: 'Instituição focada em programas internacionais de idioma e carreira.',
+        description: 'Escopo administrativo (cliente SaaS) para operação de programas internacionais.',
       },
       {
         id: ids.institutions.exchange,
         name: 'Exchange Learning Network',
-        description: 'Rede de unidades com foco em intercâmbio acadêmico.',
-      },
-    ],
-    skipDuplicates: true,
-  });
-
-  await prisma.unit.createMany({
-    data: [
-      {
-        id: ids.units.downtown,
-        institutionId: ids.institutions.global,
-        name: 'Unidade Downtown Vancouver',
-        code: 'VAN-DT',
-        address: '101 Burrard St',
-        city: 'Vancouver',
-        state: 'BC',
-        country: 'Canada',
-      },
-      {
-        id: ids.units.burnaby,
-        institutionId: ids.institutions.global,
-        name: 'Unidade Burnaby',
-        code: 'VAN-BBY',
-        address: '4550 Kingsway',
-        city: 'Burnaby',
-        state: 'BC',
-        country: 'Canada',
-      },
-      {
-        id: ids.units.toronto,
-        institutionId: ids.institutions.exchange,
-        name: 'Unidade Toronto Central',
-        code: 'TOR-CTR',
-        address: '250 Yonge St',
-        city: 'Toronto',
-        state: 'ON',
-        country: 'Canada',
-      },
-    ],
-    skipDuplicates: true,
-  });
-
-  await prisma.academicPeriod.createMany({
-    data: [
-      {
-        id: ids.academicPeriods.spring2026,
-        name: 'Spring 2026',
-        startDate: new Date('2026-03-01T00:00:00.000Z'),
-        endDate: new Date('2026-06-30T00:00:00.000Z'),
-        status: RecordStatus.INACTIVE,
-      },
-      {
-        id: ids.academicPeriods.fall2026,
-        name: 'Fall 2026',
-        startDate: new Date('2026-08-01T00:00:00.000Z'),
-        endDate: new Date('2026-12-20T00:00:00.000Z'),
-        status: RecordStatus.ACTIVE,
-      },
-    ],
-    skipDuplicates: true,
-  });
-
-  await prisma.classGroup.createMany({
-    data: [
-      {
-        id: ids.classGroups.engA1Morning,
-        unitId: ids.units.downtown,
-        periodId: ids.academicPeriods.fall2026,
-        name: 'English Starter A1',
-        code: 'ENG-A1-01',
-        shift: Shift.MORNING,
-        status: RecordStatus.ACTIVE,
-        capacity: 24,
-      },
-      {
-        id: ids.classGroups.engB2Evening,
-        unitId: ids.units.burnaby,
-        periodId: ids.academicPeriods.fall2026,
-        name: 'English B2 Fluency',
-        code: 'ENG-B2-05',
-        shift: Shift.EVENING,
-        status: RecordStatus.ACTIVE,
-        capacity: 20,
-      },
-      {
-        id: ids.classGroups.businessAfternoon,
-        unitId: ids.units.toronto,
-        periodId: ids.academicPeriods.spring2026,
-        name: 'Business English Foundations',
-        code: 'BUS-EN-03',
-        shift: Shift.AFTERNOON,
-        status: RecordStatus.INACTIVE,
-        capacity: 18,
+        description: 'Escopo administrativo (cliente SaaS) com foco em intercâmbio acadêmico.',
       },
     ],
     skipDuplicates: true,
@@ -322,6 +231,7 @@ async function main() {
     data: [
       {
         id: ids.schools.ilsc,
+        institutionId: ids.institutions.global,
         name: 'ILSC Vancouver',
         location: 'Vancouver, BC',
         description: 'Escola de idiomas com foco em programas flexiveis para estudantes internacionais.',
@@ -336,12 +246,13 @@ async function main() {
       },
       {
         id: ids.schools.vgc,
-        name: 'VGC International College',
+        institutionId: ids.institutions.global,
+        name: 'VanWest College Vancouver',
         location: 'Vancouver, BC',
-        description: 'Programas intensivos de ingles, IELTS e trilhas academicas.',
-        website: 'https://studentcompanion.dev/schools/vgc-vancouver',
+        description: 'Programas intensivos de inglês, business communication e preparação acadêmica.',
+        website: 'https://studentcompanion.dev/schools/vanwest-vancouver',
         phone: '+1 604 688 9057',
-        email: 'hello+vgc@studentcompanion.dev',
+        email: 'hello+vanwest@studentcompanion.dev',
         logo: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=800&q=80',
         isPartner: true,
         rating: 4.6,
@@ -350,12 +261,13 @@ async function main() {
       },
       {
         id: ids.schools.cornerstone,
-        name: 'Cornerstone Community College',
+        institutionId: ids.institutions.exchange,
+        name: 'ILAC Vancouver',
         location: 'Vancouver, BC',
-        description: 'Cursos vocacionais e academicos para quem quer estudar e trabalhar.',
-        website: 'https://studentcompanion.dev/schools/cornerstone',
+        description: 'Trilhas intensivas de inglês e pathway para estudantes internacionais.',
+        website: 'https://studentcompanion.dev/schools/ilac-vancouver',
         phone: '+1 604 620 1111',
-        email: 'hello+cornerstone@studentcompanion.dev',
+        email: 'hello+ilac@studentcompanion.dev',
         logo: 'https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?auto=format&fit=crop&w=800&q=80',
         isPartner: false,
         rating: 4.3,
@@ -366,12 +278,49 @@ async function main() {
     skipDuplicates: true,
   });
 
+  await prisma.unit.createMany({
+    data: [
+      {
+        id: ids.units.downtown,
+        schoolId: ids.schools.ilsc,
+        name: 'Unidade Downtown Vancouver',
+        code: 'VAN-DT',
+        address: '101 Burrard St',
+        city: 'Vancouver',
+        state: 'BC',
+        country: 'Canada',
+      },
+      {
+        id: ids.units.burnaby,
+        schoolId: ids.schools.vgc,
+        name: 'Unidade Burnaby',
+        code: 'VAN-BBY',
+        address: '4550 Kingsway',
+        city: 'Burnaby',
+        state: 'BC',
+        country: 'Canada',
+      },
+      {
+        id: ids.units.toronto,
+        schoolId: ids.schools.cornerstone,
+        name: 'Unidade Toronto Central',
+        code: 'TOR-CTR',
+        address: '250 Yonge St',
+        city: 'Toronto',
+        state: 'ON',
+        country: 'Canada',
+      },
+    ],
+    skipDuplicates: true,
+  });
+
   await prisma.course.createMany({
     data: [
       {
         id: ids.courses.generalEnglishIlsc,
+        unitId: ids.units.downtown,
         school_id: ids.schools.ilsc,
-        program_name: 'General English Full-Time',
+        program_name: 'ILSC Vancouver - General English',
         weekly_hours: 30,
         price_in_cents: 135000,
         price_unit: 'week',
@@ -390,8 +339,9 @@ async function main() {
       },
       {
         id: ids.courses.businessEnglishIlsc,
+        unitId: ids.units.downtown,
         school_id: ids.schools.ilsc,
-        program_name: 'Business English Communication',
+        program_name: 'ILSC Vancouver - Business English Communication',
         weekly_hours: 24,
         price_in_cents: 155000,
         price_unit: 'week',
@@ -410,8 +360,9 @@ async function main() {
       },
       {
         id: ids.courses.ieltsVgc,
+        unitId: ids.units.burnaby,
         school_id: ids.schools.vgc,
-        program_name: 'IELTS Preparation',
+        program_name: 'VanWest College - Business English',
         weekly_hours: 28,
         price_in_cents: 145000,
         price_unit: 'week',
@@ -430,8 +381,9 @@ async function main() {
       },
       {
         id: ids.courses.speakingVgc,
+        unitId: ids.units.burnaby,
         school_id: ids.schools.vgc,
-        program_name: 'Speaking Confidence Lab',
+        program_name: 'VanWest College - Speaking Confidence Lab',
         weekly_hours: 20,
         price_in_cents: 98000,
         price_unit: 'week',
@@ -450,8 +402,9 @@ async function main() {
       },
       {
         id: ids.courses.hospitalityCornerstone,
+        unitId: ids.units.toronto,
         school_id: ids.schools.cornerstone,
-        program_name: 'Hospitality Management Co-op',
+        program_name: 'ILAC Vancouver - Pathway Program',
         weekly_hours: 30,
         price_in_cents: 185000,
         price_unit: 'month',
@@ -470,6 +423,7 @@ async function main() {
       },
       {
         id: ids.courses.digitalMarketingCornerstone,
+        unitId: ids.units.toronto,
         school_id: ids.schools.cornerstone,
         program_name: 'Digital Marketing Diploma',
         weekly_hours: 26,
@@ -492,11 +446,74 @@ async function main() {
     skipDuplicates: true,
   });
 
+  await prisma.classGroup.createMany({
+    data: [
+      {
+        id: ids.classGroups.engA1Morning,
+        courseId: ids.courses.generalEnglishIlsc,
+        name: 'English Starter A1',
+        code: 'ENG-A1-01',
+        shift: Shift.MORNING,
+        status: RecordStatus.ACTIVE,
+        capacity: 24,
+      },
+      {
+        id: ids.classGroups.engB2Evening,
+        courseId: ids.courses.ieltsVgc,
+        name: 'English B2 Fluency',
+        code: 'ENG-B2-05',
+        shift: Shift.EVENING,
+        status: RecordStatus.ACTIVE,
+        capacity: 20,
+      },
+      {
+        id: ids.classGroups.businessAfternoon,
+        courseId: ids.courses.digitalMarketingCornerstone,
+        name: 'Business English Foundations',
+        code: 'BUS-EN-03',
+        shift: Shift.AFTERNOON,
+        status: RecordStatus.INACTIVE,
+        capacity: 18,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  await prisma.academicPeriod.createMany({
+    data: [
+      {
+        id: ids.academicPeriods.spring2026,
+        classGroupId: ids.classGroups.businessAfternoon,
+        name: 'Spring 2026',
+        startDate: new Date('2026-03-01T00:00:00.000Z'),
+        endDate: new Date('2026-06-30T00:00:00.000Z'),
+        status: RecordStatus.INACTIVE,
+      },
+      {
+        id: ids.academicPeriods.fall2026,
+        classGroupId: ids.classGroups.engA1Morning,
+        name: 'Fall 2026',
+        startDate: new Date('2026-08-01T00:00:00.000Z'),
+        endDate: new Date('2026-12-20T00:00:00.000Z'),
+        status: RecordStatus.ACTIVE,
+      },
+      {
+        id: ids.academicPeriods.winter2027,
+        classGroupId: ids.classGroups.engB2Evening,
+        name: 'Winter 2027',
+        startDate: new Date('2027-01-05T00:00:00.000Z'),
+        endDate: new Date('2027-03-20T00:00:00.000Z'),
+        status: RecordStatus.ACTIVE,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
   await prisma.accommodation.createMany({
     data: [
       {
         id: ids.accommodations.kitsHomestay,
-        title: 'Kitsilano Family Homestay',
+        title: 'Cozy Homestay in Vancouver',
         accommodationType: 'Homestay',
         priceInCents: 120000,
         priceUnit: 'month',
@@ -526,7 +543,7 @@ async function main() {
       },
       {
         id: ids.accommodations.downtownShared,
-        title: 'Downtown Shared Loft',
+        title: 'Modern Studio Downtown',
         accommodationType: 'Shared',
         priceInCents: 110000,
         priceUnit: 'month',

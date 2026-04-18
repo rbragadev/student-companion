@@ -5,22 +5,19 @@ import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import { RECORD_STATUS_LABEL, RECORD_STATUS_OPTIONS, SHIFT_LABEL, SHIFT_OPTIONS } from '@/lib/structure';
-import type { AcademicPeriod, Unit } from '@/types/structure.types';
+import type { CourseAdmin } from '@/types/catalog.types';
 import { createClassGroupAction } from '../actions';
 
 export default async function NewClassGroupPage() {
   await requirePermission('structure.write');
 
-  const [units, periods] = await Promise.all([
-    apiFetch<Unit[]>('/unit').catch(() => []),
-    apiFetch<AcademicPeriod[]>('/academic-period').catch(() => []),
-  ]);
+  const courses = await apiFetch<CourseAdmin[]>('/course').catch(() => []);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Nova turma"
-        description="Cadastre turma vinculada à unidade e período letivo"
+        description="Cadastre turma vinculada a um curso"
         actions={(
           <Link href="/class-groups"><Button variant="outline" size="sm"><ArrowLeft size={14} />Voltar</Button></Link>
         )}
@@ -29,18 +26,16 @@ export default async function NewClassGroupPage() {
       <form action={createClassGroupAction} className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="space-y-1 sm:col-span-2">
-            <span className="text-sm font-medium text-slate-700">Unidade</span>
-            <select name="unitId" required className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
+            <span className="text-sm font-medium text-slate-700">Curso</span>
+            <select name="courseId" required className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
               <option value="">Selecione</option>
-              {units.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}
+              {courses.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.program_name} ({item.unit?.name ?? 'Sem unidade'})
+                </option>
+              ))}
             </select>
-          </label>
-          <label className="space-y-1 sm:col-span-2">
-            <span className="text-sm font-medium text-slate-700">Período letivo</span>
-            <select name="periodId" required className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
-              <option value="">Selecione</option>
-              {periods.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            <p className="text-xs text-slate-500">A turma deve pertencer a um curso.</p>
           </label>
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Nome</span><input name="name" required minLength={2} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Código</span><input name="code" required minLength={2} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>

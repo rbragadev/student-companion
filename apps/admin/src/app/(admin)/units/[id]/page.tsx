@@ -5,7 +5,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import type { Institution, Unit } from '@/types/structure.types';
+import type { Unit } from '@/types/structure.types';
+import type { SchoolAdmin } from '@/types/catalog.types';
 import { deleteUnitAction, updateUnitAction } from '../actions';
 
 interface PageProps {
@@ -17,9 +18,9 @@ export default async function UnitDetailPage({ params }: Readonly<PageProps>) {
   const session = await requirePermission('structure.read');
   const canWrite = session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
-  const [unit, institutions] = await Promise.all([
+  const [unit, schools] = await Promise.all([
     apiFetch<Unit>(`/unit/${id}`).catch(() => null),
-    apiFetch<Institution[]>('/institution').catch(() => []),
+    apiFetch<SchoolAdmin[]>('/school').catch(() => []),
   ]);
 
   if (!unit) notFound();
@@ -28,7 +29,7 @@ export default async function UnitDetailPage({ params }: Readonly<PageProps>) {
     <div className="flex flex-col gap-6">
       <PageHeader
         title={`Unidade: ${unit.name}`}
-        description="Edite os dados estruturais da unidade"
+        description="Edite os dados estruturais da unidade vinculada à escola"
         actions={(
           <Link href="/units"><Button variant="outline" size="sm"><ArrowLeft size={14} />Voltar</Button></Link>
         )}
@@ -37,9 +38,9 @@ export default async function UnitDetailPage({ params }: Readonly<PageProps>) {
       <form action={updateUnitAction.bind(null, unit.id)} className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="space-y-1 sm:col-span-2">
-            <span className="text-sm font-medium text-slate-700">Instituição</span>
-            <select name="institutionId" required defaultValue={unit.institutionId} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100">
-              {institutions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            <span className="text-sm font-medium text-slate-700">Escola</span>
+            <select name="schoolId" required defaultValue={unit.schoolId} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100">
+              {schools.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </label>
           <label className="space-y-1">

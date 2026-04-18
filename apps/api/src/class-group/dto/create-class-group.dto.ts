@@ -4,10 +4,7 @@ import { IsEnum, IsInt, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength 
 
 export class CreateClassGroupDto {
   @IsUUID()
-  unitId: string;
-
-  @IsUUID()
-  periodId: string;
+  courseId: string;
 
   @IsString()
   @MinLength(2)

@@ -23,9 +23,9 @@ apps/api/
 │   ├── permission/         # PermissionModule (GET /permission)
 │   ├── admin-profile/      # CRUD de perfis + set de permissões
 │   ├── institution/         # CRUD de instituições
-│   ├── unit/                # CRUD de unidades (vínculo com instituição)
-│   ├── academic-period/     # CRUD de períodos letivos
-│   ├── class-group/         # CRUD de turmas (vínculo com unidade + período)
+│   ├── unit/                # CRUD de unidades (vínculo com escola)
+│   ├── class-group/         # CRUD de turmas (vínculo com curso)
+│   ├── academic-period/     # CRUD de períodos da turma
 │   ├── school/
 │   ├── course/
 │   ├── accommodation/
@@ -98,6 +98,7 @@ JWT payload: `{ sub, email, role }`. Expiração: 30 dias.
 |--------|------|-----------|
 | `POST` | `/users` | Criar usuário |
 | `GET` | `/users/admin` | Listar usuários com role ADMIN/SUPER_ADMIN |
+| `GET` | `/users/student` | Listar usuários com role STUDENT |
 | `GET` | `/users/admin/:id` | Buscar usuário admin por id |
 | `POST` | `/users/admin` | Criar usuário admin (com senha, role e perfis) |
 | `PATCH` | `/users/admin/:id` | Atualizar usuário admin (dados e perfis) |
@@ -137,17 +138,29 @@ Exemplo `PUT /admin-profile/:id/permissions`:
 |--------|------|-----------|
 | `GET/POST` | `/institution` | Listar / criar instituição |
 | `GET/PATCH/DELETE` | `/institution/:id` | Detalhe / editar / excluir instituição |
-| `GET/POST` | `/unit` | Listar / criar unidade (`?institutionId=` opcional) |
+| `GET/POST` | `/unit` | Listar / criar unidade (`?schoolId=` opcional) |
 | `GET/PATCH/DELETE` | `/unit/:id` | Detalhe / editar / excluir unidade |
-| `GET/POST` | `/academic-period` | Listar / criar período letivo |
-| `GET/PATCH/DELETE` | `/academic-period/:id` | Detalhe / editar / excluir período |
-| `GET/POST` | `/class-group` | Listar / criar turma (`?unitId=`/`?periodId=` opcionais) |
+| `GET/POST` | `/class-group` | Listar / criar turma (`?courseId=` opcional) |
 | `GET/PATCH/DELETE` | `/class-group/:id` | Detalhe / editar / excluir turma |
+| `GET/POST` | `/academic-period` | Listar / criar período da turma (`?classGroupId=` opcional) |
+| `GET/PATCH/DELETE` | `/academic-period/:id` | Detalhe / editar / excluir período |
 
 Regras de relacionamento:
-- Unidade pertence a uma instituição.
-- Turma pertence a uma unidade.
-- Turma pertence a um período letivo.
+- Escola pertence a uma instituição.
+- Unidade pertence a uma escola.
+- Curso pertence a uma unidade.
+- Turma pertence a um curso.
+- Período pertence a uma turma.
+- Curso também mantém vínculo com escola (compatibilidade do mobile).
+
+Compatibilidade mobile:
+- O app mobile continua consumindo `GET /school` e `GET /course` sem exigir mudanças de contrato.
+- O vínculo `course.school_id` permanece ativo para não quebrar a navegação/listagem no app.
+
+Distinção conceitual:
+- `institution`: escopo administrativo do cliente no SaaS.
+- `school`: catálogo acadêmico consumido pelo app mobile.
+- `unit`: unidade/campus operacional vinculada à escola.
 
 ---
 
@@ -155,8 +168,8 @@ Regras de relacionamento:
 
 | Recurso | Endpoints |
 |---------|-----------|
-| Escolas | `GET/POST /school`, `GET /school/:id` |
-| Cursos | `GET/POST /course`, `GET /course/:id` |
+| Escolas | `GET/POST /school`, `GET/PATCH/DELETE /school/:id` |
+| Cursos | `GET/POST /course`, `GET/PATCH/DELETE /course/:id` |
 | Acomodações | `GET/POST /accommodation`, `GET/PATCH /accommodation/:id` |
 | Lugares | `GET/POST /place`, `GET/PATCH/DELETE /place/:id`, `?category=X` |
 | Avaliações | `GET/POST /review`, `GET /review/:id`, `PATCH /review/:id`, `GET /review/user/:userId`, `GET /review?reviewableType=X&reviewableId=Y` |
@@ -207,8 +220,8 @@ Regras de relacionamento:
 |-------|-------------|
 | `users` | id, email, passwordHash, role, firstName, lastName |
 | `user_preferences` | userId, destinationCity, budget ranges, englishLevel, preferredAccommodationTypes |
-| `school` | name, location, isPartner, rating, badges |
-| `course` | schoolId, programName, weeklyHours, priceInCents, targetAudience |
+| `school` | institutionId, name, location, isPartner, rating, badges |
+| `course` | unitId, schoolId, programName, weeklyHours, priceInCents, targetAudience |
 | `accommodation` | title, accommodationType, price, coords, ratings, isPartner, isTopTrip |
 | `place` | name, category, coords, isStudentFavorite, hasDeal, hours (JSON) |
 | `review` | userId, reviewableType, reviewableId, rating, comment |
@@ -217,9 +230,9 @@ Regras de relacionamento:
 | `admin_profile_permission` | profileId + permissionId |
 | `user_admin_profile` | userId + profileId |
 | `institution` | name, description |
-| `unit` | institutionId, name, code, localização |
-| `academic_period` | name, startDate, endDate, status |
-| `class_group` | unitId, periodId, name, code, shift, status, capacity |
+| `unit` | schoolId, name, code, localização |
+| `class_group` | courseId, name, code, shift, status, capacity |
+| `academic_period` | classGroupId, name, startDate, endDate, status |
 
 ### Roles
 

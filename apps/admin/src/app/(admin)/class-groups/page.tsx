@@ -21,14 +21,20 @@ const columns: Column<ClassGroup>[] = [
     ),
   },
   {
-    key: 'unit',
-    label: 'Unidade',
-    render: (item) => item.unit?.name ?? '-',
+    key: 'course',
+    label: 'Curso',
+    render: (item) => item.course?.program_name ?? '-',
   },
   {
-    key: 'period',
-    label: 'Período',
-    render: (item) => item.period?.name ?? '-',
+    key: 'chain',
+    label: 'Cadeia',
+    render: (item) =>
+      `${item.course?.unit?.school?.institution?.name ?? '-'} > ${item.course?.unit?.school?.name ?? '-'} > ${item.course?.unit?.name ?? '-'}`,
+  },
+  {
+    key: 'periods',
+    label: 'Períodos',
+    render: (item) => String(item._count?.periods ?? item.periods?.length ?? 0),
   },
   {
     key: 'shift',
@@ -56,7 +62,7 @@ export default async function ClassGroupsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Turmas"
-        description="Gerencie turmas vinculadas a unidades e períodos"
+        description="Gerencie turmas vinculadas a cursos"
         actions={canWrite ? <Link href="/class-groups/new"><Button size="sm"><Plus size={14} />Nova turma</Button></Link> : undefined}
       />
 
@@ -66,7 +72,7 @@ export default async function ClassGroupsPage() {
         keyExtractor={(item) => item.id}
         getRowHref={(item) => `/class-groups/${item.id}`}
         emptyTitle="Nenhuma turma cadastrada"
-        emptyDescription="Crie turmas para conectar unidade e período letivo."
+        emptyDescription="Crie turmas para organizar cursos e seus períodos."
         emptyAction={canWrite ? <Link href="/class-groups/new"><Button size="sm"><GraduationCap size={14} />Criar turma</Button></Link> : undefined}
       />
     </div>

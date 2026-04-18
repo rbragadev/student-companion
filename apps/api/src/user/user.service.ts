@@ -41,6 +41,16 @@ export class UserService {
     });
   }
 
+  findStudents() {
+    return this.prisma.user.findMany({
+      where: { role: Role.STUDENT },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        preferences: true,
+      },
+    });
+  }
+
   async findAdminUserById(userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },

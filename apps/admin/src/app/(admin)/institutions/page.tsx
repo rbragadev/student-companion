@@ -19,9 +19,9 @@ const columns: Column<Institution>[] = [
     ),
   },
   {
-    key: 'units',
-    label: 'Unidades',
-    render: (item) => String(item._count?.units ?? 0),
+    key: 'schools',
+    label: 'Escolas',
+    render: (item) => String(item._count?.schools ?? 0),
   },
   {
     key: 'updatedAt',
@@ -40,7 +40,7 @@ export default async function InstitutionsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Instituições"
-        description="Cadastro estrutural de instituições"
+        description="Escopo administrativo do cliente no SaaS"
         actions={canWrite ? (
           <Link href="/institutions/new">
             <Button size="sm"><Plus size={14} />Nova instituição</Button>
@@ -54,7 +54,7 @@ export default async function InstitutionsPage() {
         keyExtractor={(item) => item.id}
         getRowHref={(item) => `/institutions/${item.id}`}
         emptyTitle="Nenhuma instituição cadastrada"
-        emptyDescription="Cadastre instituições para organizar unidades e turmas."
+        emptyDescription="Cadastre instituições para organizar escolas, unidades e turmas."
         emptyAction={canWrite ? (
           <Link href="/institutions/new">
             <Button size="sm"><University size={14} />Criar instituição</Button>

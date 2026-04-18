@@ -19,12 +19,13 @@ export default async function InstitutionDetailPage({ params }: Readonly<PagePro
 
   const institution = await apiFetch<Institution>(`/institution/${id}`).catch(() => null);
   if (!institution) notFound();
+  const units = (institution.schools ?? []).flatMap((school) => school.units ?? []);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title={`Instituição: ${institution.name}`}
-        description="Edite dados estruturais da instituição"
+        description="Escopo administrativo do cliente no SaaS"
         actions={(
           <Link href="/institutions">
             <Button variant="outline" size="sm"><ArrowLeft size={14} />Voltar</Button>
@@ -55,6 +56,25 @@ export default async function InstitutionDetailPage({ params }: Readonly<PagePro
             className="w-full rounded-lg border border-slate-300 p-3 text-sm disabled:bg-slate-100"
           />
         </label>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Escolas vinculadas</p>
+            <p className="mt-1 text-sm text-slate-700">
+              {(institution.schools?.length ?? 0) === 0
+                ? 'Nenhuma escola vinculada.'
+                : institution.schools?.map((item) => item.name).join(', ')}
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Unidades vinculadas</p>
+            <p className="mt-1 text-sm text-slate-700">
+              {units.length === 0
+                ? 'Nenhuma unidade vinculada.'
+                : units.map((item) => item.name).join(', ')}
+            </p>
+          </div>
+        </div>
 
         {canWrite && (
           <div className="flex items-center justify-between gap-2">

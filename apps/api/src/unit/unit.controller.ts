@@ -13,8 +13,8 @@ export class UnitController {
   }
 
   @Get()
-  findAll(@Query('institutionId') institutionId?: string) {
-    return this.unitService.findAll(institutionId);
+  findAll(@Query('schoolId') schoolId?: string) {
+    return this.unitService.findAll(schoolId);
   }
 
   @Get(':id')

@@ -32,9 +32,15 @@ const columns: Column<AcademicPeriod>[] = [
     ),
   },
   {
-    key: 'classes',
-    label: 'Turmas',
-    render: (item) => String(item._count?.classes ?? 0),
+    key: 'classGroup',
+    label: 'Turma',
+    render: (item) => item.classGroup?.name ?? '-',
+  },
+  {
+    key: 'chain',
+    label: 'Cadeia',
+    render: (item) =>
+      `${item.classGroup?.course?.unit?.school?.institution?.name ?? '-'} > ${item.classGroup?.course?.unit?.school?.name ?? '-'} > ${item.classGroup?.course?.unit?.name ?? '-'} > ${item.classGroup?.course?.program_name ?? '-'} > ${item.classGroup?.name ?? '-'}`,
   },
 ];
 
@@ -47,8 +53,8 @@ export default async function AcademicPeriodsPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Períodos Letivos"
-        description="Gerencie os períodos usados pelas turmas"
+        title="Períodos da Turma"
+        description="Gerencie os períodos internos de cada turma"
         actions={canWrite ? <Link href="/academic-periods/new"><Button size="sm"><Plus size={14} />Novo período</Button></Link> : undefined}
       />
 
@@ -57,8 +63,8 @@ export default async function AcademicPeriodsPage() {
         data={periods}
         keyExtractor={(item) => item.id}
         getRowHref={(item) => `/academic-periods/${item.id}`}
-        emptyTitle="Nenhum período letivo cadastrado"
-        emptyDescription="Cadastre períodos para organizar a oferta de turmas."
+        emptyTitle="Nenhum período cadastrado"
+        emptyDescription="Cadastre períodos para organizar o calendário interno das turmas."
         emptyAction={canWrite ? <Link href="/academic-periods/new"><Button size="sm"><CalendarDays size={14} />Criar período</Button></Link> : undefined}
       />
     </div>

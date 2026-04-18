@@ -13,15 +13,53 @@ export class AcademicPeriodService {
     }
   }
 
-  create(dto: CreateAcademicPeriodDto) {
+  private async ensureClassGroupExists(classGroupId: string) {
+    const classGroup = await this.prisma.classGroup.findUnique({
+      where: { id: classGroupId },
+      select: { id: true },
+    });
+    if (!classGroup) throw new NotFoundException(`Turma ${classGroupId} não encontrada`);
+  }
+
+  async create(dto: CreateAcademicPeriodDto) {
+    await this.ensureClassGroupExists(dto.classGroupId);
     this.validateRange(dto.startDate, dto.endDate);
     return this.prisma.academicPeriod.create({ data: dto });
   }
 
-  findAll() {
+  findAll(classGroupId?: string) {
     return this.prisma.academicPeriod.findMany({
+      where: classGroupId ? { classGroupId } : undefined,
       orderBy: [{ startDate: 'desc' }, { name: 'asc' }],
-      include: { _count: { select: { classes: true } } },
+      include: {
+        classGroup: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            course: {
+              select: {
+                id: true,
+                program_name: true,
+                unit: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    school: {
+                      select: {
+                        id: true,
+                        name: true,
+                        institution: { select: { id: true, name: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -29,9 +67,32 @@ export class AcademicPeriodService {
     const period = await this.prisma.academicPeriod.findUnique({
       where: { id },
       include: {
-        classes: {
-          orderBy: { name: 'asc' },
-          select: { id: true, name: true, code: true, status: true, shift: true },
+        classGroup: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            course: {
+              select: {
+                id: true,
+                program_name: true,
+                unit: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    school: {
+                      select: {
+                        id: true,
+                        name: true,
+                        institution: { select: { id: true, name: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -41,7 +102,7 @@ export class AcademicPeriodService {
   }
 
   async update(id: string, dto: UpdateAcademicPeriodDto) {
-    await this.findOne(id);
+    const current = await this.findOne(id);
 
     if (dto.startDate && dto.endDate) {
       this.validateRange(dto.startDate, dto.endDate);
@@ -49,6 +110,10 @@ export class AcademicPeriodService {
       const current = await this.prisma.academicPeriod.findUnique({ where: { id } });
       if (!current) throw new NotFoundException(`Período letivo ${id} não encontrado`);
       this.validateRange(dto.startDate ?? current.startDate, dto.endDate ?? current.endDate);
+    }
+
+    if (dto.classGroupId) {
+      await this.ensureClassGroupExists(dto.classGroupId);
     }
 
     return this.prisma.academicPeriod.update({ where: { id }, data: dto });

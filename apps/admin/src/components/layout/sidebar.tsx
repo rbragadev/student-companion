@@ -2,16 +2,44 @@ import Link from 'next/link';
 import { GraduationCap } from 'lucide-react';
 import { getSession } from '@/lib/session';
 import { hasPermission } from '@/lib/permissions';
-import { navigation } from '@/config/navigation';
+import { navigationGroups, type NavDependency } from '@/config/navigation';
+import { apiFetch } from '@/lib/api';
 import { NavItem } from './nav-item';
 import { LogoutButton } from './logout-button';
 
 export async function Sidebar() {
   const session = await getSession();
   const permissions = session?.permissions ?? [];
-  const visibleItems = navigation.filter(
-    (item) => item.permission === null || hasPermission(permissions, item.permission),
-  );
+
+  const [institutions, schools, units, courses, classes, periods] = await Promise.all([
+    apiFetch<unknown[]>('/institution').then((items) => items.length).catch(() => 0),
+    apiFetch<unknown[]>('/school').then((items) => items.length).catch(() => 0),
+    apiFetch<unknown[]>('/unit').then((items) => items.length).catch(() => 0),
+    apiFetch<unknown[]>('/course').then((items) => items.length).catch(() => 0),
+    apiFetch<unknown[]>('/class-group').then((items) => items.length).catch(() => 0),
+    apiFetch<unknown[]>('/academic-period').then((items) => items.length).catch(() => 0),
+  ]);
+
+  const dependencyCount: Record<NavDependency, number> = {
+    institutions,
+    schools,
+    units,
+    courses,
+    classes,
+    periods,
+  };
+
+  const visibleGroups = navigationGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        const hasAccess = item.permission === null || hasPermission(permissions, item.permission);
+        if (!hasAccess) return false;
+        if (!item.dependsOn || item.dependsOn.length === 0) return true;
+        return item.dependsOn.every((dep) => dependencyCount[dep] > 0);
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col bg-slate-900">
@@ -30,13 +58,22 @@ export async function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <ul className="flex flex-col gap-1">
-          {visibleItems.map((item) => (
-            <li key={item.href}>
-              <NavItem href={item.href} label={item.label} icon={item.icon} />
-            </li>
+        <div className="flex flex-col gap-4">
+          {visibleGroups.map((group) => (
+            <section key={group.title}>
+              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                {group.title}
+              </p>
+              <ul className="flex flex-col gap-1">
+                {group.items.map((item) => (
+                  <li key={item.href}>
+                    <NavItem href={item.href} label={item.label} icon={item.icon} />
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       </nav>
 
       {/* User + Logout */}

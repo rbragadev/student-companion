@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import { RECORD_STATUS_LABEL, RECORD_STATUS_OPTIONS } from '@/lib/structure';
-import type { AcademicPeriod } from '@/types/structure.types';
+import type { AcademicPeriod, ClassGroup } from '@/types/structure.types';
 import { deleteAcademicPeriodAction, updateAcademicPeriodAction } from '../actions';
 
 interface PageProps {
@@ -22,14 +22,17 @@ export default async function AcademicPeriodDetailPage({ params }: Readonly<Page
   const session = await requirePermission('structure.read');
   const canWrite = session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
-  const period = await apiFetch<AcademicPeriod>(`/academic-period/${id}`).catch(() => null);
+  const [period, classGroups] = await Promise.all([
+    apiFetch<AcademicPeriod>(`/academic-period/${id}`).catch(() => null),
+    apiFetch<ClassGroup[]>('/class-group').catch(() => []),
+  ]);
   if (!period) notFound();
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title={`Período: ${period.name}`}
-        description="Atualize datas e status do período letivo"
+        description="Atualize o período interno vinculado à turma"
         actions={(
           <Link href="/academic-periods"><Button variant="outline" size="sm"><ArrowLeft size={14} />Voltar</Button></Link>
         )}
@@ -37,6 +40,13 @@ export default async function AcademicPeriodDetailPage({ params }: Readonly<Page
 
       <form action={updateAcademicPeriodAction.bind(null, period.id)} className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="space-y-1 sm:col-span-2">
+            <span className="text-sm font-medium text-slate-700">Turma</span>
+            <select name="classGroupId" required defaultValue={period.classGroupId} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100">
+              {classGroups.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}
+            </select>
+            <p className="text-xs text-slate-500">O período sempre pertence a uma turma.</p>
+          </label>
           <label className="space-y-1 sm:col-span-2">
             <span className="text-sm font-medium text-slate-700">Nome</span>
             <input name="name" required minLength={2} defaultValue={period.name} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />

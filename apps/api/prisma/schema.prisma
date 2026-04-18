@@ -49,61 +49,61 @@ model Institution {
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-  units       Unit[]
+  schools     School[]
 
   @@map("institution")
 }
 
 model Unit {
-  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  institutionId String      @map("institution_id") @db.Uuid
-  name          String      @db.VarChar(255)
-  code          String      @db.VarChar(80)
-  address       String?
-  city          String?     @db.VarChar(120)
-  state         String?     @db.VarChar(120)
-  country       String?     @db.VarChar(120)
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  classes       ClassGroup[]
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  name      String   @db.VarChar(255)
+  code      String   @db.VarChar(80)
+  address   String?
+  city      String?  @db.VarChar(120)
+  state     String?  @db.VarChar(120)
+  country   String?  @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  courses   Course[]
 
-  @@unique([institutionId, code])
-  @@index([institutionId])
+  @@unique([schoolId, code])
+  @@index([schoolId])
   @@map("unit")
 }
 
 model AcademicPeriod {
-  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String      @db.VarChar(150)
-  startDate  DateTime    @map("start_date")
-  endDate    DateTime    @map("end_date")
-  status     RecordStatus @default(ACTIVE)
-  createdAt  DateTime    @default(now()) @map("created_at")
-  updatedAt  DateTime    @updatedAt @map("updated_at")
-  classes    ClassGroup[]
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classGroupId String       @map("class_group_id") @db.Uuid
+  name         String       @db.VarChar(150)
+  startDate    DateTime     @map("start_date")
+  endDate      DateTime     @map("end_date")
+  status       RecordStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  classGroup   ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
 
+  @@index([classGroupId])
   @@index([startDate, endDate])
   @@map("academic_period")
 }
 
 model ClassGroup {
-  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  unitId     String       @map("unit_id") @db.Uuid
-  periodId   String       @map("period_id") @db.Uuid
-  name       String       @db.VarChar(255)
-  code       String       @db.VarChar(80)
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId   String         @map("course_id") @db.Uuid
+  name       String         @db.VarChar(255)
+  code       String         @db.VarChar(80)
   shift      Shift
-  status     RecordStatus @default(ACTIVE)
+  status     RecordStatus   @default(ACTIVE)
   capacity   Int?
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
-  unit       Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  period     AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  course     Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  periods    AcademicPeriod[]
 
-  @@unique([unitId, code])
-  @@index([unitId])
-  @@index([periodId])
+  @@unique([courseId, code])
+  @@index([courseId])
   @@map("class_group")
 }
 
@@ -181,6 +181,7 @@ model UserPreferences {
 
 model Course {
   id              String   @id(map: "Course_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unitId          String   @map("unit_id") @db.Uuid
   school_id       String   @db.Uuid
   program_name    String   @db.VarChar(255)
   weekly_hours    Int
@@ -198,8 +199,11 @@ model Course {
   created_at      DateTime @default(now())
   updated_at      DateTime @default(now())
   price_unit      String?  @db.VarChar(20)
+  unit            Unit     @relation(fields: [unitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   school          School   @relation(fields: [school_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
+  classes         ClassGroup[]
 
+  @@index([unitId])
   @@map("course")
 }
 
@@ -219,6 +223,7 @@ model Review {
 
 model School {
   id           String   @id(map: "School_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institutionId String  @map("institution_id") @db.Uuid
   name         String   @db.VarChar(255)
   location     String   @db.VarChar(255)
   description  String?
@@ -232,8 +237,11 @@ model School {
   rating       Decimal? @db.Decimal
   rating_count Int?
   badges       String[]
+  institution  Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  units        Unit[]
   course       Course[]
 
+  @@index([institutionId])
   @@map("school")
 }
 

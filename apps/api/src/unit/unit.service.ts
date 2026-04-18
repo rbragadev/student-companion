@@ -7,23 +7,29 @@ import { UpdateUnitDto } from './dto/update-unit.dto';
 export class UnitService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureInstitutionExists(institutionId: string) {
-    const institution = await this.prisma.institution.findUnique({ where: { id: institutionId } });
-    if (!institution) throw new NotFoundException(`Instituição ${institutionId} não encontrada`);
+  private async ensureSchoolExists(schoolId: string) {
+    const school = await this.prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) throw new NotFoundException(`Escola ${schoolId} não encontrada`);
   }
 
   async create(dto: CreateUnitDto) {
-    await this.ensureInstitutionExists(dto.institutionId);
+    await this.ensureSchoolExists(dto.schoolId);
     return this.prisma.unit.create({ data: dto });
   }
 
-  findAll(institutionId?: string) {
+  findAll(schoolId?: string) {
     return this.prisma.unit.findMany({
-      where: institutionId ? { institutionId } : undefined,
-      orderBy: [{ institution: { name: 'asc' } }, { name: 'asc' }],
+      where: schoolId ? { schoolId } : undefined,
+      orderBy: [{ school: { name: 'asc' } }, { name: 'asc' }],
       include: {
-        institution: { select: { id: true, name: true } },
-        _count: { select: { classes: true } },
+        school: {
+          select: {
+            id: true,
+            name: true,
+            institution: { select: { id: true, name: true } },
+          },
+        },
+        _count: { select: { courses: true } },
       },
     });
   }
@@ -32,10 +38,16 @@ export class UnitService {
     const unit = await this.prisma.unit.findUnique({
       where: { id },
       include: {
-        institution: { select: { id: true, name: true } },
-        classes: {
-          orderBy: { name: 'asc' },
-          select: { id: true, name: true, code: true, status: true },
+        school: {
+          select: {
+            id: true,
+            name: true,
+            institution: { select: { id: true, name: true } },
+          },
+        },
+        courses: {
+          orderBy: { program_name: 'asc' },
+          select: { id: true, program_name: true, is_active: true },
         },
       },
     });
@@ -46,8 +58,8 @@ export class UnitService {
 
   async update(id: string, dto: UpdateUnitDto) {
     await this.findOne(id);
-    if (dto.institutionId) {
-      await this.ensureInstitutionExists(dto.institutionId);
+    if (dto.schoolId) {
+      await this.ensureSchoolExists(dto.schoolId);
     }
     return this.prisma.unit.update({ where: { id }, data: dto });
   }

@@ -14,6 +14,10 @@ import {
 export class CreateCourseDto {
   @IsUUID()
   @IsNotEmpty()
+  unitId: string;
+
+  @IsUUID()
+  @IsNotEmpty()
   schoolId: string;
 
   @IsString()

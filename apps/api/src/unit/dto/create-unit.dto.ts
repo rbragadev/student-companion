@@ -2,7 +2,7 @@ import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-valida
 
 export class CreateUnitDto {
   @IsUUID()
-  institutionId: string;
+  schoolId: string;
 
   @IsString()
   @MinLength(2)

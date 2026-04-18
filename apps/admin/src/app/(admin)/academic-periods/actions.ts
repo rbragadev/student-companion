@@ -15,6 +15,7 @@ export async function createAcademicPeriodAction(formData: FormData) {
   await apiFetch('/academic-period', {
     method: 'POST',
     body: JSON.stringify({
+      classGroupId: getText(formData, 'classGroupId'),
       name: getText(formData, 'name'),
       startDate: getText(formData, 'startDate'),
       endDate: getText(formData, 'endDate'),
@@ -32,6 +33,7 @@ export async function updateAcademicPeriodAction(id: string, formData: FormData)
   await apiFetch(`/academic-period/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({
+      classGroupId: getText(formData, 'classGroupId'),
       name: getText(formData, 'name'),
       startDate: getText(formData, 'startDate'),
       endDate: getText(formData, 'endDate'),

@@ -14,7 +14,7 @@ export class InstitutionService {
   findAll() {
     return this.prisma.institution.findMany({
       orderBy: { name: 'asc' },
-      include: { _count: { select: { units: true } } },
+      include: { _count: { select: { schools: true } } },
     });
   }
 
@@ -22,9 +22,17 @@ export class InstitutionService {
     const institution = await this.prisma.institution.findUnique({
       where: { id },
       include: {
-        units: {
+        schools: {
           orderBy: { name: 'asc' },
-          select: { id: true, name: true, code: true },
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            units: {
+              orderBy: { name: 'asc' },
+              select: { id: true, name: true, code: true },
+            },
+          },
         },
       },
     });

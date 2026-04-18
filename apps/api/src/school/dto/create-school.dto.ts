@@ -5,10 +5,14 @@ import {
   IsBoolean,
   IsUrl,
   IsEmail,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 
 export class CreateSchoolDto {
+  @IsUUID()
+  institutionId: string;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
