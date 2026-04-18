@@ -251,7 +251,14 @@ Status da integração mobile (escopo acadêmico já coberto):
 - Fluxo comercial de checkout:
   - `GET /enrollments/:id/checkout` consulta estado (`available`, `blocked_waiting_approval`, `blocked_rejected`, `paid`);
   - `POST /enrollments/:id/checkout/pay-fake` confirma entrada fake;
-  - pagamentos operacionais ficam disponíveis em `GET /payments`.
+  - pagamentos operacionais ficam disponíveis em `GET /payments` com operação manual em `POST /payments` e ajuste em `PATCH /payments/:id/status`.
+- Módulo financeiro operacional:
+  - overview: `GET /financial-overview`;
+  - vendas/pacotes: `GET /sales`;
+  - invoices: `GET /invoices`, `POST /invoices`, `PATCH /invoices/:id/status`;
+  - pagamentos: `GET /payments`, `POST /payments`, `PATCH /payments/:id/status`;
+  - comissões: `GET /commissions`;
+  - relatórios básicos: `GET /reports`.
 - Aprovação operacional manual:
   - quando `autoApproveIntent=false`, checkout fica bloqueado até status da matrícula `approved`;
   - ao aprovar/rejeitar proposta, backend cria notificação para o aluno com metadado da matrícula/intenção.
@@ -285,7 +292,9 @@ Status da integração mobile (escopo acadêmico já coberto):
 - Estrutura Física
   Acomodações → Lugares
 - Pessoas e Acesso
-  Alunos → Intenções de Matrícula → Matrículas → Comissões → Financeiro → Usuários Admin → Perfis → Permissões
+  Alunos → Intenções de Matrícula → Matrículas → Fechamento Acomodação → Usuários Admin → Perfis → Permissões
+- Financeiro
+  Financeiro (Overview) → Vendas/Pacotes → Invoices → Pagamentos → Comissões → Relatórios
 
 Regras de exposição no menu:
 - Itens dependentes só aparecem quando pré-requisitos existem (ex.: Turmas exige Curso; Períodos exige Turma).

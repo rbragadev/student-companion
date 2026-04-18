@@ -87,11 +87,20 @@ export const navigationGroups: NavGroup[] = [
       { label: 'Intenções de Matrícula', href: '/enrollment-intents', icon: 'FileBadge2', permission: 'users.read' },
       { label: 'Matrículas', href: '/enrollments', icon: 'BadgeCheck', permission: 'users.read' },
       { label: 'Fechamento Acomodação', href: '/accommodation-operations', icon: 'Home', permission: 'users.read' },
-      { label: 'Comissões', href: '/commission-config', icon: 'CircleDollarSign', permission: 'users.read' },
-      { label: 'Financeiro', href: '/financial-overview', icon: 'Wallet', permission: 'users.read' },
       { label: 'Usuários Admin', href: '/admin-users', icon: 'UserCog', permission: 'users.read' },
       { label: 'Perfis', href: '/profiles', icon: 'Shield', permission: 'roles.read' },
       { label: 'Permissões', href: '/permissions', icon: 'KeyRound', permission: 'permissions.read' },
+    ],
+  },
+  {
+    title: 'Financeiro',
+    items: [
+      { label: 'Financeiro', href: '/finance', icon: 'Wallet', permission: 'users.read' },
+      { label: 'Vendas / Pacotes', href: '/finance/sales', icon: 'BadgeCheck', permission: 'users.read' },
+      { label: 'Invoices', href: '/finance/invoices', icon: 'FileBadge2', permission: 'users.read' },
+      { label: 'Pagamentos', href: '/finance/payments', icon: 'Wallet', permission: 'users.read' },
+      { label: 'Comissões', href: '/finance/commissions', icon: 'CircleDollarSign', permission: 'users.read' },
+      { label: 'Relatórios', href: '/finance/reports', icon: 'LayoutDashboard', permission: 'users.read' },
     ],
   },
 ];

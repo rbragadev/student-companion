@@ -294,6 +294,7 @@ export interface PaymentAdmin {
   id: string;
   enrollmentId?: string | null;
   enrollmentQuoteId?: string | null;
+  invoiceId?: string | null;
   type: string;
   amount: number;
   currency: string;
@@ -302,6 +303,20 @@ export interface PaymentAdmin {
   providerReference?: string | null;
   paidAt?: string | null;
   createdAt: string;
+  enrollment?: {
+    id: string;
+    status: string;
+    student: EnrollmentAdmin['student'];
+    institution: EnrollmentAdmin['institution'];
+    school: EnrollmentAdmin['school'];
+    course: EnrollmentAdmin['course'];
+  } | null;
+  invoice?: {
+    id: string;
+    number: string;
+    status: string;
+    dueDate: string;
+  } | null;
 }
 
 export interface EnrollmentPricingAdmin {
@@ -407,4 +422,151 @@ export interface EnrollmentQuoteAdmin {
     id: string;
     accommodation?: { id: string; title: string; accommodationType: string };
   } | null;
+}
+
+export interface FinancialOverviewAdmin {
+  totals: {
+    totalSold: number;
+    totalInvoiced: number;
+    totalReceived: number;
+    totalPending: number;
+    totalCommission: number;
+    overdueInvoices: number;
+  };
+  revenueByMonth: Array<{
+    month: string;
+    received: number;
+  }>;
+  currency: string;
+}
+
+export interface SalesRowAdmin {
+  id: string;
+  student: EnrollmentAdmin['student'];
+  institution: EnrollmentAdmin['institution'];
+  school: EnrollmentAdmin['school'];
+  course: EnrollmentAdmin['course'];
+  accommodation: EnrollmentAdmin['accommodation'];
+  commercialStatus: string;
+  financialStatus: string;
+  totalAmount: number;
+  downPaymentAmount: number;
+  remainingAmount: number;
+  paidAmount: number;
+  commissionAmount: number;
+  commissionPercentage: number;
+  currency: string;
+  quote?: {
+    id: string;
+    type: string;
+  } | null;
+  invoice?: {
+    id: string;
+    number: string;
+    status: string;
+    totalAmount: number;
+    dueDate: string;
+  } | null;
+}
+
+export interface InvoiceAdmin {
+  id: string;
+  number: string;
+  enrollmentId?: string | null;
+  enrollmentQuoteId?: string | null;
+  totalAmount: number;
+  dueDate: string;
+  status: 'draft' | 'pending' | 'paid' | 'overdue' | 'cancelled';
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  enrollment?: {
+    id: string;
+    status: string;
+    student: EnrollmentAdmin['student'];
+    institution: EnrollmentAdmin['institution'];
+    school: EnrollmentAdmin['school'];
+    course: EnrollmentAdmin['course'];
+    accommodation?: EnrollmentAdmin['accommodation'];
+  } | null;
+  enrollmentQuote?: {
+    id: string;
+    type: string;
+    downPaymentAmount: number;
+    remainingAmount: number;
+  } | null;
+  items?: Array<{
+    id: string;
+    description: string;
+    type: string;
+    amount: number;
+  }>;
+  payments?: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    type: string;
+    paidAt?: string | null;
+    createdAt: string;
+  }>;
+}
+
+export interface CommissionEntryAdmin {
+  enrollmentId: string;
+  student: EnrollmentAdmin['student'];
+  institution: EnrollmentAdmin['institution'];
+  school: EnrollmentAdmin['school'];
+  course: EnrollmentAdmin['course'];
+  accommodation: EnrollmentAdmin['accommodation'];
+  commissionTotal: number;
+  commissionCourse: number;
+  commissionAccommodation: number;
+  commissionPercentage: number;
+  source: string;
+  currency: string;
+  createdAt: string;
+}
+
+export interface FinancialReportsAdmin {
+  revenue: {
+    totalSold: number;
+    totalReceived: number;
+    totalPending: number;
+  };
+  revenueByInstitution: Array<{
+    institutionId: string;
+    institution: string;
+    total: number;
+  }>;
+  revenueByCourse: Array<{
+    courseId: string;
+    course: string;
+    total: number;
+  }>;
+  revenueByAccommodation: Array<{
+    accommodationId: string;
+    accommodation: string;
+    total: number;
+  }>;
+  invoices: {
+    pending: number;
+    paid: number;
+    overdue: number;
+    cancelled: number;
+    draft: number;
+  };
+  commissions: {
+    total: number;
+    byInstitution: Array<{
+      institutionId: string;
+      institution: string;
+      total: number;
+    }>;
+    byCourse: Array<{
+      courseId: string;
+      course: string;
+      total: number;
+    }>;
+  };
+  currency: string;
 }

@@ -117,6 +117,19 @@ const ids = {
   payments: {
     emilyDownPaymentPaid: '1a111111-1111-4111-8111-111111111111',
     lucasDownPaymentPending: '1a111111-1111-4111-8111-111111111112',
+    raphaelInvoicePending: '1a111111-1111-4111-8111-111111111113',
+  },
+  invoices: {
+    emilyPaid: '2a111111-1111-4111-8111-111111111111',
+    lucasPending: '2a111111-1111-4111-8111-111111111112',
+    raphaelOverdue: '2a111111-1111-4111-8111-111111111113',
+  },
+  invoiceItems: {
+    emilyCourse: '2b111111-1111-4111-8111-111111111111',
+    emilyAccommodation: '2b111111-1111-4111-8111-111111111112',
+    lucasCourse: '2b111111-1111-4111-8111-111111111113',
+    lucasAccommodation: '2b111111-1111-4111-8111-111111111114',
+    raphaelCourse: '2b111111-1111-4111-8111-111111111115',
   },
   notifications: {
     raphaelApproved: '1b111111-1111-4111-8111-111111111111',
@@ -1624,11 +1637,120 @@ async function main() {
     });
   }
 
+  const invoices = [
+    {
+      id: ids.invoices.emilyPaid,
+      number: 'INV-20260414-1001',
+      enrollmentId: ids.enrollments.emilyActive,
+      enrollmentQuoteId: ids.enrollmentQuotes.emilyIntentWithAccommodation,
+      totalAmount: 6650,
+      dueDate: new Date('2026-04-20T00:00:00.000Z'),
+      status: 'paid',
+      currency: 'CAD',
+      createdAt: new Date('2026-04-14T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-14T11:00:00.000Z'),
+      items: [
+        { id: ids.invoiceItems.emilyCourse, description: 'Curso', type: 'course', amount: 5550 },
+        {
+          id: ids.invoiceItems.emilyAccommodation,
+          description: 'Acomodação',
+          type: 'accommodation',
+          amount: 950,
+        },
+      ],
+    },
+    {
+      id: ids.invoices.lucasPending,
+      number: 'INV-20260305-1002',
+      enrollmentId: ids.enrollments.lucasReview,
+      enrollmentQuoteId: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
+      totalAmount: 6250,
+      dueDate: new Date('2026-03-25T00:00:00.000Z'),
+      status: 'pending',
+      currency: 'CAD',
+      createdAt: new Date('2026-03-05T08:50:00.000Z'),
+      updatedAt: new Date('2026-03-05T08:50:00.000Z'),
+      items: [
+        { id: ids.invoiceItems.lucasCourse, description: 'Curso', type: 'course', amount: 4350 },
+        {
+          id: ids.invoiceItems.lucasAccommodation,
+          description: 'Acomodação',
+          type: 'accommodation',
+          amount: 1750,
+        },
+      ],
+    },
+    {
+      id: ids.invoices.raphaelOverdue,
+      number: 'INV-20260416-1003',
+      enrollmentId: null,
+      enrollmentQuoteId: ids.enrollmentQuotes.raphaelPendingCourseOnly,
+      totalAmount: 5700,
+      dueDate: new Date('2026-04-17T00:00:00.000Z'),
+      status: 'overdue',
+      currency: 'CAD',
+      createdAt: new Date('2026-04-16T10:00:00.000Z'),
+      updatedAt: new Date('2026-04-18T10:00:00.000Z'),
+      items: [
+        { id: ids.invoiceItems.raphaelCourse, description: 'Curso', type: 'course', amount: 5550 },
+      ],
+    },
+  ] as const;
+
+  for (const invoice of invoices) {
+    await prisma.invoice.upsert({
+      where: { id: invoice.id },
+      create: {
+        id: invoice.id,
+        number: invoice.number,
+        enrollmentId: invoice.enrollmentId,
+        enrollmentQuoteId: invoice.enrollmentQuoteId,
+        totalAmount: invoice.totalAmount,
+        dueDate: invoice.dueDate,
+        status: invoice.status,
+        currency: invoice.currency,
+        createdAt: invoice.createdAt,
+        updatedAt: invoice.updatedAt,
+      },
+      update: {
+        number: invoice.number,
+        enrollmentId: invoice.enrollmentId,
+        enrollmentQuoteId: invoice.enrollmentQuoteId,
+        totalAmount: invoice.totalAmount,
+        dueDate: invoice.dueDate,
+        status: invoice.status,
+        currency: invoice.currency,
+        createdAt: invoice.createdAt,
+        updatedAt: invoice.updatedAt,
+      },
+    });
+
+    for (const item of invoice.items) {
+      await prisma.invoiceItem.upsert({
+        where: { id: item.id },
+        create: {
+          id: item.id,
+          invoiceId: invoice.id,
+          description: item.description,
+          type: item.type,
+          amount: item.amount,
+        },
+        update: {
+          invoiceId: invoice.id,
+          description: item.description,
+          type: item.type,
+          amount: item.amount,
+        },
+      });
+    }
+  }
+
   const payments = [
     {
       id: ids.payments.emilyDownPaymentPaid,
       enrollmentId: ids.enrollments.emilyActive,
       enrollmentQuoteId: ids.enrollmentQuotes.emilyIntentWithAccommodation,
+      invoiceId: ids.invoices.emilyPaid,
       type: 'down_payment',
       amount: 1995,
       currency: 'CAD',
@@ -1643,6 +1765,7 @@ async function main() {
       id: ids.payments.lucasDownPaymentPending,
       enrollmentId: ids.enrollments.lucasReview,
       enrollmentQuoteId: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
+      invoiceId: ids.invoices.lucasPending,
       type: 'down_payment',
       amount: 1875,
       currency: 'CAD',
@@ -1652,6 +1775,21 @@ async function main() {
       paidAt: null,
       createdAt: new Date('2026-03-05T09:00:00.000Z'),
       updatedAt: new Date('2026-03-05T09:00:00.000Z'),
+    },
+    {
+      id: ids.payments.raphaelInvoicePending,
+      enrollmentId: null,
+      enrollmentQuoteId: ids.enrollmentQuotes.raphaelPendingCourseOnly,
+      invoiceId: ids.invoices.raphaelOverdue,
+      type: 'down_payment',
+      amount: 1710,
+      currency: 'CAD',
+      status: 'pending',
+      provider: 'fake',
+      providerReference: null,
+      paidAt: null,
+      createdAt: new Date('2026-04-16T10:15:00.000Z'),
+      updatedAt: new Date('2026-04-16T10:15:00.000Z'),
     },
   ] as const;
 

@@ -110,6 +110,7 @@ model Enrollment {
   accommodationStatusHistory EnrollmentAccommodationStatusHistory[]
   messageReads       EnrollmentMessageRead[]
   payments           Payment[]
+  invoices           Invoice[]
 
   @@index([studentId, status])
   @@index([institutionId])
@@ -554,6 +555,7 @@ model EnrollmentQuote {
   accommodationPricing        AccommodationPricing? @relation(fields: [accommodationPricingId], references: [id], onDelete: SetNull)
   items                       EnrollmentQuoteItem[]
   payments                    Payment[]
+  invoices                    Invoice[]
 
   @@index([enrollmentIntentId, createdAt])
   @@index([coursePricingId])
@@ -566,6 +568,7 @@ model Payment {
   id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   enrollmentId      String?         @map("enrollment_id") @db.Uuid
   enrollmentQuoteId String?         @map("enrollment_quote_id") @db.Uuid
+  invoiceId         String?         @map("invoice_id") @db.Uuid
   type              String          @default("down_payment") @db.VarChar(40)
   amount            Decimal         @db.Decimal(12, 2)
   currency          String          @default("CAD") @db.VarChar(10)
@@ -577,10 +580,47 @@ model Payment {
   updatedAt         DateTime        @updatedAt @map("updated_at")
   enrollment        Enrollment?     @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
   enrollmentQuote   EnrollmentQuote? @relation(fields: [enrollmentQuoteId], references: [id], onDelete: SetNull)
+  invoice           Invoice?        @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@index([enrollmentId, status, createdAt])
   @@index([enrollmentQuoteId])
+  @@index([invoiceId])
   @@map("payment")
+}
+
+model Invoice {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number            String        @unique @db.VarChar(40)
+  enrollmentId      String?       @map("enrollment_id") @db.Uuid
+  enrollmentQuoteId String?       @map("enrollment_quote_id") @db.Uuid
+  totalAmount       Decimal       @map("total_amount") @db.Decimal(12, 2)
+  dueDate           DateTime      @map("due_date")
+  status            String        @default("draft") @db.VarChar(20)
+  currency          String        @default("CAD") @db.VarChar(10)
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  enrollment        Enrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  enrollmentQuote   EnrollmentQuote? @relation(fields: [enrollmentQuoteId], references: [id], onDelete: SetNull)
+  items             InvoiceItem[]
+  payments          Payment[]
+
+  @@index([enrollmentId, status])
+  @@index([enrollmentQuoteId])
+  @@index([status, dueDate])
+  @@map("invoice")
+}
+
+model InvoiceItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  description String   @db.VarChar(255)
+  type        String   @db.VarChar(40)
+  amount      Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_item")
 }
 
 model Notification {

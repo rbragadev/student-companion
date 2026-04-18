@@ -3,6 +3,8 @@ import { Prisma, type Payment } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EnrollmentQuoteService } from './enrollment-quote.service';
 import { NotificationService } from '../notification/notification.service';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 
 type CheckoutState =
   | 'available'
@@ -30,6 +32,37 @@ export class PaymentService {
 
   private isApprovalReadyStatus(status: string): boolean {
     return ['approved', 'enrolled'].includes(status);
+  }
+
+  private async reconcileInvoiceStatus(invoiceId?: string | null) {
+    if (!invoiceId) return;
+
+    const invoice = await this.prisma.invoice.findUnique({ where: { id: invoiceId } });
+    if (!invoice || invoice.status === 'cancelled') return;
+
+    const paidAmountResult = await this.prisma.payment.aggregate({
+      where: { invoiceId, status: 'paid' },
+      _sum: { amount: true },
+    });
+
+    const paidAmount = this.toNumber(paidAmountResult._sum.amount);
+    const totalAmount = this.toNumber(invoice.totalAmount);
+
+    let status = invoice.status;
+    if (paidAmount >= totalAmount && totalAmount > 0) {
+      status = 'paid';
+    } else if (invoice.dueDate < new Date()) {
+      status = 'overdue';
+    } else if (invoice.status !== 'draft') {
+      status = 'pending';
+    }
+
+    if (status !== invoice.status) {
+      await this.prisma.invoice.update({
+        where: { id: invoiceId },
+        data: { status },
+      });
+    }
   }
 
   private async resolveCheckoutContext(enrollmentId: string) {
@@ -225,14 +258,36 @@ export class PaymentService {
     };
   }
 
-  async findAll(filters?: { enrollmentId?: string; studentId?: string }) {
+  async findAll(filters?: {
+    enrollmentId?: string;
+    studentId?: string;
+    invoiceId?: string;
+    institutionId?: string;
+    status?: string;
+  }) {
     return this.prisma.payment.findMany({
       where: {
         enrollmentId: filters?.enrollmentId,
-        enrollment: filters?.studentId ? { studentId: filters.studentId } : undefined,
+        invoiceId: filters?.invoiceId,
+        status: filters?.status,
+        enrollment:
+          filters?.studentId || filters?.institutionId
+            ? {
+                studentId: filters?.studentId,
+                institutionId: filters?.institutionId,
+              }
+            : undefined,
       },
       orderBy: { createdAt: 'desc' },
       include: {
+        invoice: {
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            dueDate: true,
+          },
+        },
         enrollment: {
           select: {
             id: true,
@@ -250,9 +305,123 @@ export class PaymentService {
     });
   }
 
+  async createManual(dto: CreatePaymentDto) {
+    if (!dto.invoiceId && !dto.enrollmentId && !dto.enrollmentQuoteId) {
+      throw new BadRequestException(
+        'Informe invoiceId, enrollmentId ou enrollmentQuoteId para registrar pagamento',
+      );
+    }
+
+    let invoice: {
+      id: string;
+      enrollmentId: string | null;
+      enrollmentQuoteId: string | null;
+      currency: string;
+    } | null = null;
+    if (dto.invoiceId) {
+      invoice = await this.prisma.invoice.findUnique({
+        where: { id: dto.invoiceId },
+        select: {
+          id: true,
+          enrollmentId: true,
+          enrollmentQuoteId: true,
+          currency: true,
+        },
+      });
+      if (!invoice) {
+        throw new NotFoundException(`Invoice ${dto.invoiceId} não encontrada`);
+      }
+    }
+
+    const created = await this.prisma.payment.create({
+      data: {
+        invoiceId: dto.invoiceId ?? null,
+        enrollmentId: dto.enrollmentId ?? invoice?.enrollmentId ?? null,
+        enrollmentQuoteId: dto.enrollmentQuoteId ?? invoice?.enrollmentQuoteId ?? null,
+        type: dto.type ?? 'down_payment',
+        amount: dto.amount,
+        currency: dto.currency ?? invoice?.currency ?? 'CAD',
+        status: dto.status ?? 'pending',
+        provider: dto.provider ?? 'manual',
+        paidAt: dto.status === 'paid' ? new Date() : null,
+        providerReference:
+          dto.status === 'paid' ? `manual_${Date.now()}` : null,
+      },
+      include: {
+        invoice: {
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            dueDate: true,
+          },
+        },
+        enrollment: {
+          select: {
+            id: true,
+            status: true,
+            student: { select: { id: true, firstName: true, lastName: true, email: true } },
+            institution: { select: { id: true, name: true } },
+            school: { select: { id: true, name: true } },
+            course: { select: { id: true, program_name: true } },
+          },
+        },
+      },
+    });
+
+    await this.reconcileInvoiceStatus(created.invoiceId);
+    return created;
+  }
+
+  async updateStatus(id: string, dto: UpdatePaymentStatusDto) {
+    const current = await this.prisma.payment.findUnique({ where: { id } });
+
+    if (!current) {
+      throw new NotFoundException(`Pagamento ${id} não encontrado`);
+    }
+
+    const updated = await this.prisma.payment.update({
+      where: { id },
+      data: {
+        status: dto.status,
+        paidAt: dto.status === 'paid' ? new Date() : null,
+        providerReference:
+          dto.status === 'paid'
+            ? current.providerReference ?? `manual_${Date.now()}`
+            : current.providerReference,
+      },
+      include: {
+        invoice: {
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            dueDate: true,
+          },
+        },
+        enrollment: {
+          select: {
+            id: true,
+            status: true,
+            student: { select: { id: true, firstName: true, lastName: true, email: true } },
+            institution: { select: { id: true, name: true } },
+            school: { select: { id: true, name: true } },
+            course: { select: { id: true, program_name: true } },
+          },
+        },
+      },
+    });
+
+    await this.reconcileInvoiceStatus(updated.invoiceId);
+    return updated;
+  }
+
   async findOne(id: string): Promise<Payment> {
     const payment = await this.prisma.payment.findUnique({
       where: { id },
+      include: {
+        invoice: true,
+      },
     });
     if (!payment) {
       throw new NotFoundException(`Pagamento ${id} não encontrado`);

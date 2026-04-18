@@ -19,6 +19,10 @@ import { PaymentService } from './payment.service';
 import { PaymentController } from './payment.controller';
 import { EnrollmentCheckoutController } from './enrollment-checkout.controller';
 import { NotificationModule } from '../notification/notification.module';
+import { InvoiceService } from './invoice.service';
+import { InvoiceController } from './invoice.controller';
+import { FinancialService } from './financial.service';
+import { FinancialController } from './financial.controller';
 
 @Module({
   imports: [PrismaModule, EnrollmentIntentModule, NotificationModule],
@@ -32,6 +36,8 @@ import { NotificationModule } from '../notification/notification.module';
     AccommodationPricingController,
     EnrollmentQuoteController,
     PaymentController,
+    InvoiceController,
+    FinancialController,
   ],
   providers: [
     EnrollmentService,
@@ -42,6 +48,8 @@ import { NotificationModule } from '../notification/notification.module';
     AccommodationPricingService,
     EnrollmentQuoteService,
     PaymentService,
+    InvoiceService,
+    FinancialService,
   ],
   exports: [CommissionConfigService, EnrollmentQuoteService],
 })

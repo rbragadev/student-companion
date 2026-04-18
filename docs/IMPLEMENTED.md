@@ -299,6 +299,31 @@ Fluxo no SaaS:
   - `GET /accommodation-pricing/resolve` exige pricing ativa real (sem fallback para `accommodation.priceInCents`);
   - `GET /enrollments/:id/package-summary` não usa fallback implícito de valor base da acomodação quando não existe quote/pricing válido.
 
+### Financeiro SaaS (Módulo completo)
+
+- Nova estrutura na sidebar com subpáginas dedicadas:
+  - `/finance` (overview)
+  - `/finance/sales`
+  - `/finance/invoices`
+  - `/finance/payments`
+  - `/finance/commissions`
+  - `/finance/reports`
+- Backend financeiro consolidado:
+  - `GET /financial-overview`
+  - `GET /sales`
+  - `GET /invoices`
+  - `POST /invoices`
+  - `PATCH /invoices/:id/status`
+  - `GET /payments`
+  - `POST /payments`
+  - `PATCH /payments/:id/status`
+  - `GET /commissions`
+  - `GET /reports`
+- Invoice e itens de invoice adicionados ao domínio:
+  - `invoice` (draft, pending, paid, overdue, cancelled)
+  - `invoice_item` (course, accommodation, fee, discount)
+- Pagamentos agora podem vincular invoice (`payment.invoiceId`) e reconciliam status da invoice automaticamente conforme pagamentos recebidos.
+
 ### Componentes genéricos prontos
 
 | Componente | Uso |
