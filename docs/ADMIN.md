@@ -229,6 +229,7 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Configuração de preço por acomodação e opção de período (texto legível).
 - `/accommodations` (evolução de upsell contextual)
   Catálogo independente + configuração de recomendação por escola (recomendada, prioridade e badge), com visualização de uso em intenções e matrículas.
+  Regra operacional: máximo de 3 recomendações ativas por escola/contexto.
 
 Fluxo único de dados:
 - Admin atualiza dados reais.
@@ -255,6 +256,12 @@ Status da integração mobile (escopo acadêmico já coberto):
   - financeiro consolidado do pacote é exposto por `GET /enrollments/:id/package-summary` e refletido no SaaS/mobile.
   - quote consolidada é gerada por `POST /quotes` e consultada por `GET /quotes/by-intent/:intentId`.
   - quote exibe tipo do pacote (`course_only`, `course_with_accommodation`), total, entrada, saldo e comissão.
+  - quote aceita montagem por itens (`course` e `accommodation`) com datas por item; suporta `accommodation_only` (standalone) no backend.
+  - no mobile, o fechamento de pacote é em 4 etapas:
+    1. curso + período/datas
+    2. acomodação (recomendadas no topo, catálogo completo abaixo, opcional)
+    3. confirmação final do pacote (itens, datas, total e entrada)
+    4. resultado do fechamento (`autoApproveIntent=true` -> checkout; `false` -> proposta enviada para aprovação)
   - workflow de acomodação no contexto da matrícula é atualizado por `PATCH /enrollments/:id/accommodation-workflow`;
   - após status `closed`, a acomodação não pode mais ser trocada/removida;
   - chat da acomodação usa o mesmo endpoint de mensagens com canal dedicado (`channel=accommodation`), mantendo fonte única no backend.

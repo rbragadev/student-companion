@@ -278,6 +278,18 @@ export default async function EnrollmentDetailPage({
               <p>Comissão curso: {Number(quote.commissionCourseAmount).toFixed(2)} {quote.currency}</p>
               <p>Comissão acomodação: {Number(quote.commissionAccommodationAmount).toFixed(2)} {quote.currency}</p>
               <p>Comissão total: {Number(quote.commissionAmount).toFixed(2)} {quote.currency}</p>
+              {(quote.items ?? []).length > 0 && (
+                <div className="col-span-2 mt-1 rounded border border-slate-200 bg-slate-50 p-2">
+                  <p className="text-[11px] font-semibold text-slate-700">Itens do pacote</p>
+                  <div className="mt-1 space-y-1">
+                    {quote.items?.map((item) => (
+                      <p key={item.id} className="text-[11px] text-slate-600">
+                        {item.itemType} • {new Date(item.startDate).toLocaleDateString('pt-BR')} - {new Date(item.endDate).toLocaleDateString('pt-BR')} • {Number(item.amount).toFixed(2)} {quote.currency} • comissão {Number(item.commissionAmount).toFixed(2)}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </article>

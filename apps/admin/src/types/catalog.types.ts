@@ -31,6 +31,8 @@ export interface CourseAdmin {
   price_unit: string | null;
   description: string;
   duration: string;
+  period_type?: 'weekly' | 'fixed';
+  auto_approve_intent?: boolean;
   visa_type: string;
   target_audience: string;
   image: string;
@@ -336,6 +338,15 @@ export interface EnrollmentQuoteAdmin {
   commissionAccommodationAmount: number;
   type: 'course_only' | 'course_with_accommodation' | 'accommodation_only';
   createdAt: string;
+  items?: Array<{
+    id: string;
+    itemType: 'course' | 'accommodation';
+    referenceId: string;
+    startDate: string;
+    endDate: string;
+    amount: number;
+    commissionAmount: number;
+  }>;
   coursePricing?: {
     id: string;
     course?: { id: string; program_name: string };

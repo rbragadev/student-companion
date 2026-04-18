@@ -25,6 +25,10 @@ function getBool(formData: FormData, key: string): boolean {
   return String(formData.get(key) ?? '') === 'on';
 }
 
+function getPeriodType(formData: FormData): 'weekly' | 'fixed' {
+  return getText(formData, 'periodType') === 'weekly' ? 'weekly' : 'fixed';
+}
+
 function payload(formData: FormData) {
   return {
     unitId: getText(formData, 'unitId'),
@@ -41,6 +45,8 @@ function payload(formData: FormData) {
     images: getList(formData, 'images'),
     badges: getList(formData, 'badges'),
     isActive: getBool(formData, 'isActive'),
+    periodType: getPeriodType(formData),
+    autoApproveIntent: getBool(formData, 'autoApproveIntent'),
   };
 }
 

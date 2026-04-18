@@ -9,6 +9,7 @@ import {
   Min,
   MaxLength,
   IsUUID,
+  IsIn,
 } from 'class-validator';
 
 export class CreateCourseDto {
@@ -75,4 +76,13 @@ export class CreateCourseDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['weekly', 'fixed'])
+  periodType?: 'weekly' | 'fixed';
+
+  @IsBoolean()
+  @IsOptional()
+  autoApproveIntent?: boolean;
 }

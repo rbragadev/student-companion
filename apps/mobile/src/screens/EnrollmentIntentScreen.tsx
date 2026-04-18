@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, ScrollView } from 'react-native';
+import { Image, Modal, TextInput, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,9 +20,70 @@ import { useAuth } from '../contexts/AuthContext';
 import { userQueryKeys } from '../hooks/api/useUserProfile';
 import { enrollmentApi } from '../services/api/enrollmentApi';
 import type { Accommodation } from '../types/accommodation.types';
+import { accommodationApi } from '../services/api/accommodationApi';
+import { courseApi } from '../services/api/courseApi';
+import type { Course } from '../types/course.types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, typeof StackRoutes.ENROLLMENT_INTENT>;
+type Step = 1 | 2 | 3 | 4;
+
+function isIsoDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function toIsoDate(value: string): string {
+  return new Date(`${value}T00:00:00.000Z`).toISOString();
+}
+
+function addDays(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function isSundayIso(isoDate: string): boolean {
+  if (!isIsoDate(isoDate)) return false;
+  return new Date(`${isoDate}T00:00:00.000Z`).getUTCDay() === 0;
+}
+
+function alignToNextSunday(isoDate: string): string {
+  if (!isIsoDate(isoDate)) return isoDate;
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  const day = date.getUTCDay();
+  if (day === 0) return isoDate;
+  date.setUTCDate(date.getUTCDate() + (7 - day));
+  return date.toISOString().slice(0, 10);
+}
+
+function listSundaysBetween(startIso: string, endIso: string, limit = 12): string[] {
+  if (!isIsoDate(startIso) || !isIsoDate(endIso)) return [];
+  const values: string[] = [];
+  let cursor = alignToNextSunday(startIso);
+  let guard = 0;
+  while (cursor <= endIso && guard < limit) {
+    values.push(cursor);
+    cursor = addDays(cursor, 7);
+    guard += 1;
+  }
+  return values;
+}
+
+function diffDays(startIso: string, endIso: string): number {
+  const start = new Date(`${startIso}T00:00:00.000Z`).getTime();
+  const end = new Date(`${endIso}T00:00:00.000Z`).getTime();
+  return Math.round((end - start) / (1000 * 60 * 60 * 24));
+}
+
+function isWeeklyRangeValid(startIso: string, endIso: string): boolean {
+  if (!isIsoDate(startIso) || !isIsoDate(endIso)) return false;
+  const days = diffDays(startIso, endIso);
+  return days > 0 && days % 7 === 0 && isSundayIso(startIso) && isSundayIso(endIso);
+}
+
+function formatMoney(value: number, currency: string): string {
+  return `${Number(value).toFixed(2)} ${currency}`;
+}
 
 export default function EnrollmentIntentScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -31,30 +92,76 @@ export default function EnrollmentIntentScreen() {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
 
-  const [classGroups, setClassGroups] = React.useState<ClassGroupOption[]>([]);
-  const [periods, setPeriods] = React.useState<AcademicPeriodOption[]>([]);
-  const [selectedClassGroupId, setSelectedClassGroupId] = React.useState('');
-  const [selectedPeriodId, setSelectedPeriodId] = React.useState('');
+  const todayIso = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const plus28Iso = React.useMemo(
+    () => new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    [],
+  );
+
+  const [step, setStep] = React.useState<Step>(1);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const [message, setMessage] = React.useState<string | null>(null);
+  const [quoteLoading, setQuoteLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const [course, setCourse] = React.useState<Course | null>(null);
+  const [classGroups, setClassGroups] = React.useState<ClassGroupOption[]>([]);
+  const [periods, setPeriods] = React.useState<AcademicPeriodOption[]>([]);
   const [openIntent, setOpenIntent] = React.useState<EnrollmentIntent | null>(null);
   const [hasActiveEnrollment, setHasActiveEnrollment] = React.useState(false);
-  const [recommendedAccommodations, setRecommendedAccommodations] = React.useState<Accommodation[]>([]);
-  const [selectedAccommodationId, setSelectedAccommodationId] = React.useState<string>('');
-  const [coursePricing, setCoursePricing] = React.useState<CoursePricing | null>(null);
-  const [accommodationPricing, setAccommodationPricing] = React.useState<AccommodationPricing | null>(null);
-  const [quotePreview, setQuotePreview] = React.useState<EnrollmentQuote | null>(null);
-  const [quoteLoading, setQuoteLoading] = React.useState(false);
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
-  const toastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  React.useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
+  const [selectedClassGroupId, setSelectedClassGroupId] = React.useState('');
+  const [selectedPeriodId, setSelectedPeriodId] = React.useState('');
+  const [courseStartDate, setCourseStartDate] = React.useState(todayIso);
+  const [courseEndDate, setCourseEndDate] = React.useState(plus28Iso);
+  const [coursePricing, setCoursePricing] = React.useState<CoursePricing | null>(null);
+
+  const [recommendedAccommodations, setRecommendedAccommodations] = React.useState<Accommodation[]>(
+    [],
+  );
+  const [allAccommodations, setAllAccommodations] = React.useState<Accommodation[]>([]);
+  const [showAllAccommodations, setShowAllAccommodations] = React.useState(false);
+  const [selectedAccommodationId, setSelectedAccommodationId] = React.useState('');
+  const [accommodationStartDate, setAccommodationStartDate] = React.useState(todayIso);
+  const [accommodationEndDate, setAccommodationEndDate] = React.useState(plus28Iso);
+  const [accommodationPricing, setAccommodationPricing] = React.useState<AccommodationPricing | null>(
+    null,
+  );
+  const [selectedAccommodationPreview, setSelectedAccommodationPreview] =
+    React.useState<Accommodation | null>(null);
+  const [modalAccommodationPricing, setModalAccommodationPricing] =
+    React.useState<AccommodationPricing | null>(null);
+  const [modalPricingLoading, setModalPricingLoading] = React.useState(false);
+
+  const [quotePreview, setQuotePreview] = React.useState<EnrollmentQuote | null>(null);
+  const [resultType, setResultType] = React.useState<'auto_approve' | 'proposal'>('proposal');
+
+  const selectedPeriod = React.useMemo(
+    () => periods.find((item) => item.id === selectedPeriodId) ?? null,
+    [periods, selectedPeriodId],
+  );
+
+  const weeklyCourseStartOptions = React.useMemo(() => {
+    if (!selectedPeriod) return [];
+    return listSundaysBetween(
+      selectedPeriod.startDate.slice(0, 10),
+      selectedPeriod.endDate.slice(0, 10),
+    );
+  }, [selectedPeriod]);
+
+  const weeklyAccommodationOptions = React.useMemo(() => {
+    if (!isIsoDate(accommodationStartDate)) return [];
+    return [1, 2, 4, 8, 12, 16].map((weeks) => ({
+      weeks,
+      endDate: addDays(accommodationStartDate, weeks * 7),
+    }));
+  }, [accommodationStartDate]);
+
+  const weeklyAccommodationStartOptions = React.useMemo(() => {
+    if (!isIsoDate(courseStartDate)) return [];
+    const alignedCourseStart = alignToNextSunday(courseStartDate);
+    return [0, 1, 2, 3, 4, 5, 6].map((offset) => addDays(alignedCourseStart, offset * 7));
+  }, [courseStartDate]);
 
   React.useEffect(() => {
     const run = async () => {
@@ -62,27 +169,35 @@ export default function EnrollmentIntentScreen() {
         setLoading(false);
         return;
       }
+
       try {
         setLoading(true);
         setError(null);
-        const [groups, pendingIntent, activeEnrollment, accommodations] = await Promise.all([
-          enrollmentIntentApi.getClassGroupsByCourse(courseId),
-          enrollmentIntentApi.getOpenIntentByStudent(userId),
-          enrollmentApi.getActiveEnrollmentByStudent(userId),
-          enrollmentIntentApi.getRecommendedAccommodationsByCourse(courseId),
-        ]);
-        const active = groups.filter((group) => group.status === 'ACTIVE');
-        setClassGroups(active);
+        const [courseDetail, groups, pendingIntent, activeEnrollment, recommended, all] =
+          await Promise.all([
+            courseApi.getCourseById(courseId),
+            enrollmentIntentApi.getClassGroupsByCourse(courseId),
+            enrollmentIntentApi.getOpenIntentByStudent(userId),
+            enrollmentApi.getActiveEnrollmentByStudent(userId),
+            enrollmentIntentApi.getRecommendedAccommodationsByCourse(courseId),
+            accommodationApi.getAccommodations().catch(() => []),
+          ]);
+
+        setCourse(courseDetail);
+        setClassGroups(groups.filter((item) => item.status === 'ACTIVE'));
         setOpenIntent(pendingIntent);
         setHasActiveEnrollment(!!activeEnrollment);
-        setRecommendedAccommodations(accommodations);
+        setRecommendedAccommodations(recommended.slice(0, 3));
+        setAllAccommodations(
+          [...all].sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0)),
+        );
         setSelectedAccommodationId(pendingIntent?.accommodation?.id ?? '');
         if (pendingIntent?.id) {
-          const intentQuote = await enrollmentIntentApi.getQuoteByIntent(pendingIntent.id);
-          setQuotePreview(intentQuote);
+          const currentQuote = await enrollmentIntentApi.getQuoteByIntent(pendingIntent.id);
+          setQuotePreview(currentQuote);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Falha ao carregar turmas');
+        setError(err instanceof Error ? err.message : 'Falha ao carregar fluxo de matrícula');
       } finally {
         setLoading(false);
       }
@@ -96,27 +211,45 @@ export default function EnrollmentIntentScreen() {
       if (!selectedClassGroupId) {
         setPeriods([]);
         setSelectedPeriodId('');
+        setCoursePricing(null);
         return;
       }
+
       try {
         const values = await enrollmentIntentApi.getAcademicPeriodsByClassGroup(selectedClassGroupId);
-        setPeriods(values.filter((item) => item.status === 'ACTIVE'));
+        const active = values.filter((item) => item.status === 'ACTIVE');
+        setPeriods(active);
+        setSelectedPeriodId('');
         setCoursePricing(null);
-        setAccommodationPricing(null);
         setQuotePreview(null);
+
+        if (active[0]) {
+          const initialStart = active[0].startDate.slice(0, 10);
+          const weeklyStart = alignToNextSunday(initialStart);
+          const initialEnd = addDays(weeklyStart, 28);
+          setCourseStartDate(course?.periodType === 'fixed' ? initialStart : weeklyStart);
+          setCourseEndDate(
+            course?.periodType === 'fixed' ? active[0].endDate.slice(0, 10) : initialEnd,
+          );
+          setAccommodationStartDate(weeklyStart);
+          setAccommodationEndDate(initialEnd);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar períodos');
       }
     };
+
     void run();
-  }, [selectedClassGroupId]);
+  }, [course?.periodType, selectedClassGroupId]);
 
   React.useEffect(() => {
     const run = async () => {
       if (!selectedPeriodId) {
         setCoursePricing(null);
+        setQuotePreview(null);
         return;
       }
+
       try {
         const pricing = await enrollmentIntentApi.getCoursePricing(courseId, selectedPeriodId);
         setCoursePricing(pricing);
@@ -125,6 +258,7 @@ export default function EnrollmentIntentScreen() {
         setError(err instanceof Error ? err.message : 'Preço do curso indisponível para o período');
       }
     };
+
     void run();
   }, [courseId, selectedPeriodId]);
 
@@ -134,11 +268,12 @@ export default function EnrollmentIntentScreen() {
         setAccommodationPricing(null);
         return;
       }
-      const selectedPeriodName = periods.find((item) => item.id === selectedPeriodId)?.name;
+
       try {
+        const periodName = periods.find((item) => item.id === selectedPeriodId)?.name;
         const pricing = await enrollmentIntentApi.getAccommodationPricing(
           selectedAccommodationId,
-          selectedPeriodName,
+          periodName,
         );
         setAccommodationPricing(pricing);
       } catch (err) {
@@ -146,43 +281,148 @@ export default function EnrollmentIntentScreen() {
         setError(
           err instanceof Error
             ? err.message
-            : 'Preço da acomodação indisponível para o período informado',
+            : 'Preço da acomodação indisponível para o período selecionado',
         );
       }
     };
+
     void run();
-  }, [selectedAccommodationId, selectedPeriodId, periods]);
+  }, [selectedAccommodationId, periods, selectedPeriodId]);
+
+  const selectAccommodation = React.useCallback(
+    (accommodationId: string) => {
+      setSelectedAccommodationId(accommodationId);
+      if (isIsoDate(courseStartDate)) {
+        const start = alignToNextSunday(courseStartDate);
+        const weeks = isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)
+          ? diffDays(accommodationStartDate, accommodationEndDate) / 7
+          : 4;
+        setAccommodationStartDate(start);
+        setAccommodationEndDate(addDays(start, weeks * 7));
+      }
+    },
+    [accommodationEndDate, accommodationStartDate, courseStartDate],
+  );
+
+  const openAccommodationModal = React.useCallback(
+    async (item: Accommodation) => {
+      setSelectedAccommodationPreview(item);
+      setModalAccommodationPricing(null);
+      try {
+        setModalPricingLoading(true);
+        const pricing = await enrollmentIntentApi.getAccommodationPricing(
+          item.id,
+          selectedPeriod?.name,
+        );
+        setModalAccommodationPricing(pricing);
+      } catch {
+        setModalAccommodationPricing(null);
+      } finally {
+        setModalPricingLoading(false);
+      }
+    },
+    [selectedPeriod?.name],
+  );
+
+  const canGoToStep2 = React.useMemo(() => {
+    if (!coursePricing || !selectedClassGroupId || !selectedPeriodId) return false;
+    if (!isIsoDate(courseStartDate) || !isIsoDate(courseEndDate)) return false;
+
+    const start = new Date(`${courseStartDate}T00:00:00.000Z`);
+    const end = new Date(`${courseEndDate}T00:00:00.000Z`);
+    if (end <= start) return false;
+
+    if (course?.periodType === 'weekly') {
+      if (!isWeeklyRangeValid(courseStartDate, courseEndDate)) return false;
+    }
+
+    return true;
+  }, [
+    coursePricing,
+    selectedClassGroupId,
+    selectedPeriodId,
+    courseStartDate,
+    courseEndDate,
+    course?.periodType,
+  ]);
+
+  const rebuildQuote = React.useCallback(async () => {
+    if (!coursePricing) {
+      setQuotePreview(null);
+      return;
+    }
+    if (!isIsoDate(courseStartDate) || !isIsoDate(courseEndDate)) {
+      setQuotePreview(null);
+      return;
+    }
+    if (course?.periodType === 'weekly' && !isWeeklyRangeValid(courseStartDate, courseEndDate)) {
+      setQuotePreview(null);
+      return;
+    }
+    if (selectedAccommodationId && !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)) {
+      setQuotePreview(null);
+      return;
+    }
+
+    const items = [
+      {
+        itemType: 'course' as const,
+        coursePricingId: coursePricing.id,
+        referenceId: coursePricing.id,
+        startDate: toIsoDate(courseStartDate),
+        endDate: toIsoDate(courseEndDate),
+      },
+      ...(accommodationPricing &&
+      isIsoDate(accommodationStartDate) &&
+      isIsoDate(accommodationEndDate)
+        ? [
+            {
+              itemType: 'accommodation' as const,
+              accommodationPricingId: accommodationPricing.id,
+              referenceId: accommodationPricing.id,
+              startDate: toIsoDate(accommodationStartDate),
+              endDate: toIsoDate(accommodationEndDate),
+            },
+          ]
+        : []),
+    ];
+
+    try {
+      setQuoteLoading(true);
+      const quote = await enrollmentIntentApi.createQuote({
+        downPaymentPercentage: 30,
+        items,
+      });
+      setQuotePreview(quote);
+    } catch (err) {
+      setQuotePreview(null);
+      setError(err instanceof Error ? err.message : 'Falha ao calcular pacote');
+    } finally {
+      setQuoteLoading(false);
+    }
+  }, [
+    coursePricing,
+    accommodationPricing,
+    courseStartDate,
+    courseEndDate,
+    accommodationStartDate,
+    accommodationEndDate,
+    course?.periodType,
+    selectedAccommodationId,
+  ]);
 
   React.useEffect(() => {
-    const run = async () => {
-      if (!coursePricing) {
-        setQuotePreview(null);
-        return;
-      }
-      try {
-        setQuoteLoading(true);
-        const quote = await enrollmentIntentApi.createQuote({
-          coursePricingId: coursePricing.id,
-          accommodationPricingId: accommodationPricing?.id,
-          downPaymentPercentage: 30,
-        });
-        setQuotePreview(quote);
-      } catch (err) {
-        setQuotePreview(null);
-        setError(err instanceof Error ? err.message : 'Falha ao montar quote');
-      } finally {
-        setQuoteLoading(false);
-      }
-    };
-    void run();
-  }, [coursePricing?.id, accommodationPricing?.id]);
+    if (step >= 2) {
+      void rebuildQuote();
+    }
+  }, [rebuildQuote, step]);
 
   const submitIntent = async () => {
-    if (!userId || !selectedClassGroupId || !selectedPeriodId || openIntent) return;
+    if (!userId || !coursePricing || !selectedClassGroupId || !selectedPeriodId || !quotePreview) return;
+
     try {
       setSaving(true);
       setError(null);
-      setMessage(null);
 
       const createdIntent = await enrollmentIntentApi.createEnrollmentIntent({
         studentId: userId,
@@ -192,341 +432,629 @@ export default function EnrollmentIntentScreen() {
         accommodationId: selectedAccommodationId || undefined,
       });
 
-      await enrollmentIntentApi
-        .createQuote({
-          enrollmentIntentId: createdIntent.id,
-          coursePricingId: coursePricing?.id,
-          accommodationPricingId: accommodationPricing?.id,
-          downPaymentPercentage: 30,
-        })
-        .catch(() => null);
+      await enrollmentIntentApi.createQuote({
+        enrollmentIntentId: createdIntent.id,
+        downPaymentPercentage: 30,
+        items:
+          quotePreview.items?.map((item) => ({
+            itemType: item.itemType,
+            referenceId: item.referenceId,
+            coursePricingId: item.itemType === 'course' ? item.referenceId : undefined,
+            accommodationPricingId:
+              item.itemType === 'accommodation' ? item.referenceId : undefined,
+            startDate: item.startDate,
+            endDate: item.endDate,
+          })) ?? [],
+      });
 
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId) });
-      setMessage(null);
-      setToastMessage('Intenção enviada com sucesso');
-      toastTimerRef.current = setTimeout(() => {
-        navigation.replace(StackRoutes.ACADEMIC_JOURNEY);
-      }, 900);
+      setResultType(course?.autoApproveIntent ? 'auto_approve' : 'proposal');
+      setStep(4);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao registrar intenção');
+      setError(err instanceof Error ? err.message : 'Falha ao finalizar pacote');
     } finally {
       setSaving(false);
     }
   };
 
-  const updateOpenIntentAccommodation = async (accommodationId?: string) => {
-    if (!openIntent) return;
-    try {
-      setSaving(true);
-      setError(null);
-      const updated = await enrollmentIntentApi.setIntentAccommodation(
-        openIntent.id,
-        accommodationId ?? null,
-      );
-      const refreshedQuote = await enrollmentIntentApi.createQuote({
-        enrollmentIntentId: updated.id,
-      });
-      setOpenIntent(updated);
-      setSelectedAccommodationId(updated.accommodation?.id ?? '');
-      setQuotePreview(refreshedQuote);
-      setToastMessage(
-        accommodationId ? 'Acomodação atualizada na intenção' : 'Acomodação removida da intenção',
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao atualizar acomodação da intenção');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const renderStepHeader = () => (
+    <View className="flex-row items-center gap-2">
+      {[1, 2, 3, 4].map((value) => (
+        <View
+          key={value}
+          className={`h-2 flex-1 rounded-full ${step >= value ? 'bg-primary-500' : 'bg-border'}`}
+        />
+      ))}
+    </View>
+  );
+
+  const renderCourseStep = () => (
+    <>
+      <Card>
+        <Text variant="h3" className="font-semibold">Etapa 1 — Curso e Período</Text>
+        <Text variant="caption" className="mt-1">
+          Selecione turma, período e datas válidas antes de avançar.
+        </Text>
+        <View className="mt-3 gap-2">
+          <Text variant="caption">Curso</Text>
+          <Text variant="body" className="font-medium">{course?.programName ?? 'Curso'}</Text>
+          <Text variant="caption">
+            Tipo de período: {course?.periodType === 'weekly' ? 'Semanal' : 'Fixo'}
+          </Text>
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="h3" className="font-semibold">Turma</Text>
+        <View className="mt-3 gap-2">
+          {classGroups.map((group) => (
+            <TouchableOpacity
+              key={group.id}
+              onPress={() => setSelectedClassGroupId(group.id)}
+              activeOpacity={0.8}
+              className={`rounded-lg border px-3 py-2 ${
+                selectedClassGroupId === group.id
+                  ? 'border-primary-500 bg-primary-50'
+                  : 'border-border bg-white'
+              }`}
+            >
+              <Text variant="body">{group.name} ({group.code})</Text>
+            </TouchableOpacity>
+          ))}
+          {classGroups.length === 0 && <Text variant="caption">Nenhuma turma ativa disponível.</Text>}
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="h3" className="font-semibold">Período</Text>
+        <View className="mt-3 gap-2">
+          {periods.map((period) => (
+            <TouchableOpacity
+              key={period.id}
+              onPress={() => {
+                setSelectedPeriodId(period.id);
+                if (course?.periodType === 'fixed') {
+                  setCourseStartDate(period.startDate.slice(0, 10));
+                  setCourseEndDate(period.endDate.slice(0, 10));
+                  setAccommodationStartDate(period.startDate.slice(0, 10));
+                  setAccommodationEndDate(addDays(period.startDate.slice(0, 10), 28));
+                } else {
+                  const weeklyStart = alignToNextSunday(period.startDate.slice(0, 10));
+                  setCourseStartDate(weeklyStart);
+                  setCourseEndDate(addDays(weeklyStart, 28));
+                  setAccommodationStartDate(weeklyStart);
+                  setAccommodationEndDate(addDays(weeklyStart, 28));
+                }
+              }}
+              activeOpacity={0.8}
+              className={`rounded-lg border px-3 py-2 ${
+                selectedPeriodId === period.id
+                  ? 'border-primary-500 bg-primary-50'
+                  : 'border-border bg-white'
+              }`}
+            >
+              <Text variant="body">{period.name}</Text>
+              <Text variant="caption">
+                {new Date(period.startDate).toLocaleDateString()} - {new Date(period.endDate).toLocaleDateString()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {selectedClassGroupId && periods.length === 0 && (
+            <Text variant="caption">Nenhum período ativo para essa turma.</Text>
+          )}
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="h3" className="font-semibold">
+          Datas do curso ({course?.periodType === 'weekly' ? 'semanal' : 'fixo'})
+        </Text>
+        <Text variant="caption" className="mt-1">
+          Formato obrigatório: YYYY-MM-DD.
+        </Text>
+        <View className="mt-3 gap-2">
+          <Text variant="caption">Início</Text>
+          <TextInput
+            value={courseStartDate}
+            editable={false}
+            className="h-11 rounded-lg border border-border bg-surfaceSecondary px-3"
+          />
+          <Text variant="caption">Fim</Text>
+          <TextInput
+            value={courseEndDate}
+            editable={false}
+            className="h-11 rounded-lg border border-border bg-surfaceSecondary px-3"
+          />
+          {course?.periodType === 'weekly' && (
+            <Text variant="caption">
+              Regras weekly: intervalo de 7 em 7 dias e datas de domingo a domingo.
+            </Text>
+          )}
+          {course?.periodType === 'weekly' && (
+            <>
+              <Text variant="caption" className="mt-1">Selecione o início (domingos disponíveis)</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {weeklyCourseStartOptions.map((startOption) => {
+                  const selected = startOption === courseStartDate;
+                  return (
+                    <TouchableOpacity
+                      key={`course-start-${startOption}`}
+                      onPress={() => {
+                        const weeks = isWeeklyRangeValid(courseStartDate, courseEndDate)
+                          ? diffDays(courseStartDate, courseEndDate) / 7
+                          : 4;
+                        setCourseStartDate(startOption);
+                        setCourseEndDate(addDays(startOption, weeks * 7));
+                      }}
+                      className={`rounded-lg border px-3 py-2 ${
+                        selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'
+                      }`}
+                    >
+                      <Text variant="caption">
+                        {new Date(`${startOption}T00:00:00.000Z`).toLocaleDateString()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text variant="caption" className="mt-1">Selecione a duração</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {[1, 2, 4, 8, 12].map((weeks) => {
+                  const candidateEnd = addDays(courseStartDate, weeks * 7);
+                  const selected = candidateEnd === courseEndDate;
+                  return (
+                    <TouchableOpacity
+                      key={`course-week-${weeks}`}
+                      onPress={() => setCourseEndDate(candidateEnd)}
+                      className={`rounded-lg border px-3 py-2 ${
+                        selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'
+                      }`}
+                    >
+                      <Text variant="caption">
+                        {weeks} sem • até {new Date(`${candidateEnd}T00:00:00.000Z`).toLocaleDateString()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="h3" className="font-semibold">Preço do curso</Text>
+        <Text variant="body" className="mt-2">
+          {coursePricing ? formatMoney(coursePricing.basePrice, coursePricing.currency) : 'Selecione período válido'}
+        </Text>
+        {course?.periodType === 'weekly' && (
+          <Text variant="caption" className="mt-1">
+            Duração selecionada: {Math.max(1, diffDays(courseStartDate, courseEndDate) / 7)} semana(s)
+          </Text>
+        )}
+      </Card>
+
+      <Button onPress={() => setStep(2)} disabled={!canGoToStep2}>
+        Avançar para acomodação
+      </Button>
+    </>
+  );
+
+  const renderAccommodationStep = () => (
+    <>
+      <Card>
+        <Text variant="h3" className="font-semibold">Etapa 2 — Acomodação (Opcional)</Text>
+        <Text variant="caption" className="mt-1">
+          Recomendadas no topo. Você pode escolher outra no catálogo completo ou seguir sem acomodação.
+        </Text>
+      </Card>
+
+      <Card>
+        <Text variant="h3" className="font-semibold">Recomendadas</Text>
+        <View className="mt-3 gap-2">
+          {recommendedAccommodations.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              onPress={() => {
+                void openAccommodationModal(item);
+              }}
+              activeOpacity={0.8}
+              className={`rounded-lg border px-3 py-2 ${
+                selectedAccommodationId === item.id
+                  ? 'border-primary-500 bg-primary-50'
+                  : 'border-border bg-white'
+              }`}
+            >
+              <Text variant="body" className="font-medium">{item.title}</Text>
+              <Text variant="caption">
+                {item.accommodationType} • CAD {(item.priceInCents / 100).toLocaleString()}/{item.priceUnit}
+              </Text>
+              {!!item.recommendationBadge && (
+                <Text variant="caption" className="text-primary-700">{item.recommendationBadge}</Text>
+              )}
+            </TouchableOpacity>
+          ))}
+          {recommendedAccommodations.length === 0 && (
+            <Text variant="caption">Sem recomendações para este contexto.</Text>
+          )}
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="h3" className="font-semibold">Catálogo completo</Text>
+        <Button
+          variant="outline"
+          className="mt-3"
+          onPress={() => setShowAllAccommodations((value) => !value)}
+        >
+          {showAllAccommodations ? 'Ocultar catálogo' : 'Ver todas'}
+        </Button>
+        {showAllAccommodations && (
+          <View className="mt-3 gap-2">
+            {allAccommodations.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => {
+                  void openAccommodationModal(item);
+                }}
+                activeOpacity={0.8}
+                className={`rounded-lg border px-3 py-2 ${
+                  selectedAccommodationId === item.id
+                    ? 'border-primary-500 bg-primary-50'
+                    : 'border-border bg-white'
+                }`}
+              >
+                <Text variant="body" className="font-medium">{item.title}</Text>
+                <Text variant="caption">
+                  Score {Number(item.score ?? 0).toFixed(1)} • CAD {(item.priceInCents / 100).toLocaleString()}/{item.priceUnit}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </Card>
+
+      {selectedAccommodationId && (
+        <Card>
+          <Text variant="h3" className="font-semibold">Acomodação selecionada</Text>
+          <Text variant="caption" className="mt-1">
+            {(recommendedAccommodations.find((item) => item.id === selectedAccommodationId) ??
+              allAccommodations.find((item) => item.id === selectedAccommodationId))
+              ?.title ?? 'Acomodação selecionada'}
+          </Text>
+          <View className="mt-3 flex-row gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onPress={() => {
+                const selected =
+                  recommendedAccommodations.find((item) => item.id === selectedAccommodationId) ??
+                  allAccommodations.find((item) => item.id === selectedAccommodationId);
+                if (selected) {
+                  void openAccommodationModal(selected);
+                }
+              }}
+            >
+              Ver detalhes
+            </Button>
+            <Button variant="ghost" className="flex-1" onPress={() => setSelectedAccommodationId('')}>
+              Remover
+            </Button>
+          </View>
+        </Card>
+      )}
+
+      <Card>
+        <Text variant="h3" className="font-semibold">Período da acomodação</Text>
+        <Text variant="caption" className="mt-1">
+          Pré-preenchido com as datas do curso. Selecione em blocos semanais (domingo a domingo).
+        </Text>
+        <View className="mt-3 gap-2">
+          <Text variant="caption">Início</Text>
+          <TextInput
+            value={accommodationStartDate}
+            editable={false}
+            className="h-11 rounded-lg border border-border bg-surfaceSecondary px-3"
+          />
+          <Text variant="caption">Inícios semanais</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {weeklyAccommodationStartOptions.map((option) => {
+              const selected = option === accommodationStartDate;
+              return (
+                <TouchableOpacity
+                  key={`acc-start-${option}`}
+                  onPress={() => {
+                    const weeks = isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)
+                      ? diffDays(accommodationStartDate, accommodationEndDate) / 7
+                      : 4;
+                    setAccommodationStartDate(option);
+                    setAccommodationEndDate(addDays(option, weeks * 7));
+                  }}
+                  className={`rounded-lg border px-3 py-2 ${
+                    selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'
+                  }`}
+                >
+                  <Text variant="caption">
+                    {new Date(`${option}T00:00:00.000Z`).toLocaleDateString()}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text variant="caption">Fim</Text>
+          <TextInput
+            value={accommodationEndDate}
+            editable={false}
+            className="h-11 rounded-lg border border-border bg-surfaceSecondary px-3"
+          />
+          <Text variant="caption">Datas válidas (domingo a domingo)</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {weeklyAccommodationOptions.map((option) => {
+              const selected = option.endDate === accommodationEndDate;
+              return (
+                <TouchableOpacity
+                  key={`acc-week-${option.weeks}`}
+                  onPress={() => setAccommodationEndDate(option.endDate)}
+                  className={`rounded-lg border px-3 py-2 ${
+                    selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'
+                  }`}
+                >
+                  <Text variant="caption">
+                    {option.weeks} sem • até {new Date(`${option.endDate}T00:00:00.000Z`).toLocaleDateString()}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {selectedAccommodationId && !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate) && (
+            <Text variant="caption" className="text-red-600">
+              Período inválido: selecione um fim semanal de domingo a domingo.
+            </Text>
+          )}
+          <Text variant="caption">
+            {selectedAccommodationId && accommodationPricing
+              ? `Preço: ${formatMoney(accommodationPricing.basePrice, accommodationPricing.currency)}`
+              : 'Sem acomodação selecionada'}
+          </Text>
+        </View>
+      </Card>
+
+      <View className="flex-row gap-2">
+        <Button variant="outline" className="flex-1" onPress={() => setStep(1)}>
+          Voltar
+        </Button>
+        <Button
+          className="flex-1"
+          onPress={() => setStep(3)}
+          disabled={
+            quoteLoading ||
+            !quotePreview ||
+            (Boolean(selectedAccommodationId) &&
+              (!accommodationPricing ||
+                !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)))
+          }
+        >
+          Revisar pacote
+        </Button>
+      </View>
+      <Button variant="ghost" onPress={() => setSelectedAccommodationId('')}>
+        Seguir sem acomodação
+      </Button>
+    </>
+  );
+
+  const renderConfirmStep = () => (
+    <>
+      <Card>
+        <Text variant="h3" className="font-semibold">Etapa 3 — Confirmação do pacote</Text>
+        <Text variant="caption" className="mt-1">
+          Revise os itens e valores antes de enviar sua intenção.
+        </Text>
+      </Card>
+
+      <Card>
+        <Text variant="h3" className="font-semibold">Resumo final</Text>
+        {quoteLoading ? (
+          <Text variant="caption" className="mt-2">Calculando...</Text>
+        ) : quotePreview ? (
+          <View className="mt-2 gap-1">
+            <Text variant="caption">Curso: {formatMoney(quotePreview.courseAmount, quotePreview.currency)}</Text>
+            <Text variant="caption">Acomodação: {formatMoney(quotePreview.accommodationAmount, quotePreview.currency)}</Text>
+            <Text variant="caption">Total: {formatMoney(quotePreview.totalAmount, quotePreview.currency)}</Text>
+            <Text variant="caption">
+              Entrada (30%): {formatMoney(quotePreview.downPaymentAmount, quotePreview.currency)}
+            </Text>
+            <Text variant="caption">
+              Saldo: {formatMoney(quotePreview.remainingAmount, quotePreview.currency)}
+            </Text>
+            {(quotePreview.items ?? []).map((item) => (
+              <Text key={item.id} variant="caption">
+                {item.itemType}: {new Date(item.startDate).toLocaleDateString()} - {new Date(item.endDate).toLocaleDateString()}
+              </Text>
+            ))}
+          </View>
+        ) : (
+          <Text variant="caption" className="mt-2">Não foi possível montar o pacote.</Text>
+        )}
+      </Card>
+
+      <View className="flex-row gap-2">
+        <Button variant="outline" className="flex-1" onPress={() => setStep(2)}>
+          Voltar
+        </Button>
+        <Button className="flex-1" onPress={submitIntent} disabled={saving || !quotePreview}>
+          {saving ? 'Finalizando...' : 'Fechar pacote'}
+        </Button>
+      </View>
+    </>
+  );
+
+  const renderResultStep = () => (
+    <>
+      <Card>
+        <Text variant="h3" className="font-semibold">Etapa 4 — Resultado</Text>
+        {resultType === 'auto_approve' ? (
+          <>
+            <Text variant="body" className="mt-2">
+              Intenção auto-aprovada para este curso. Você pode seguir para checkout.
+            </Text>
+            <Button className="mt-3" onPress={() => navigation.replace(StackRoutes.ACADEMIC_JOURNEY)}>
+              Ir para checkout
+            </Button>
+          </>
+        ) : (
+          <>
+            <Text variant="body" className="mt-2">
+              Proposta enviada com sucesso. Nosso time vai validar e retornar aprovação.
+            </Text>
+            <Button className="mt-3" onPress={() => navigation.replace(StackRoutes.ACADEMIC_JOURNEY)}>
+              Ver jornada acadêmica
+            </Button>
+          </>
+        )}
+      </Card>
+    </>
+  );
+
+  if (loading) {
+    return (
+      <Screen safeArea={true} scrollable={true}>
+        <View className="px-4 py-4">
+          <Text variant="body">Carregando fluxo...</Text>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen safeArea={true} scrollable={true}>
-      {toastMessage && (
-        <View className="absolute top-6 left-4 right-4 z-50">
-          <Card className="border-green-200 bg-green-50">
-            <Text variant="body" className="text-green-700">{toastMessage}</Text>
-          </Card>
-        </View>
-      )}
       <View className="px-4 py-4 gap-4">
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-          className="flex-row items-center gap-2"
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.8} className="flex-row items-center gap-2">
           <Ionicons name="arrow-back" size={22} color={colorValues.textPrimary} />
           <Text variant="body" className="font-medium">Voltar</Text>
         </TouchableOpacity>
 
-        <View>
-          <Text variant="h2" className="font-semibold">Iniciar matrícula</Text>
-          <Text variant="bodySecondary" className="mt-1">
-            {openIntent
-              ? 'Você já possui uma intenção pendente. Revise ou ajuste essa intenção antes de iniciar outra.'
-              : 'Selecione turma e período para registrar sua intenção.'}
-          </Text>
-        </View>
+        <Text variant="h2" className="font-semibold">Fechamento de pacote</Text>
+        {renderStepHeader()}
 
         {openIntent && (
           <Card className="border-amber-200 bg-amber-50">
-            <Text variant="h3" className="font-semibold text-amber-900">
-              Você já possui uma intenção em aberto
-            </Text>
-            <Text variant="body" className="mt-2 text-amber-800">
-              {openIntent.course?.program_name ?? 'Curso selecionado'}
-            </Text>
-            <Text variant="caption" className="text-amber-700">
-              Turma: {openIntent.classGroup?.name ?? '-'} ({openIntent.classGroup?.code ?? '-'})
-            </Text>
-            <Text variant="caption" className="text-amber-700">
-              Período: {openIntent.academicPeriod?.name ?? '-'}
-            </Text>
+            <Text variant="h3" className="font-semibold text-amber-900">Você já possui uma intenção em aberto</Text>
             <Text variant="caption" className="mt-2 text-amber-700">
-              Conclua ou ajuste essa intenção antes de iniciar uma nova.
+              Ajuste a intenção atual antes de iniciar outra.
             </Text>
+            <Button className="mt-3" variant="outline" onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}>
+              Ir para jornada acadêmica
+            </Button>
           </Card>
         )}
 
         {hasActiveEnrollment && (
           <Card className="border-blue-200 bg-blue-50">
-            <Text variant="h3" className="font-semibold text-blue-900">
-              Você já possui matrícula ativa
+            <Text variant="caption" className="text-blue-900">
+              Você possui matrícula ativa. Ainda assim pode montar novo pacote se não tiver intenção pendente.
             </Text>
-            <Text variant="caption" className="mt-2 text-blue-800">
-              Você pode iniciar nova intenção desde que não exista intenção pendente.
-            </Text>
-            <Button
-              className="mt-3"
-              onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
-            >
-              Ver jornada acadêmica
-            </Button>
           </Card>
         )}
 
-        {loading ? (
-          <Text variant="body">Carregando turmas...</Text>
-        ) : openIntent ? (
+        {!openIntent && (
           <>
-            <Card>
-              <Text variant="h3" className="font-semibold">Acomodação do pacote (opcional)</Text>
-              <Text variant="caption" className="mt-1">
-                Sugestões recomendadas pela escola do seu curso.
-              </Text>
-              <View className="mt-3 gap-2">
-                {recommendedAccommodations.map((accommodation) => {
-                  const selected = selectedAccommodationId === accommodation.id;
-                  return (
-                    <TouchableOpacity
-                      key={accommodation.id}
-                      onPress={() => setSelectedAccommodationId(accommodation.id)}
-                      activeOpacity={0.7}
-                      className={`rounded-lg border px-3 py-2 ${selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'}`}
-                    >
-                      <Text variant="body" className="font-medium">
-                        {accommodation.title}
-                      </Text>
-                      <Text variant="caption">
-                        {accommodation.accommodationType} • CAD {(accommodation.priceInCents / 100).toLocaleString()}/{accommodation.priceUnit}
-                      </Text>
-                      {!!accommodation.recommendationBadge && (
-                        <Text variant="caption" className="text-primary-700">
-                          {accommodation.recommendationBadge}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-                {recommendedAccommodations.length === 0 && (
-                  <Text variant="caption">Nenhuma acomodação recomendada para este contexto.</Text>
-                )}
-              </View>
-              <View className="mt-3 flex-row gap-2">
-                <Button
-                  className="flex-1"
-                  onPress={() => updateOpenIntentAccommodation(selectedAccommodationId || undefined)}
-                  disabled={saving}
-                >
-                  {saving ? 'Salvando...' : 'Salvar acomodação'}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onPress={() => updateOpenIntentAccommodation(undefined)}
-                  disabled={saving}
-                >
-                  Seguir sem acomodação
-                </Button>
-              </View>
-            </Card>
-            {quotePreview && (
-              <Card>
-                <Text variant="h3" className="font-semibold">Quote atual da intenção</Text>
-                <View className="mt-2 gap-1">
-                  <Text variant="caption">Tipo: {quotePreview.type}</Text>
-                  <Text variant="caption">Total: {Number(quotePreview.totalAmount).toFixed(2)} {quotePreview.currency}</Text>
-                  <Text variant="caption">
-                    Entrada ({Number(quotePreview.downPaymentPercentage).toFixed(2)}%): {Number(quotePreview.downPaymentAmount).toFixed(2)} {quotePreview.currency}
-                  </Text>
-                  <Text variant="caption">Saldo: {Number(quotePreview.remainingAmount).toFixed(2)} {quotePreview.currency}</Text>
-                </View>
-              </Card>
-            )}
-            <Button
-              variant="outline"
-              onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
-            >
-              Ir para jornada acadêmica
-            </Button>
+            {step === 1 && renderCourseStep()}
+            {step === 2 && renderAccommodationStep()}
+            {step === 3 && renderConfirmStep()}
+            {step === 4 && renderResultStep()}
           </>
-        ) : (
-          <>
-            <Card>
-              <Text variant="h3" className="font-semibold">1. Turma</Text>
-              <View className="mt-3 gap-2">
-                {classGroups.map((group) => {
-                  const selected = selectedClassGroupId === group.id;
-                  return (
-                    <TouchableOpacity
-                      key={group.id}
-                      onPress={() => setSelectedClassGroupId(group.id)}
-                      activeOpacity={0.7}
-                      className={`rounded-lg border px-3 py-2 ${selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'}`}
-                    >
-                      <Text variant="body" className={selected ? 'text-primary-500' : 'text-textPrimary'}>
-                        {group.name} ({group.code})
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                {classGroups.length === 0 && <Text variant="caption">Nenhuma turma ativa disponível.</Text>}
-              </View>
-            </Card>
+        )}
 
-            <Card>
-              <Text variant="h3" className="font-semibold">2. Período</Text>
-              <View className="mt-3 gap-2">
-                {periods.map((period) => {
-                  const selected = selectedPeriodId === period.id;
-                  return (
+        <Modal
+          visible={Boolean(selectedAccommodationPreview)}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setSelectedAccommodationPreview(null)}
+        >
+          <View className="flex-1 justify-end bg-black/40">
+            <View className="max-h-[85%] rounded-t-3xl bg-white p-4">
+              {selectedAccommodationPreview && (
+                <>
+                  <View className="flex-row items-start justify-between">
+                    <View className="flex-1 pr-3">
+                      <Text variant="h3" className="font-semibold">
+                        {selectedAccommodationPreview.title}
+                      </Text>
+                      <Text variant="caption" className="mt-1">
+                        {selectedAccommodationPreview.accommodationType} •{' '}
+                        {selectedAccommodationPreview.location}
+                      </Text>
+                    </View>
                     <TouchableOpacity
-                      key={period.id}
-                      onPress={() => setSelectedPeriodId(period.id)}
-                      activeOpacity={0.7}
-                      className={`rounded-lg border px-3 py-2 ${selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'}`}
+                      onPress={() => setSelectedAccommodationPreview(null)}
+                      className="rounded-full border border-border p-2"
                     >
-                      <Text variant="body" className={selected ? 'text-primary-500' : 'text-textPrimary'}>
-                        {period.name}
-                      </Text>
-                      <Text variant="caption">
-                        {new Date(period.startDate).toLocaleDateString()} - {new Date(period.endDate).toLocaleDateString()}
-                      </Text>
+                      <Ionicons name="close" size={18} color={colorValues.textPrimary} />
                     </TouchableOpacity>
-                  );
-                })}
-                {selectedClassGroupId && periods.length === 0 && <Text variant="caption">Nenhum período ativo para essa turma.</Text>}
-              </View>
-            </Card>
+                  </View>
 
-            <Card>
-              <Text variant="h3" className="font-semibold">3. Acomodação (opcional)</Text>
-              <Text variant="caption" className="mt-1">
-                Recomendadas pela escola deste curso para upsell do pacote.
-              </Text>
-              <View className="mt-3 gap-2">
-                {recommendedAccommodations.map((accommodation) => {
-                  const selected = selectedAccommodationId === accommodation.id;
-                  return (
-                    <TouchableOpacity
-                      key={accommodation.id}
-                      onPress={() => setSelectedAccommodationId(accommodation.id)}
-                      activeOpacity={0.7}
-                      className={`rounded-lg border px-3 py-2 ${selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'}`}
-                    >
-                      <Text variant="body" className={selected ? 'text-primary-600 font-medium' : 'font-medium'}>
-                        {accommodation.title}
-                      </Text>
-                      <Text variant="caption">
-                        {accommodation.accommodationType} • CAD {(accommodation.priceInCents / 100).toLocaleString()}/{accommodation.priceUnit}
-                      </Text>
-                      <Text variant="caption">
-                        Score: {Number(accommodation.score ?? 0).toFixed(1)}
-                      </Text>
-                      {!!accommodation.recommendationBadge && (
-                        <Text variant="caption" className="text-primary-700">
-                          {accommodation.recommendationBadge}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-                {recommendedAccommodations.length === 0 && (
-                  <Text variant="caption">Nenhuma acomodação recomendada para este contexto.</Text>
-                )}
-                <Button
-                  variant="outline"
-                  onPress={() => setSelectedAccommodationId('')}
-                  disabled={!selectedAccommodationId}
-                >
-                  Seguir sem acomodação
-                </Button>
-              </View>
-            </Card>
+                  {!!selectedAccommodationPreview.image && (
+                    <Image
+                      source={{ uri: selectedAccommodationPreview.image }}
+                      resizeMode="cover"
+                      className="mt-3 h-40 w-full rounded-xl"
+                    />
+                  )}
 
-            <Card>
-              <Text variant="h3" className="font-semibold">Resumo do pacote</Text>
-              <View className="mt-2 gap-1">
-                {quoteLoading ? (
-                  <Text variant="caption">Calculando quote...</Text>
-                ) : quotePreview ? (
-                  <>
-                    <Text variant="caption">Tipo: {quotePreview.type}</Text>
-                    <Text variant="caption">Curso: {Number(quotePreview.courseAmount).toFixed(2)} {quotePreview.currency}</Text>
-                    <Text variant="caption">Acomodação: {Number(quotePreview.accommodationAmount).toFixed(2)} {quotePreview.currency}</Text>
-                    <Text variant="caption">Total: {Number(quotePreview.totalAmount).toFixed(2)} {quotePreview.currency}</Text>
+                  <View className="mt-3 gap-1">
                     <Text variant="caption">
-                      Entrada ({Number(quotePreview.downPaymentPercentage).toFixed(2)}%): {Number(quotePreview.downPaymentAmount).toFixed(2)} {quotePreview.currency}
+                      Score: {Number(selectedAccommodationPreview.score ?? 0).toFixed(1)}
                     </Text>
-                    <Text variant="caption">Saldo: {Number(quotePreview.remainingAmount).toFixed(2)} {quotePreview.currency}</Text>
+                    {!!selectedAccommodationPreview.recommendationBadge && (
+                      <Text variant="caption" className="text-primary-700">
+                        {selectedAccommodationPreview.recommendationBadge}
+                      </Text>
+                    )}
                     <Text variant="caption">
-                      Comissão total: {Number(quotePreview.commissionAmount).toFixed(2)} ({Number(quotePreview.commissionPercentage).toFixed(2)}%)
+                      Período atual: {new Date(`${accommodationStartDate}T00:00:00.000Z`).toLocaleDateString()} -{' '}
+                      {new Date(`${accommodationEndDate}T00:00:00.000Z`).toLocaleDateString()}
                     </Text>
-                  </>
-                ) : (
-                  <Text variant="caption">Selecione turma e período com preço ativo para gerar quote.</Text>
-                )}
-              </View>
-            </Card>
+                    <Text variant="body" className="font-medium">
+                      {modalPricingLoading
+                        ? 'Calculando preço...'
+                        : modalAccommodationPricing
+                          ? formatMoney(
+                              modalAccommodationPricing.basePrice,
+                              modalAccommodationPricing.currency,
+                            )
+                          : `CAD ${(selectedAccommodationPreview.priceInCents / 100).toLocaleString()}/${selectedAccommodationPreview.priceUnit}`}
+                    </Text>
+                  </View>
 
-            {error && (
-              <Card className="border-red-200 bg-red-50">
-                <Text variant="body" className="text-red-700">{error}</Text>
-              </Card>
-            )}
+                  <View className="mt-4 flex-row gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onPress={() => setSelectedAccommodationPreview(null)}
+                    >
+                      Fechar
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onPress={() => {
+                        selectAccommodation(selectedAccommodationPreview.id);
+                        setSelectedAccommodationPreview(null);
+                      }}
+                    >
+                      Selecionar
+                    </Button>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
 
-            {message && (
-              <Card className="border-green-200 bg-green-50">
-                <Text variant="body" className="text-green-700">{message}</Text>
-              </Card>
-            )}
-
-            <Button
-              onPress={submitIntent}
-              disabled={!selectedClassGroupId || !selectedPeriodId || !coursePricing || saving}
-            >
-              {saving
-                ? 'Processando...'
-                : 'Confirmar intenção'}
-            </Button>
-            {hasActiveEnrollment && (
-              <Button
-                variant="outline"
-                onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
-              >
-                Ir para jornada acadêmica
-              </Button>
-            )}
-          </>
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <Text variant="body" className="text-red-700">{error}</Text>
+          </Card>
         )}
       </View>
     </Screen>

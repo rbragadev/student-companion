@@ -13,6 +13,8 @@ export interface Course {
   priceUnit?: string;
   description: string;
   duration: string;
+  periodType?: 'weekly' | 'fixed';
+  autoApproveIntent?: boolean;
   visaType: string;
   targetAudience: string;
   image: string;

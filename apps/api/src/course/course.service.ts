@@ -41,6 +41,8 @@ export class CourseService {
         images: data.images || [],
         badges: data.badges || [],
         is_active: data.isActive ?? true,
+        period_type: data.periodType ?? 'fixed',
+        auto_approve_intent: data.autoApproveIntent ?? false,
       },
       include: {
         school: { select: { id: true, name: true, location: true, isPartner: true } },
@@ -142,6 +144,8 @@ export class CourseService {
         images: data.images,
         badges: data.badges,
         is_active: data.isActive,
+        period_type: data.periodType,
+        auto_approve_intent: data.autoApproveIntent,
       },
       include: {
         school: { select: { id: true, name: true, location: true, isPartner: true } },

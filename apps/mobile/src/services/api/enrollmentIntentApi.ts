@@ -88,6 +88,14 @@ export const enrollmentIntentApi = {
     fees?: number;
     discounts?: number;
     downPaymentPercentage?: number;
+    items?: Array<{
+      itemType: 'course' | 'accommodation';
+      referenceId?: string;
+      coursePricingId?: string;
+      accommodationPricingId?: string;
+      startDate: string;
+      endDate: string;
+    }>;
   }): Promise<EnrollmentQuote> => {
     const { data } = await apiClient.post('/quotes', payload);
     return data as EnrollmentQuote;

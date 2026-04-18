@@ -247,6 +247,15 @@ export interface EnrollmentQuote {
   commissionCourseAmount: number;
   commissionAccommodationAmount: number;
   type: 'course_only' | 'course_with_accommodation' | 'accommodation_only';
+  items?: Array<{
+    id: string;
+    itemType: 'course' | 'accommodation';
+    referenceId: string;
+    startDate: string;
+    endDate: string;
+    amount: number;
+    commissionAmount: number;
+  }>;
   coursePricing?: {
     id: string;
     course?: { id: string; program_name: string };

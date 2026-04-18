@@ -365,6 +365,7 @@ export class EnrollmentIntentService {
         isRecommended: true,
         accommodation: { isActive: true },
       },
+      take: 3,
       include: {
         accommodation: true,
       },

@@ -30,6 +30,13 @@ export default async function NewCoursePage() {
           <label className="space-y-1 sm:col-span-2"><span className="text-sm font-medium text-slate-700">Nome do programa</span><input name="programName" required minLength={2} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Horas semanais</span><input name="weeklyHours" type="number" min={1} required className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Duração</span><input name="duration" required className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
+          <label className="space-y-1">
+            <span className="text-sm font-medium text-slate-700">Tipo de período</span>
+            <select name="periodType" defaultValue="fixed" className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
+              <option value="fixed">Fixo</option>
+              <option value="weekly">Semanal</option>
+            </select>
+          </label>
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Preço (centavos)</span><input name="priceInCents" type="number" min={0} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Unidade de preço</span><input name="priceUnit" placeholder="week/month" className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
           <label className="space-y-1 sm:col-span-2"><span className="text-sm font-medium text-slate-700">Tipo de visto</span><input name="visaType" required className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
@@ -39,6 +46,7 @@ export default async function NewCoursePage() {
           <label className="space-y-1 sm:col-span-2"><span className="text-sm font-medium text-slate-700">Badges (separadas por vírgula)</span><input name="badges" className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" /></label>
           <label className="space-y-1 sm:col-span-2"><span className="text-sm font-medium text-slate-700">Descrição</span><textarea name="description" rows={4} required className="w-full rounded-lg border border-slate-300 p-3 text-sm" /></label>
           <label className="flex items-center gap-2 sm:col-span-2"><input type="checkbox" name="isActive" defaultChecked className="h-4 w-4" /><span className="text-sm text-slate-700">Curso ativo</span></label>
+          <label className="flex items-center gap-2 sm:col-span-2"><input type="checkbox" name="autoApproveIntent" className="h-4 w-4" /><span className="text-sm text-slate-700">Auto-approve de intenção</span></label>
         </div>
         <div className="flex justify-end"><Button type="submit">Salvar curso</Button></div>
       </form>

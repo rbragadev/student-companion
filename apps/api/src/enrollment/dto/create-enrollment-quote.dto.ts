@@ -1,9 +1,49 @@
-import { IsNumber, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsDateString,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+
+export class CreateEnrollmentQuoteItemDto {
+  @IsIn(['course', 'accommodation'])
+  itemType: 'course' | 'accommodation';
+
+  @IsOptional()
+  @IsUUID()
+  referenceId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  coursePricingId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  accommodationPricingId?: string;
+
+  @IsDateString()
+  startDate: string;
+
+  @IsDateString()
+  endDate: string;
+}
 
 export class CreateEnrollmentQuoteDto {
   @IsOptional()
   @IsUUID()
   enrollmentIntentId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateEnrollmentQuoteItemDto)
+  items?: CreateEnrollmentQuoteItemDto[];
 
   @IsOptional()
   @IsUUID()
@@ -27,6 +67,14 @@ export class CreateEnrollmentQuoteDto {
 
   @IsOptional()
   periodOption?: string;
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 
   @IsOptional()
   @IsNumber()

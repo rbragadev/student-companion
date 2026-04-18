@@ -233,6 +233,7 @@ Regras:
 | `POST` | `/quotes` | Gera quote consolidada do pacote (curso, acomodação opcional, entrada, saldo, comissão) |
 | `GET` | `/quotes/:id` | Retorna detalhe da quote |
 | `GET` | `/quotes/by-intent/:intentId` | Retorna a quote mais recente associada à intenção |
+| `GET` | `/recommendations/accommodations?courseId=...` | Lista recomendações de acomodação por contexto do curso (máx. 3) |
 
 Regras:
 - intenção pode ser editada apenas enquanto `status = pending`
@@ -244,6 +245,13 @@ Regras:
 - após `accommodationStatus = closed`, troca/remoção de acomodação é bloqueada
 - confirmação marca intenção como `converted` (`converted_at` preenchido)
 - intenção pendente só pode ser criada/alterada com preço ativo de curso para `course + academicPeriod`
+- cursos suportam `period_type`:
+  - `weekly`: validação por múltiplos de 7 dias
+  - `fixed`: datas dentro da janela do período acadêmico
+- `auto_approve_intent` em curso prepara avanço automático do fluxo por regra do catálogo
+- no fluxo mobile de fechamento:
+  - quando `auto_approve_intent=true`, a etapa final segue para checkout
+  - quando `auto_approve_intent=false`, a etapa final retorna “proposta enviada para aprovação”
 - pricing de pacote é calculado no backend:
   - `enrollmentAmount = basePrice + fees - discounts`
   - `accommodationAmount` vem do preço da acomodação vinculada (quando existir)
@@ -259,6 +267,11 @@ Regras:
   - `totalAmount = courseAmount + accommodationAmount + fees - discounts`
   - `downPaymentAmount = totalAmount * downPaymentPercentage`
   - `remainingAmount = totalAmount - downPaymentAmount`
+- quote aceita `items` independentes com datas:
+  - `itemType`: `course` | `accommodation`
+  - `referenceId` (pricing de referência)
+  - `startDate` / `endDate`
+  - `amount` / `commissionAmount`
 - `student_status` global do aluno prioriza matrícula ativa (qualquer estágio ativo do workflow)
 - mudanças de status em intenção/matrícula recalculam `users.student_status` automaticamente:
   - matrícula com status final (`enrolled`/`active`) -> `enrolled`

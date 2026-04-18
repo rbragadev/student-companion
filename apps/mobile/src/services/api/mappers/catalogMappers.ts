@@ -79,6 +79,12 @@ export function mapCoursePayload(payload: unknown): Course {
     priceUnit: asOptionalString(course.priceUnit ?? course.price_unit),
     description: asString(course.description),
     duration: asString(course.duration),
+    periodType:
+      asString(course.periodType ?? course.period_type, 'fixed') === 'weekly' ? 'weekly' : 'fixed',
+    autoApproveIntent: asBoolean(
+      course.autoApproveIntent ?? course.auto_approve_intent,
+      false,
+    ),
     visaType: asString(course.visaType ?? course.visa_type),
     targetAudience: asString(course.targetAudience ?? course.target_audience),
     image: primaryImage,

@@ -2,7 +2,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma, type EnrollmentQuote } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CommissionConfigService } from './commission-config.service';
-import { CreateEnrollmentQuoteDto } from './dto/create-enrollment-quote.dto';
+import {
+  CreateEnrollmentQuoteDto,
+  CreateEnrollmentQuoteItemDto,
+} from './dto/create-enrollment-quote.dto';
 import { ENROLLMENT_QUOTE_TYPES, type EnrollmentQuoteType } from './enrollment.constants';
 
 @Injectable()
@@ -24,13 +27,33 @@ export class EnrollmentQuoteService {
     throw new BadRequestException('Quote inválida: curso e acomodação zerados');
   }
 
+  private validateDateRange(startDate: Date, endDate: Date, label: string) {
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      throw new BadRequestException(`Datas inválidas para item ${label}`);
+    }
+    if (endDate <= startDate) {
+      throw new BadRequestException(`endDate deve ser maior que startDate para item ${label}`);
+    }
+  }
+
+  private validateWeeklyRange(startDate: Date, endDate: Date, label: string) {
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    const isSundayToSunday = startDate.getUTCDay() === 0 && endDate.getUTCDay() === 0;
+    if (diffDays <= 0 || diffDays % 7 !== 0 || !isSundayToSunday) {
+      throw new BadRequestException(
+        `Período semanal inválido para item ${label}: use intervalo múltiplo de 7 dias e datas de domingo a domingo`,
+      );
+    }
+  }
+
   async create(dto: CreateEnrollmentQuoteDto) {
     const resolvedIntent = dto.enrollmentIntentId
       ? await this.prisma.enrollmentIntent.findUnique({
           where: { id: dto.enrollmentIntentId },
           include: {
             course: { select: { id: true, school: { select: { institutionId: true } } } },
-            academicPeriod: { select: { id: true, name: true } },
+            academicPeriod: { select: { id: true, name: true, startDate: true, endDate: true } },
             accommodation: { select: { id: true } },
           },
         })
@@ -49,8 +72,14 @@ export class EnrollmentQuoteService {
       ? await this.prisma.coursePricing.findUnique({
           where: { id: dto.coursePricingId },
           include: {
-            course: { select: { id: true, school: { select: { institutionId: true } } } },
-            academicPeriod: { select: { id: true, name: true } },
+            course: {
+              select: {
+                id: true,
+                period_type: true,
+                school: { select: { institutionId: true } },
+              },
+            },
+            academicPeriod: { select: { id: true, name: true, startDate: true, endDate: true } },
           },
         })
       : null;
@@ -63,8 +92,14 @@ export class EnrollmentQuoteService {
       coursePricing = await this.prisma.coursePricing.findFirst({
         where: { courseId, academicPeriodId, isActive: true },
         include: {
-          course: { select: { id: true, school: { select: { institutionId: true } } } },
-          academicPeriod: { select: { id: true, name: true } },
+          course: {
+            select: {
+              id: true,
+              period_type: true,
+              school: { select: { institutionId: true } },
+            },
+          },
+          academicPeriod: { select: { id: true, name: true, startDate: true, endDate: true } },
         },
       });
     }
@@ -109,9 +144,60 @@ export class EnrollmentQuoteService {
       }
     }
 
-    if (!coursePricing && !accommodationPricing) {
+    type ResolvedQuoteItem = {
+      itemType: 'course' | 'accommodation';
+      startDate: Date;
+      endDate: Date;
+      amount: number;
+      commissionAmount: number;
+      referenceId: string;
+      coursePricingId?: string;
+      accommodationPricingId?: string;
+      currency: string;
+    };
+
+    const normalizedItems: CreateEnrollmentQuoteItemDto[] = dto.items?.length
+      ? dto.items
+      : [
+          ...(coursePricing || dto.coursePricingId || (courseId && academicPeriodId)
+            ? [
+                {
+                  itemType: 'course' as const,
+                  referenceId: coursePricing?.id ?? dto.coursePricingId,
+                  coursePricingId: coursePricing?.id ?? dto.coursePricingId,
+                  startDate:
+                    dto.startDate ??
+                    resolvedIntent?.academicPeriod.startDate.toISOString() ??
+                    new Date().toISOString(),
+                  endDate:
+                    dto.endDate ??
+                    resolvedIntent?.academicPeriod.endDate.toISOString() ??
+                    new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(),
+                },
+              ]
+            : []),
+          ...(accommodationPricing || dto.accommodationPricingId || accommodationId
+            ? [
+                {
+                  itemType: 'accommodation' as const,
+                  referenceId: accommodationPricing?.id ?? dto.accommodationPricingId,
+                  accommodationPricingId: accommodationPricing?.id ?? dto.accommodationPricingId,
+                  startDate:
+                    dto.startDate ??
+                    resolvedIntent?.academicPeriod.startDate.toISOString() ??
+                    new Date().toISOString(),
+                  endDate:
+                    dto.endDate ??
+                    resolvedIntent?.academicPeriod.endDate.toISOString() ??
+                    new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(),
+                },
+              ]
+            : []),
+        ];
+
+    if (!normalizedItems.length) {
       throw new BadRequestException(
-        'Não foi possível montar quote: informe coursePricingId/accommodationPricingId ou contexto com preços válidos',
+        'Não foi possível montar quote: informe items ou contexto com preços válidos',
       );
     }
 
@@ -142,8 +228,108 @@ export class EnrollmentQuoteService {
       throw new BadRequestException('accommodationPricingId não pertence à acomodação informada');
     }
 
-    const courseAmount = this.toNumber(coursePricing?.basePrice);
-    const accommodationAmount = this.toNumber(accommodationPricing?.basePrice);
+    const resolvedItems: ResolvedQuoteItem[] = [];
+
+    for (const [index, rawItem] of normalizedItems.entries()) {
+      const startDate = new Date(rawItem.startDate);
+      const endDate = new Date(rawItem.endDate);
+      const itemLabel = `${rawItem.itemType}#${index + 1}`;
+      this.validateDateRange(startDate, endDate, itemLabel);
+
+      if (rawItem.itemType === 'course') {
+        const resolvedCoursePricing =
+          coursePricing && (rawItem.referenceId === coursePricing.id || rawItem.coursePricingId === coursePricing.id)
+            ? coursePricing
+            : await this.prisma.coursePricing.findUnique({
+                where: { id: rawItem.referenceId ?? rawItem.coursePricingId ?? '' },
+                include: {
+                  course: { select: { id: true, period_type: true, school: { select: { institutionId: true } } } },
+                  academicPeriod: { select: { id: true, name: true, startDate: true, endDate: true } },
+                },
+              });
+
+        if (!resolvedCoursePricing) {
+          throw new NotFoundException(`Preço de curso não encontrado para item ${itemLabel}`);
+        }
+
+        if (resolvedCoursePricing.course.period_type === 'weekly') {
+          this.validateWeeklyRange(startDate, endDate, itemLabel);
+        } else {
+          if (
+            startDate < resolvedCoursePricing.academicPeriod.startDate ||
+            endDate > resolvedCoursePricing.academicPeriod.endDate
+          ) {
+            throw new BadRequestException(
+              `Período fixo inválido para item ${itemLabel}: datas fora da janela do período acadêmico`,
+            );
+          }
+        }
+
+        const cfg = await this.commissionConfigService.resolveForEnrollment({
+          institutionId: resolvedCoursePricing.course.school.institutionId,
+          courseId: resolvedCoursePricing.course.id,
+        });
+        const pct = this.toNumber(cfg?.percentage);
+        const fixed = this.toNumber(cfg?.fixedAmount ?? 0);
+        const amount = this.toNumber(resolvedCoursePricing.basePrice);
+        const commissionAmount = Number((amount * (pct / 100) + fixed).toFixed(2));
+
+        resolvedItems.push({
+          itemType: 'course',
+          startDate,
+          endDate,
+          amount,
+          commissionAmount,
+          referenceId: resolvedCoursePricing.id,
+          coursePricingId: resolvedCoursePricing.id,
+          currency: resolvedCoursePricing.currency,
+        });
+        continue;
+      }
+
+      const resolvedAccommodationPricing =
+        accommodationPricing &&
+        (rawItem.referenceId === accommodationPricing.id ||
+          rawItem.accommodationPricingId === accommodationPricing.id)
+          ? accommodationPricing
+          : await this.prisma.accommodationPricing.findUnique({
+              where: { id: rawItem.referenceId ?? rawItem.accommodationPricingId ?? '' },
+              include: {
+                accommodation: { select: { id: true } },
+              },
+            });
+      if (!resolvedAccommodationPricing) {
+        throw new NotFoundException(`Preço de acomodação não encontrado para item ${itemLabel}`);
+      }
+
+      this.validateWeeklyRange(startDate, endDate, itemLabel);
+
+      const cfg = await this.commissionConfigService.resolveForAccommodation(
+        resolvedAccommodationPricing.accommodation.id,
+      );
+      const pct = this.toNumber(cfg?.percentage);
+      const fixed = this.toNumber(cfg?.fixedAmount ?? 0);
+      const amount = this.toNumber(resolvedAccommodationPricing.basePrice);
+      const commissionAmount = Number((amount * (pct / 100) + fixed).toFixed(2));
+
+      resolvedItems.push({
+        itemType: 'accommodation',
+        startDate,
+        endDate,
+        amount,
+        commissionAmount,
+        referenceId: resolvedAccommodationPricing.id,
+        accommodationPricingId: resolvedAccommodationPricing.id,
+        currency: resolvedAccommodationPricing.currency,
+      });
+    }
+
+    const courseAmount = resolvedItems
+      .filter((item) => item.itemType === 'course')
+      .reduce((sum, item) => sum + item.amount, 0);
+    const accommodationAmount = resolvedItems
+      .filter((item) => item.itemType === 'accommodation')
+      .reduce((sum, item) => sum + item.amount, 0);
     const fees = dto.fees ?? 0;
     const discounts = dto.discounts ?? 0;
     const totalAmount = Math.max(0, courseAmount + accommodationAmount + fees - discounts);
@@ -156,31 +342,18 @@ export class EnrollmentQuoteService {
       throw new BadRequestException('Tipo de quote inválido');
     }
 
-    const courseCommissionConfig = coursePricing
-      ? await this.commissionConfigService.resolveForEnrollment({
-          institutionId: coursePricing.course.school.institutionId,
-          courseId: coursePricing.course.id,
-        })
-      : null;
-    const accommodationCommissionConfig = accommodationPricing
-      ? await this.commissionConfigService.resolveForAccommodation(
-          accommodationPricing.accommodation.id,
-        )
-      : null;
-
-    const courseCommissionPercentage = this.toNumber(courseCommissionConfig?.percentage);
-    const courseCommissionFixed = this.toNumber(courseCommissionConfig?.fixedAmount ?? 0);
     const commissionCourseAmount = Number(
-      (courseAmount * (courseCommissionPercentage / 100) + courseCommissionFixed).toFixed(2),
+      resolvedItems
+        .filter((item) => item.itemType === 'course')
+        .reduce((sum, item) => sum + item.commissionAmount, 0)
+        .toFixed(2),
     );
 
-    const accommodationCommissionPercentage = this.toNumber(accommodationCommissionConfig?.percentage);
-    const accommodationCommissionFixed = this.toNumber(accommodationCommissionConfig?.fixedAmount ?? 0);
     const commissionAccommodationAmount = Number(
-      (
-        accommodationAmount * (accommodationCommissionPercentage / 100) +
-        accommodationCommissionFixed
-      ).toFixed(2),
+      resolvedItems
+        .filter((item) => item.itemType === 'accommodation')
+        .reduce((sum, item) => sum + item.commissionAmount, 0)
+        .toFixed(2),
     );
 
     const commissionAmount = Number((commissionCourseAmount + commissionAccommodationAmount).toFixed(2));
@@ -198,7 +371,7 @@ export class EnrollmentQuoteService {
         fees,
         discounts,
         totalAmount,
-        currency: coursePricing?.currency ?? accommodationPricing?.currency ?? 'CAD',
+        currency: resolvedItems[0]?.currency ?? coursePricing?.currency ?? accommodationPricing?.currency ?? 'CAD',
         downPaymentPercentage,
         downPaymentAmount,
         remainingAmount,
@@ -207,6 +380,18 @@ export class EnrollmentQuoteService {
         commissionCourseAmount,
         commissionAccommodationAmount,
         type,
+        items: {
+          create: resolvedItems.map((item) => ({
+            itemType: item.itemType,
+            referenceId: item.referenceId,
+            startDate: item.startDate,
+            endDate: item.endDate,
+            amount: item.amount,
+            commissionAmount: item.commissionAmount,
+            coursePricingId: item.coursePricingId,
+            accommodationPricingId: item.accommodationPricingId,
+          })),
+        },
       },
       include: {
         coursePricing: {
@@ -220,6 +405,7 @@ export class EnrollmentQuoteService {
             accommodation: { select: { id: true, title: true, accommodationType: true } },
           },
         },
+        items: true,
       },
     });
   }
@@ -240,6 +426,7 @@ export class EnrollmentQuoteService {
             accommodation: { select: { id: true, title: true, accommodationType: true } },
           },
         },
+        items: true,
       },
     });
   }
@@ -260,6 +447,7 @@ export class EnrollmentQuoteService {
             accommodation: { select: { id: true, title: true, accommodationType: true } },
           },
         },
+        items: true,
       },
     });
     if (!quote) {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAccommodationDto } from './dto/create-accommodation.dto';
@@ -55,6 +55,7 @@ export class AccommodationService {
         isRecommended: true,
         accommodation: { isActive: true },
       },
+      take: 3,
       include: {
         accommodation: true,
       },
@@ -132,6 +133,32 @@ export class AccommodationService {
     }
     if (!accommodation) {
       throw new NotFoundException(`Acomodação ${accommodationId} não encontrada`);
+    }
+
+    const existing = await this.prisma.schoolAccommodationRecommendation.findUnique({
+      where: {
+        schoolId_accommodationId: {
+          schoolId,
+          accommodationId,
+        },
+      },
+      select: { id: true, isRecommended: true },
+    });
+
+    const nextIsRecommended = dto.isRecommended ?? existing?.isRecommended ?? true;
+    if (nextIsRecommended) {
+      const activeRecommendationsCount = await this.prisma.schoolAccommodationRecommendation.count({
+        where: {
+          schoolId,
+          isRecommended: true,
+          ...(existing?.id ? { id: { not: existing.id } } : {}),
+        },
+      });
+      if (activeRecommendationsCount >= 3) {
+        throw new BadRequestException(
+          'Limite de 3 acomodações recomendadas por escola atingido',
+        );
+      }
     }
 
     const recommendation =
