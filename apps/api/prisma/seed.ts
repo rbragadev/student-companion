@@ -60,6 +60,10 @@ const ids = {
   enrollmentIntents: {
     raphael: 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
     emily: 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+    lucas: 'aaaaaaa3-aaaa-4aaa-8aaa-aaaaaaaaaaa3',
+  },
+  enrollments: {
+    emily: 'bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
   },
   courses: {
     generalEnglishIlsc: 'd0efb89f-3d37-4607-9eaa-032832ec2b8e',
@@ -117,7 +121,7 @@ async function main() {
         email: 'emily@studentcompanion.dev',
         phone: '+1 604 555 1002',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Emily',
-        studentStatus: 'application_started',
+        studentStatus: 'enrolled',
         passwordHash,
       },
       {
@@ -127,7 +131,7 @@ async function main() {
         email: 'lucas@studentcompanion.dev',
         phone: '+55 21 98888-4400',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Lucas',
-        studentStatus: 'lead',
+        studentStatus: 'application_started',
         passwordHash,
       },
       {
@@ -524,6 +528,7 @@ async function main() {
         courseId: ids.courses.generalEnglishIlsc,
         classGroupId: ids.classGroups.engA1Morning,
         academicPeriodId: ids.academicPeriods.fall2026,
+        status: 'pending',
       },
       {
         id: ids.enrollmentIntents.emily,
@@ -531,6 +536,34 @@ async function main() {
         courseId: ids.courses.ieltsVgc,
         classGroupId: ids.classGroups.engB2Evening,
         academicPeriodId: ids.academicPeriods.winter2027,
+        status: 'converted',
+        convertedAt: new Date('2026-04-10T00:00:00.000Z'),
+      },
+      {
+        id: ids.enrollmentIntents.lucas,
+        studentId: ids.users.lucas,
+        courseId: ids.courses.digitalMarketingCornerstone,
+        classGroupId: ids.classGroups.businessAfternoon,
+        academicPeriodId: ids.academicPeriods.spring2026,
+        status: 'pending',
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  await prisma.enrollment.createMany({
+    data: [
+      {
+        id: ids.enrollments.emily,
+        studentId: ids.users.emily,
+        institutionId: ids.institutions.global,
+        schoolId: ids.schools.vgc,
+        unitId: ids.units.burnaby,
+        courseId: ids.courses.ieltsVgc,
+        classGroupId: ids.classGroups.engB2Evening,
+        academicPeriodId: ids.academicPeriods.winter2027,
+        enrollmentIntentId: ids.enrollmentIntents.emily,
+        status: 'active',
       },
     ],
     skipDuplicates: true,

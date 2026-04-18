@@ -9,6 +9,7 @@ import TabNavigator from './src/navigation/TabNavigator';
 import {
   AccommodationDetailScreen,
   CourseDetailScreen,
+  EnrollmentIntentScreen,
   PlaceDetailScreen,
   ProfileScreen,
   LoginScreen,
@@ -31,6 +32,11 @@ function MainStack() {
       <Stack.Screen
         name={StackRoutes.COURSE_DETAIL}
         component={CourseDetailScreen}
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen
+        name={StackRoutes.ENROLLMENT_INTENT}
+        component={EnrollmentIntentScreen}
         options={{ presentation: 'card' }}
       />
       <Stack.Screen

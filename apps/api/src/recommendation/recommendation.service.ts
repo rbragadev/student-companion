@@ -31,8 +31,12 @@ export class RecommendationService {
       where: { studentId: userId },
       select: { courseId: true },
     });
+    const activeEnrollment = await this.prisma.enrollment.findFirst({
+      where: { studentId: userId, status: 'active' },
+      select: { id: true },
+    });
 
-    if (type === RecommendationType.COURSE && user.studentStatus === 'enrolled') {
+    if (type === RecommendationType.COURSE && (user.studentStatus === 'enrolled' || !!activeEnrollment)) {
       return [];
     }
 

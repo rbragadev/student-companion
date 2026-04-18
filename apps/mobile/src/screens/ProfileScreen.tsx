@@ -10,6 +10,8 @@ import { RootStackParamList } from '../types/navigation';
 import { useUserProfile } from '../hooks/api/useUserProfile';
 import { useReviewsByUser } from '../hooks/api/useReviews';
 import { useAuth } from '../contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { enrollmentApi } from '../services/api/enrollmentApi';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -19,6 +21,11 @@ export default function ProfileScreen() {
   const { data: user, isLoading: userLoading } = useUserProfile(userId ?? '');
   const { interests, loading: interestsLoading } = useUserInterests();
   const { data: reviews, isLoading: reviewsLoading } = useReviewsByUser(userId ?? '');
+  const { data: activeEnrollment } = useQuery({
+    queryKey: ['enrollment', 'active', userId],
+    queryFn: () => enrollmentApi.getActiveEnrollmentByStudent(userId ?? ''),
+    enabled: !!userId,
+  });
 
   const handleEditProfile = () => {
     console.log('Edit profile');
@@ -258,6 +265,25 @@ export default function ProfileScreen() {
             )}
           </View>
         </Card>
+
+        {activeEnrollment && (
+          <Card className="border-green-200 bg-green-50">
+            <View className="gap-2">
+              <Text variant="h3" className="font-semibold text-green-800">
+                Matrícula ativa
+              </Text>
+              <Text variant="body" className="text-green-800">
+                {activeEnrollment.course.program_name}
+              </Text>
+              <Text variant="caption" className="text-green-700">
+                {activeEnrollment.institution.name} {'>'} {activeEnrollment.school.name} {'>'} {activeEnrollment.unit.name}
+              </Text>
+              <Text variant="caption" className="text-green-700">
+                Turma: {activeEnrollment.classGroup.name} ({activeEnrollment.classGroup.code}) • {activeEnrollment.academicPeriod.name}
+              </Text>
+            </View>
+          </Card>
+        )}
       </View>
 
       {/* My Interests/Leads */}

@@ -17,6 +17,7 @@ import { UnitModule } from './unit/unit.module';
 import { AcademicPeriodModule } from './academic-period/academic-period.module';
 import { ClassGroupModule } from './class-group/class-group.module';
 import { EnrollmentIntentModule } from './enrollment-intent/enrollment-intent.module';
+import { EnrollmentModule } from './enrollment/enrollment.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { EnrollmentIntentModule } from './enrollment-intent/enrollment-intent.mo
     AcademicPeriodModule,
     ClassGroupModule,
     EnrollmentIntentModule,
+    EnrollmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

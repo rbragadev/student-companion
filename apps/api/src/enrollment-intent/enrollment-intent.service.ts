@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEnrollmentIntentDto } from './dto/create-enrollment-intent.dto';
+import { UpdateEnrollmentIntentDto } from './dto/update-enrollment-intent.dto';
 
 @Injectable()
 export class EnrollmentIntentService {
@@ -46,6 +47,12 @@ export class EnrollmentIntentService {
         status: true,
       },
     },
+    enrollment: {
+      select: {
+        id: true,
+        status: true,
+      },
+    },
   } as const;
 
   private nextStudentStatus(currentStatus: string): string {
@@ -54,53 +61,85 @@ export class EnrollmentIntentService {
     return currentStatus;
   }
 
-  async create(dto: CreateEnrollmentIntentDto) {
-    const [student, course, classGroup, academicPeriod, existingIntent] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { id: dto.studentId },
-        select: { id: true, role: true, studentStatus: true },
-      }),
+  private async validateChain(courseId: string, classGroupId: string, academicPeriodId: string) {
+    const [course, classGroup, academicPeriod] = await Promise.all([
       this.prisma.course.findUnique({
-        where: { id: dto.courseId },
-        select: { id: true },
+        where: { id: courseId },
+        select: {
+          id: true,
+          unitId: true,
+          school: { select: { id: true, institutionId: true } },
+        },
       }),
       this.prisma.classGroup.findUnique({
-        where: { id: dto.classGroupId },
+        where: { id: classGroupId },
         select: { id: true, courseId: true },
       }),
       this.prisma.academicPeriod.findUnique({
-        where: { id: dto.academicPeriodId },
+        where: { id: academicPeriodId },
         select: { id: true, classGroupId: true },
+      }),
+    ]);
+
+    if (!course) throw new NotFoundException(`Curso ${courseId} não encontrado`);
+    if (!classGroup) throw new NotFoundException(`Turma ${classGroupId} não encontrada`);
+    if (!academicPeriod) throw new NotFoundException(`Período ${academicPeriodId} não encontrado`);
+    if (classGroup.courseId !== courseId) {
+      throw new BadRequestException('A turma informada não pertence ao curso selecionado');
+    }
+    if (academicPeriod.classGroupId !== classGroupId) {
+      throw new BadRequestException('O período informado não pertence à turma selecionada');
+    }
+
+    return {
+      courseId: course.id,
+      classGroupId: classGroup.id,
+      academicPeriodId: academicPeriod.id,
+      schoolId: course.school.id,
+      institutionId: course.school.institutionId,
+      unitId: course.unitId,
+    };
+  }
+
+  async create(dto: CreateEnrollmentIntentDto) {
+    const [student, existingIntent, activeEnrollment, chain] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: dto.studentId },
+        select: { id: true, role: true, studentStatus: true },
       }),
       this.prisma.enrollmentIntent.findUnique({
         where: { studentId: dto.studentId },
         select: { id: true },
       }),
+      this.prisma.enrollment.findFirst({
+        where: { studentId: dto.studentId, status: 'active' },
+        select: { id: true },
+      }),
+      this.validateChain(dto.courseId, dto.classGroupId, dto.academicPeriodId),
     ]);
 
     if (!student) throw new NotFoundException(`Aluno ${dto.studentId} não encontrado`);
     if (student.role !== Role.STUDENT) {
       throw new BadRequestException('A intenção de matrícula só pode ser criada para usuários STUDENT');
     }
-    if (!course) throw new NotFoundException(`Curso ${dto.courseId} não encontrado`);
-    if (!classGroup) throw new NotFoundException(`Turma ${dto.classGroupId} não encontrada`);
-    if (!academicPeriod) throw new NotFoundException(`Período ${dto.academicPeriodId} não encontrado`);
     if (existingIntent) {
       throw new BadRequestException('O aluno já possui uma intenção de matrícula ativa');
     }
-
-    if (classGroup.courseId !== dto.courseId) {
-      throw new BadRequestException('A turma informada não pertence ao curso selecionado');
-    }
-    if (academicPeriod.classGroupId !== dto.classGroupId) {
-      throw new BadRequestException('O período informado não pertence à turma selecionada');
+    if (activeEnrollment) {
+      throw new BadRequestException('O aluno já possui matrícula ativa e não pode abrir nova intenção');
     }
 
     const nextStatus = this.nextStudentStatus(student.studentStatus);
 
     return this.prisma.$transaction(async (tx) => {
       const createdIntent = await tx.enrollmentIntent.create({
-        data: dto,
+        data: {
+          studentId: dto.studentId,
+          courseId: chain.courseId,
+          classGroupId: chain.classGroupId,
+          academicPeriodId: chain.academicPeriodId,
+          status: 'pending',
+        },
       });
 
       if (nextStatus !== student.studentStatus) {
@@ -117,9 +156,17 @@ export class EnrollmentIntentService {
     });
   }
 
-  findAll(filters?: { studentStatus?: string; institutionId?: string; schoolId?: string }) {
+  findAll(filters?: {
+    studentStatus?: string;
+    institutionId?: string;
+    schoolId?: string;
+    studentId?: string;
+    status?: string;
+  }) {
     return this.prisma.enrollmentIntent.findMany({
       where: {
+        studentId: filters?.studentId || undefined,
+        status: filters?.status || undefined,
         student: filters?.studentStatus ? { studentStatus: filters.studentStatus } : undefined,
         course: {
           school: {
@@ -141,5 +188,58 @@ export class EnrollmentIntentService {
 
     if (!intent) throw new NotFoundException(`Intenção de matrícula ${id} não encontrada`);
     return intent;
+  }
+
+  async update(id: string, dto: UpdateEnrollmentIntentDto) {
+    const intent = await this.findOne(id);
+    if (intent.status !== 'pending') {
+      throw new BadRequestException('Somente intenções pendentes podem ser alteradas');
+    }
+    if (intent.enrollment) {
+      throw new BadRequestException('A intenção já foi convertida e não pode ser alterada');
+    }
+
+    const courseId = dto.courseId ?? intent.course.id;
+    const classGroupId = dto.classGroupId ?? intent.classGroup.id;
+    const academicPeriodId = dto.academicPeriodId ?? intent.academicPeriod.id;
+    const chain = await this.validateChain(courseId, classGroupId, academicPeriodId);
+
+    return this.prisma.enrollmentIntent.update({
+      where: { id },
+      data: {
+        courseId: chain.courseId,
+        classGroupId: chain.classGroupId,
+        academicPeriodId: chain.academicPeriodId,
+      },
+      include: this.includeGraph,
+    });
+  }
+
+  async resolveIntentForEnrollment(intentId: string) {
+    const intent = await this.prisma.enrollmentIntent.findUnique({
+      where: { id: intentId },
+      include: {
+        student: { select: { id: true, role: true } },
+        enrollment: { select: { id: true } },
+      },
+    });
+
+    if (!intent) throw new NotFoundException(`Intenção de matrícula ${intentId} não encontrada`);
+    if (intent.student.role !== Role.STUDENT) {
+      throw new BadRequestException('A intenção deve pertencer a um aluno STUDENT');
+    }
+    if (intent.status !== 'pending') {
+      throw new BadRequestException('A intenção não está mais pendente para confirmação');
+    }
+    if (intent.enrollment) {
+      throw new BadRequestException('A intenção já foi convertida em matrícula');
+    }
+
+    const chain = await this.validateChain(intent.courseId, intent.classGroupId, intent.academicPeriodId);
+
+    return {
+      intent,
+      chain,
+    };
   }
 }

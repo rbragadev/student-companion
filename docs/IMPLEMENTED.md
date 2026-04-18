@@ -34,6 +34,10 @@ JWT payload: `{ sub, email, role }`. Campo `passwordHash` no model `User` (bcryp
 | `POST /enrollment-intents` | Criar intenção de matrícula (aluno + curso + turma + período) |
 | `GET /enrollment-intents` | Listar intenções de matrícula (filtros: status/instituição/escola) |
 | `GET /enrollment-intents/:id` | Detalhe de intenção de matrícula |
+| `PATCH /enrollment-intents/:id` | Editar intenção pendente antes da confirmação |
+| `POST /enrollments/from-intent/:intentId` | Confirmar intenção e gerar matrícula real |
+| `GET /enrollments` | Listar matrículas (`studentId/status/institutionId/schoolId`) |
+| `GET /enrollments/:id` | Detalhe de matrícula |
 
 ---
 
@@ -92,6 +96,7 @@ PostgreSQL 16 · Prisma 7 · adapter `@prisma/adapter-pg`
 | `class_group` | courseId, name, code, shift, status, capacity |
 | `academic_period` | classGroupId, name, startDate, endDate, status |
 | `enrollment_intent` | studentId (único), courseId, classGroupId, academicPeriodId, createdAt |
+| `enrollment` | studentId, institutionId, schoolId, unitId, courseId, classGroupId, academicPeriodId, enrollmentIntentId, status |
 | `accommodation` | title, accommodationType, price, coords, ratings detalhados, isPartner, isTopTrip |
 | `place` | name, category, coords, isStudentFavorite, hasDeal, hours (JSON) |
 | `review` | userId, reviewableType, reviewableId, rating, comment |
@@ -108,7 +113,7 @@ Usuários de teste (senha: `senha123`):
 | `admin@studentcompanion.dev` | ADMIN | — |
 | `superadmin@studentcompanion.dev` | SUPER_ADMIN | — |
 
-1 instituição + 3 escolas + 3 unidades + 6 cursos + 3 turmas + 3 períodos da turma + intenções de matrícula válidas · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto).
+1 instituição + 3 escolas + 3 unidades + 6 cursos + 3 turmas + 3 períodos da turma + intenções pendentes/editáveis + intenção convertida e matrícula ativa · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto).
 
 ---
 
@@ -155,6 +160,7 @@ Diagnóstico atual:
 | Turmas | Parcial (admin/backend) | Disponível no SaaS/backend; não consumido diretamente no mobile neste step |
 | Períodos da turma | Parcial (admin/backend) | Disponível no SaaS/backend; não consumido diretamente no mobile neste step |
 | Intenção de matrícula (`/enrollment-intents`) | Integrado | Mobile cria intenção real e backend atualiza `studentStatus` |
+| Matrícula (`/enrollments`) | Integrado | SaaS confirma intenção, gera matrícula e mobile lê matrícula ativa real |
 
 Ajustes aplicados para fechar compatibilidade mobile:
 - Normalização centralizada de payload em `apps/mobile/src/services/api/mappers/catalogMappers.ts` (snake_case -> camelCase).
@@ -165,6 +171,8 @@ Ajustes aplicados para fechar compatibilidade mobile:
 - Ação de iniciar matrícula no `CourseDetailScreen` passou a usar endpoints reais:
   `GET /class-group?courseId=...`, `GET /academic-period?classGroupId=...`, `POST /enrollment-intents`.
 - `studentStatus` foi adicionado ao perfil do usuário e refletido no mobile após criação da intenção.
+- Criação/edição de intenção no mobile migrou para tela dedicada (`EnrollmentIntentScreen`) sem alerts no fluxo principal.
+- Perfil do mobile passou a exibir matrícula ativa real (`GET /enrollments?studentId=...&status=active`).
 
 ---
 
@@ -211,7 +219,8 @@ apps/admin/
     │       ├── layout.tsx      # Shell com Sidebar
     │       ├── dashboard/      # Dashboard com stats reais da API
     │       ├── academic-structure/ # Consulta da cadeia acadêmica com filtros encadeados
-    │       └── enrollment-intents/ # Lista + detalhe das intenções de matrícula
+    │       ├── enrollment-intents/ # Lista + detalhe + edição + confirmação
+    │       └── enrollments/        # Lista + detalhe de matrículas
     ├── components/
     │   ├── layout/             # Sidebar, Header, NavItem, LogoutButton
     │   ├── ui/                 # Button, Input, Badge, DataTable, PageHeader
@@ -237,6 +246,13 @@ Permite filtros encadeados por instituição, escola, unidade, curso e turma, e 
 Tela de operação no SaaS:
 - `/enrollment-intents` (listagem com filtros por status, instituição e escola)
 - `/enrollment-intents/:id` (detalhe simples do vínculo aluno > curso > turma > período)
+
+### Matrículas (Step B)
+
+Fluxo no SaaS:
+- `/enrollment-intents/:id/edit` para alteração da intenção pendente
+- `/enrollment-intents/:id/confirm` para confirmação dedicada (sem alert)
+- `/enrollments` e `/enrollments/:id` para consulta da matrícula real confirmada
 
 ### Componentes genéricos prontos
 

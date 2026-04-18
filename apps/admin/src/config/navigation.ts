@@ -13,7 +13,8 @@ export type NavIconName =
   | 'UserCog'
   | 'Shield'
   | 'KeyRound'
-  | 'FileBadge2';
+  | 'FileBadge2'
+  | 'BadgeCheck';
 
 export type NavDependency = 'institutions' | 'schools' | 'units' | 'courses' | 'classes' | 'periods';
 
@@ -96,6 +97,7 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { label: 'Alunos', href: '/students', icon: 'Users', permission: 'users.read' },
       { label: 'Intenções de Matrícula', href: '/enrollment-intents', icon: 'FileBadge2', permission: 'users.read' },
+      { label: 'Matrículas', href: '/enrollments', icon: 'BadgeCheck', permission: 'users.read' },
       { label: 'Usuários Admin', href: '/admin-users', icon: 'UserCog', permission: 'users.read' },
       { label: 'Perfis', href: '/profiles', icon: 'Shield', permission: 'roles.read' },
       { label: 'Permissões', href: '/permissions', icon: 'KeyRound', permission: 'permissions.read' },

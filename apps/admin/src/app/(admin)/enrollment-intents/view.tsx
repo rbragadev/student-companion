@@ -27,6 +27,7 @@ export function EnrollmentIntentsView({
   const [statusFilter, setStatusFilter] = useState('');
   const [institutionFilter, setInstitutionFilter] = useState('');
   const [schoolFilter, setSchoolFilter] = useState('');
+  const [intentStatusFilter, setIntentStatusFilter] = useState('');
 
   const filteredSchools = useMemo(
     () => schools.filter((school) => !institutionFilter || school.institutionId === institutionFilter),
@@ -37,11 +38,12 @@ export function EnrollmentIntentsView({
     return intents.filter((intent) => {
       const school = intent.course.school;
       const statusMatch = !statusFilter || intent.student.studentStatus === statusFilter;
+      const intentStatusMatch = !intentStatusFilter || intent.status === intentStatusFilter;
       const institutionMatch = !institutionFilter || school?.institution?.id === institutionFilter;
       const schoolMatch = !schoolFilter || school?.id === schoolFilter;
-      return statusMatch && institutionMatch && schoolMatch;
+      return statusMatch && intentStatusMatch && institutionMatch && schoolMatch;
     });
-  }, [intents, statusFilter, institutionFilter, schoolFilter]);
+  }, [intents, statusFilter, intentStatusFilter, institutionFilter, schoolFilter]);
 
   const columns: Column<EnrollmentIntentAdmin>[] = [
     {
@@ -75,8 +77,13 @@ export function EnrollmentIntentsView({
       render: (item) => `${item.course.school?.institution?.name ?? '-'} > ${item.course.school?.name ?? '-'}`,
     },
     {
-      key: 'status',
-      label: 'Status',
+      key: 'intentStatus',
+      label: 'Status Intenção',
+      render: (item) => item.status === 'pending' ? 'Pendente' : 'Convertida',
+    },
+    {
+      key: 'studentStatus',
+      label: 'Status Aluno',
       render: (item) => STATUS_LABEL[item.student.studentStatus],
     },
   ];
@@ -95,6 +102,16 @@ export function EnrollmentIntentsView({
               { label: 'Application Started', value: 'application_started' },
               { label: 'Pending Enrollment', value: 'pending_enrollment' },
               { label: 'Enrolled', value: 'enrolled' },
+            ],
+          },
+          {
+            key: 'intentStatus',
+            label: 'Status da Intenção',
+            value: intentStatusFilter,
+            onChange: setIntentStatusFilter,
+            options: [
+              { label: 'Pendente', value: 'pending' },
+              { label: 'Convertida', value: 'converted' },
             ],
           },
           {

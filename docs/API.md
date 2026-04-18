@@ -172,6 +172,7 @@ Compatibilidade mobile:
 | `POST` | `/enrollment-intents` | Cria intenção de matrícula para aluno |
 | `GET` | `/enrollment-intents` | Lista intenções (`?studentStatus=&institutionId=&schoolId=`) |
 | `GET` | `/enrollment-intents/:id` | Detalhe da intenção |
+| `PATCH` | `/enrollment-intents/:id` | Edita curso/turma/período da intenção pendente |
 
 Payload de criação:
 
@@ -188,6 +189,22 @@ Regras:
 - valida a cadeia `course -> class_group -> academic_period`
 - permite apenas 1 intenção ativa por aluno (`studentId` único em `enrollment_intent`)
 - atualiza `users.student_status` no fluxo: `lead -> application_started -> pending_enrollment`
+
+### Matrícula Confirmada (Step B)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/enrollments/from-intent/:intentId` | Converte intenção pendente em matrícula real |
+| `GET` | `/enrollments` | Lista matrículas (`?studentId=&status=&institutionId=&schoolId=`) |
+| `GET` | `/enrollments/:id` | Detalhe de matrícula |
+
+Regras:
+- intenção pode ser editada apenas enquanto `status = pending`
+- uma intenção pode ser confirmada no máximo uma vez
+- confirmação valida novamente a cadeia acadêmica completa
+- confirmação atualiza `users.student_status` para `enrolled`
+- confirmação marca intenção como `converted` (`converted_at` preenchido)
+- bloqueia matrícula ativa incompatível para o mesmo aluno (`status = active`)
 
 Distinção conceitual:
 - `institution`: escopo administrativo do cliente no SaaS.

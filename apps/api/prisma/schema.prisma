@@ -41,6 +41,7 @@ model User {
   preferences   UserPreferences?
   adminProfiles UserAdminProfile[]
   enrollmentIntent EnrollmentIntent?
+  enrollments   Enrollment[]
 
   @@map("users")
 }
@@ -51,16 +52,50 @@ model EnrollmentIntent {
   courseId         String         @map("course_id") @db.Uuid
   classGroupId     String         @map("class_group_id") @db.Uuid
   academicPeriodId String         @map("academic_period_id") @db.Uuid
+  status           String         @default("pending")
+  convertedAt      DateTime?      @map("converted_at")
   createdAt        DateTime       @default(now()) @map("created_at")
   student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   course           Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   classGroup       ClassGroup     @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
   academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
+  enrollment       Enrollment?
 
   @@index([courseId])
   @@index([classGroupId])
   @@index([academicPeriodId])
   @@map("enrollment_intent")
+}
+
+model Enrollment {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId          String           @map("student_id") @db.Uuid
+  institutionId      String           @map("institution_id") @db.Uuid
+  schoolId           String           @map("school_id") @db.Uuid
+  unitId             String           @map("unit_id") @db.Uuid
+  courseId           String           @map("course_id") @db.Uuid
+  classGroupId       String           @map("class_group_id") @db.Uuid
+  academicPeriodId   String           @map("academic_period_id") @db.Uuid
+  enrollmentIntentId String           @unique @map("enrollment_intent_id") @db.Uuid
+  status             String           @default("active")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  student            User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  institution        Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  school             School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  unit               Unit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  course             Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  classGroup         ClassGroup       @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  academicPeriod     AcademicPeriod   @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
+  enrollmentIntent   EnrollmentIntent @relation(fields: [enrollmentIntentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, status])
+  @@index([institutionId])
+  @@index([schoolId])
+  @@index([unitId])
+  @@index([courseId])
+  @@index([classGroupId])
+  @@index([academicPeriodId])
+  @@map("enrollment")
 }
 
 model Institution {
@@ -70,6 +105,7 @@ model Institution {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   schools     School[]
+  enrollments Enrollment[]
 
   @@map("institution")
 }
@@ -87,6 +123,7 @@ model Unit {
   updatedAt DateTime @updatedAt @map("updated_at")
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   courses   Course[]
+  enrollments Enrollment[]
 
   @@unique([schoolId, code])
   @@index([schoolId])
@@ -104,6 +141,7 @@ model AcademicPeriod {
   updatedAt    DateTime     @updatedAt @map("updated_at")
   classGroup   ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
   enrollmentIntents EnrollmentIntent[]
+  enrollments  Enrollment[]
 
   @@index([classGroupId])
   @@index([startDate, endDate])
@@ -123,6 +161,7 @@ model ClassGroup {
   course     Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   periods    AcademicPeriod[]
   enrollmentIntents EnrollmentIntent[]
+  enrollments Enrollment[]
 
   @@unique([courseId, code])
   @@index([courseId])
@@ -225,6 +264,7 @@ model Course {
   school          School   @relation(fields: [school_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
   classes         ClassGroup[]
   enrollmentIntents EnrollmentIntent[]
+  enrollments     Enrollment[]
 
   @@index([unitId])
   @@map("course")
@@ -263,6 +303,7 @@ model School {
   institution  Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   units        Unit[]
   course       Course[]
+  enrollments  Enrollment[]
 
   @@index([institutionId])
   @@map("school")

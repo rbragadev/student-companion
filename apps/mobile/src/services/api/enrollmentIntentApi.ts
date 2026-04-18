@@ -23,4 +23,10 @@ export const enrollmentIntentApi = {
     const { data } = await apiClient.post('/enrollment-intents', payload);
     return data;
   },
+
+  getOpenIntentByStudent: async (studentId: string): Promise<EnrollmentIntent | null> => {
+    const { data } = await apiClient.get(`/enrollment-intents?studentId=${studentId}&status=pending`);
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return data[0] as EnrollmentIntent;
+  },
 };

@@ -17,6 +17,8 @@ export interface AcademicPeriodOption {
 
 export interface EnrollmentIntent {
   id: string;
+  status?: 'pending' | 'converted';
+  convertedAt?: string | null;
   studentId: string;
   courseId: string;
   classGroupId: string;
@@ -29,6 +31,21 @@ export interface EnrollmentIntent {
     email: string;
     studentStatus: string;
   };
+  course?: {
+    id: string;
+    program_name: string;
+  };
+  classGroup?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  academicPeriod?: {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+  };
 }
 
 export interface CreateEnrollmentIntentPayload {
@@ -36,4 +53,16 @@ export interface CreateEnrollmentIntentPayload {
   courseId: string;
   classGroupId: string;
   academicPeriodId: string;
+}
+
+export interface Enrollment {
+  id: string;
+  status: string;
+  createdAt: string;
+  institution: { id: string; name: string };
+  school: { id: string; name: string };
+  unit: { id: string; name: string; code: string };
+  course: { id: string; program_name: string };
+  classGroup: { id: string; name: string; code: string };
+  academicPeriod: { id: string; name: string; startDate: string; endDate: string };
 }

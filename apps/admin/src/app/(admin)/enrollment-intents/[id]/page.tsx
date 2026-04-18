@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Pencil } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,11 @@ const STATUS_LABEL: Record<EnrollmentIntentAdmin['student']['studentStatus'], st
   application_started: 'Application Started',
   pending_enrollment: 'Pending Enrollment',
   enrolled: 'Enrolled',
+};
+
+const INTENT_LABEL: Record<EnrollmentIntentAdmin['status'], string> = {
+  pending: 'Pendente',
+  converted: 'Convertida',
 };
 
 export default async function EnrollmentIntentDetailPage({
@@ -29,9 +34,21 @@ export default async function EnrollmentIntentDetailPage({
         title="Detalhe da Intenção de Matrícula"
         description="Consulta de vínculo aluno > curso > turma > período"
         actions={(
-          <Link href="/enrollment-intents">
-            <Button size="sm" variant="outline"><ArrowLeft size={14} />Voltar</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {intent.status === 'pending' && (
+              <>
+                <Link href={`/enrollment-intents/${intent.id}/edit`}>
+                  <Button size="sm" variant="outline"><Pencil size={14} />Editar</Button>
+                </Link>
+                <Link href={`/enrollment-intents/${intent.id}/confirm`}>
+                  <Button size="sm"><CheckCircle2 size={14} />Confirmar matrícula</Button>
+                </Link>
+              </>
+            )}
+            <Link href="/enrollment-intents">
+              <Button size="sm" variant="outline"><ArrowLeft size={14} />Voltar</Button>
+            </Link>
+          </div>
         )}
       />
 
@@ -41,6 +58,7 @@ export default async function EnrollmentIntentDetailPage({
           <p className="mt-2 text-sm text-slate-700">{intent.student.firstName} {intent.student.lastName}</p>
           <p className="text-xs text-slate-500">{intent.student.email}</p>
           <p className="mt-2 text-xs text-slate-500">Status: {STATUS_LABEL[intent.student.studentStatus]}</p>
+          <p className="mt-1 text-xs text-slate-500">Intenção: {INTENT_LABEL[intent.status]}</p>
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">

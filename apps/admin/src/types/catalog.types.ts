@@ -75,6 +75,8 @@ export interface StudentAdmin {
 
 export interface EnrollmentIntentAdmin {
   id: string;
+  status: 'pending' | 'converted';
+  convertedAt: string | null;
   createdAt: string;
   student: {
     id: string;
@@ -104,4 +106,28 @@ export interface EnrollmentIntentAdmin {
     endDate: string;
     status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
   };
+  enrollment?: {
+    id: string;
+    status: string;
+  } | null;
+}
+
+export interface EnrollmentAdmin {
+  id: string;
+  status: string;
+  createdAt: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    studentStatus: 'lead' | 'application_started' | 'pending_enrollment' | 'enrolled';
+  };
+  institution: { id: string; name: string };
+  school: { id: string; name: string };
+  unit: { id: string; name: string; code: string };
+  course: { id: string; program_name: string };
+  classGroup: { id: string; name: string; code: string };
+  academicPeriod: { id: string; name: string; startDate: string; endDate: string };
+  enrollmentIntent: { id: string; status: string; convertedAt: string | null };
 }

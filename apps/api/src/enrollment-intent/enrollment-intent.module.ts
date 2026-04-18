@@ -7,5 +7,6 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [EnrollmentIntentController],
   providers: [EnrollmentIntentService],
+  exports: [EnrollmentIntentService],
 })
 export class EnrollmentIntentModule {}
