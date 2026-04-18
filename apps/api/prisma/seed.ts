@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as bcrypt from 'bcrypt';
@@ -24,6 +24,8 @@ const ids = {
     raphael: 'a8ee8202-7adb-48d9-a2c7-6a03ffc75b48',
     emily: '97d7fe11-44d2-4daf-99d0-f2b462e91f2d',
     lucas: '7f15be1f-3c9d-4d2d-8b2f-0bc8f1df74b2',
+    admin: 'b1c2d3e4-f5a6-7890-abcd-ef1234567890',
+    superAdmin: 'c2d3e4f5-a6b7-8901-bcde-f12345678901',
   },
   preferences: {
     raphael: '7a8d0b4f-03c0-4633-8070-f334d2831bf1',
@@ -99,6 +101,24 @@ async function main() {
         email: 'lucas@studentcompanion.dev',
         phone: '+55 21 98888-4400',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Lucas',
+        passwordHash,
+      },
+      {
+        id: ids.users.admin,
+        firstName: 'Admin',
+        lastName: 'User',
+        email: 'admin@studentcompanion.dev',
+        avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=AdminUser',
+        role: Role.ADMIN,
+        passwordHash,
+      },
+      {
+        id: ids.users.superAdmin,
+        firstName: 'Super',
+        lastName: 'Admin',
+        email: 'superadmin@studentcompanion.dev',
+        avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=SuperAdmin',
+        role: Role.SUPER_ADMIN,
         passwordHash,
       },
     ],

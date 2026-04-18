@@ -1,376 +1,195 @@
-# 🔧 Student Companion API
+# Student Companion API
 
-Backend da aplicação Student Companion construído com NestJS, Prisma e PostgreSQL.
+Backend NestJS 11 + Prisma 7 + PostgreSQL.
 
-## 🚀 Tecnologias
+## Stack
 
-- **NestJS** - Framework Node.js progressivo
-- **Prisma ORM** - Database toolkit com type-safety
-- **PostgreSQL** - Banco de dados relacional
-- **TypeScript** - Linguagem de programação
-- **Docker** - Containerização do banco
+- **NestJS 11** + **TypeScript**
+- **Prisma 7** + `@prisma/adapter-pg`
+- **PostgreSQL 16**
+- **bcrypt** (salt 10) para hashing de senhas
+- **@nestjs/jwt** — JWT com expiração de 30 dias
 
-## 🏗 Estrutura do Projeto
+## Estrutura
 
 ```
 apps/api/
+├── prisma/
+│   ├── schema.prisma
+│   └── seed.ts
 ├── src/
-│   ├── prisma/              # PrismaService
-│   ├── user/                # Módulo de usuários
-│   │   ├── dto/
-│   │   ├── user.controller.ts
-│   │   ├── user.service.ts
-│   │   └── user.module.ts
-│   ├── recommendation/      # Sistema de recomendação
-│   │   ├── interfaces/      # Interfaces genéricas
-│   │   ├── rules/           # Regras de scoring
-│   │   │   ├── accommodation/
-│   │   │   ├── course/
-│   │   │   ├── place/
-│   │   │   └── school/
-│   │   ├── strategies/      # Estratégias por tipo
-│   │   ├── factories/       # Factory de estratégias
-│   │   ├── dto/
-│   │   ├── recommendation.controller.ts
-│   │   ├── recommendation.service.ts
-│   │   └── recommendation.module.ts
+│   ├── auth/               # AuthModule, AuthService, AuthController
+│   ├── user/               # UserModule, UserService, UserController
+│   ├── school/
+│   ├── course/
+│   ├── accommodation/
+│   ├── place/
+│   ├── review/
+│   ├── recommendation/     # Strategy + Rule pattern
+│   │   ├── interfaces/
+│   │   ├── rules/          # accommodation / course / place / school
+│   │   ├── strategies/
+│   │   └── factories/
+│   ├── prisma/             # PrismaService
 │   ├── app.module.ts
 │   └── main.ts
-├── prisma/
-│   ├── schema.prisma        # Schema do banco
-│   └── migrations/          # Migrations do Prisma
-├── test/
-└── package.json
+└── Dockerfile
 ```
 
-## 📡 Endpoints
+## Executar
 
-### Users
+```bash
+make api          # dev watch (local, roda prisma generate automaticamente)
+make up           # postgres + api via Docker (seed automático)
+make db-push      # aplica schema sem migrations
+make seed         # seed manual
+```
 
-#### GET /users/:id
-Busca um usuário por ID com suas preferências.
+## Variáveis de Ambiente
 
-**Response:**
+```bash
+# apps/api/.env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/student_companion"
+JWT_SECRET="student-companion-dev-secret"
+```
+
+---
+
+## Endpoints
+
+> Todos os endpoints retornam envelope `{ statusCode, message, data }`.
+
+### Autenticação
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/auth/login` | Login com e-mail e senha |
+
+**Request:**
 ```json
-{
-  "id": "user-123",
-  "firstName": "Raphael",
-  "lastName": "Braga",
-  "email": "raphael@email.com",
-  "preferences": {
-    "destinationCity": "Vancouver",
-    "destinationCountry": "Canada",
-    "englishLevel": "intermediate",
-    "budgetAccommodationMin": 800,
-    "budgetAccommodationMax": 1200
-  }
-}
+{ "email": "raphael@studentcompanion.dev", "password": "senha123" }
 ```
-
-### Recomendações
-
-#### GET /recommendation/:userId?type={type}&limit={limit}
-Busca recomendações personalizadas para um usuário.
-
-**Query Params:**
-- `type` (obrigatório): `accommodation` | `course` | `place` | `school`
-- `limit` (opcional): 1-50, padrão 10
 
 **Response:**
 ```json
 {
   "statusCode": 200,
   "message": "Success",
-  "data": [
-    {
-      "id": "item-123",
-      "type": "accommodation",
-      "title": "Modern Studio Downtown",
-      "subtitle": "Vancouver • $950/month",
-      "score": 87.5,
-      "badge": "Top Trip",
-      "imageUrl": "https://...",
-      "data": { /* dados completos */ }
-    }
-  ]
+  "data": {
+    "token": "<JWT>",
+    "user": { "id": "...", "email": "...", "firstName": "...", "role": "STUDENT" }
+  }
 }
 ```
 
-#### GET /recommendation/:userId/mixed?limit={limit}
-Busca recomendações de todos os tipos misturadas e ordenadas por score.
+JWT payload: `{ sub, email, role }`. Expiração: 30 dias.
 
-**Query Params:**
-- `limit` (opcional): 1-50, padrão 10
+---
 
-**Response:** Mesmo formato acima, mas com tipos misturados
+### Usuários
 
-## 🧠 Sistema de Recomendação
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/users` | Criar usuário |
+| `GET` | `/users/:id` | Buscar usuário com preferências |
+| `POST` | `/users/:id/preferences` | Criar/atualizar preferências |
 
-Consulte a [documentação completa do sistema de recomendação](./RECOMMENDATION_SYSTEM.md).
+---
 
-### Arquitetura
+### Escolas · Cursos · Acomodações · Lugares · Avaliações
 
-- **Strategy Pattern** - Uma estratégia por tipo de entidade
-- **Rule Pattern** - Regras de scoring modulares
-- **Factory Pattern** - Criação de estratégias
-- **SOLID Principles** - Código extensível e manutenível
+| Recurso | Endpoints |
+|---------|-----------|
+| Escolas | `GET/POST /school`, `GET /school/:id` |
+| Cursos | `GET/POST /course`, `GET /course/:id` |
+| Acomodações | `GET/POST /accommodation`, `GET/PATCH /accommodation/:id` |
+| Lugares | `GET/POST /place`, `GET/PATCH/DELETE /place/:id`, `?category=X` |
+| Avaliações | `GET/POST /review`, `GET /review/:id`, `PATCH /review/:id`, `GET /review/user/:userId`, `GET /review?reviewableType=X&reviewableId=Y` |
 
-### Tipos de Entidades
+---
 
-1. **Accommodation** - Acomodações
-2. **Course** - Cursos de idiomas
-3. **Place** - Lugares e atrações
-4. **School** - Escolas de idioma
+### Recomendações
 
-### Sistema de Scoring
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/recommendation/:userId?type=X&limit=N` | Por tipo |
+| `GET` | `/recommendation/:userId/mixed?limit=N` | Todos os tipos misturados |
 
-Cada entidade é avaliada por múltiplas regras com pesos:
+`type`: `accommodation` · `course` · `place` · `school`
 
-**Accommodation (5 regras):**
-- Budget (40%)
-- Rating (25%)
-- Distance (15%)
-- Type Preference (10%)
-- Bonus (10%)
-
-**Course (4 regras):**
-- Budget (40%)
-- Rating (30%)
-- English Level (20%)
-- Duration (10%)
-
-**Place (3 regras):**
-- Rating (50%)
-- Student Favorite (30%)
-- Deal (20%)
-
-**School (4 regras):**
-- Rating (40%)
-- Programs Variety (25%)
-- Location (20%)
-- Accreditation (15%)
-
-Score final: `Σ(ruleScore × weight) / Σ(weights)`
-
-## 🗄 Database
-
-### Models Principais
-
-- **User** - Dados do usuário
-- **UserPreferences** - Preferências e orçamentos
-- **School** - Escolas de idioma
-- **Course** - Cursos oferecidos
-- **Accommodation** - Acomodações disponíveis
-- **Place** - Lugares e atrações
-- **Review** - Avaliações (polimórfico)
-
-### Relacionamentos
-
-```
-User 1:1 UserPreferences
-School 1:N Course
-User 1:N Review
-```
-
-## 🚀 Setup e Execução
-
-### Pré-requisitos
-- Node.js 18+
-- Docker & Docker Compose
-- PostgreSQL (via Docker)
-
-### 1. Instalar dependências
-```bash
-npm install
-```
-
-### 2. Subir o banco de dados
-```bash
-cd ../../infra/docker
-docker-compose up -d
-```
-
-### 3. Configurar variáveis de ambiente
-```bash
-# apps/api/.env
-DATABASE_URL="postgresql://user:password@localhost:5432/student_companion"
-```
-
-### 4. Rodar migrations
-```bash
-cd apps/api
-npx prisma migrate dev
-```
-
-### 5. (Opcional) Seed data
-```bash
-npx prisma db seed
-```
-
-### 6. Iniciar a API
-```bash
-# Da raiz
-npm run dev:api
-
-# Ou direto da pasta
-cd apps/api
-npm run start:dev
-```
-
-API rodará em: **http://localhost:3000**
-
-## 🔧 Scripts Úteis
-
-```bash
-# Prisma Studio (UI do banco)
-npx prisma studio
-
-# Gerar Prisma Client
-npx prisma generate
-
-# Criar nova migration
-npx prisma migrate dev --name nome_da_migration
-
-# Reset do banco (cuidado!)
-npx prisma migrate reset
-
-# Rodar testes
-npm test
-
-# Testes E2E
-npm run test:e2e
-
-# Build para produção
-npm run build
-npm run start:prod
-```
-
-## 🧪 Testes
-
-### Estrutura
-```
-test/
-├── app.e2e-spec.ts
-└── jest-e2e.json
-```
-
-### Executar
-```bash
-# Unitários
-npm test
-
-# E2E
-npm run test:e2e
-
-# Com coverage
-npm run test:cov
-```
-
-## 📝 Validação
-
-### DTOs com class-validator
-
-```typescript
-export class GetRecommendationsDto {
-  @IsEnum(RecommendationType)
-  type: RecommendationType;
-
-  @IsOptional()
-  @Min(1)
-  @Max(50)
-  limit?: number = 10;
+**Response item:**
+```json
+{
+  "id": "...",
+  "type": "accommodation",
+  "title": "Modern Studio Downtown",
+  "subtitle": "Vancouver • $950/month",
+  "score": 87.5,
+  "badge": "Top Trip",
+  "imageUrl": "https://...",
+  "data": { /* entidade completa */ }
 }
 ```
 
-### Pipes Globais
-```typescript
-app.useGlobalPipes(new ValidationPipe({
-  whitelist: true,
-  forbidNonWhitelisted: true,
-  transform: true,
-}));
-```
+**Pesos por estratégia:**
 
-## 🔐 Segurança
+| Estratégia | Regras |
+|------------|--------|
+| Accommodation | Budget (0.4) · Rating (0.25) · Distance* (0.15) · Type preference (0.1) · Bonus (0.1) |
+| Course | Budget (0.4) · Rating (0.3) · English level (0.2) · Horas/semana (0.1) |
+| School | Rating (0.4) · Variedade de cursos (0.25) · Localização (0.2) · Parceria (0.15) |
+| Place | Rating (0.5) · Student favorite (0.3) · Deal (0.2) |
 
-### CORS
-Configurado em `main.ts` para aceitar requisições do frontend.
+> *Distance retorna score neutro (50) — cálculo Haversine pendente.
 
-### Validação
-Todos os inputs são validados com class-validator.
+---
 
-### Sanitização
-Prisma protege contra SQL Injection automaticamente.
+## Banco de Dados
 
-## 📊 Performance
+### Models
 
-### Query Optimization
-- Uso de `select` para campos específicos
-- `include` apenas para relações necessárias
-- Índices no banco para queries frequentes
+| Model | Campos-chave |
+|-------|-------------|
+| `users` | id, email, passwordHash, role, firstName, lastName |
+| `user_preferences` | userId, destinationCity, budget ranges, englishLevel, preferredAccommodationTypes |
+| `school` | name, location, isPartner, rating, badges |
+| `course` | schoolId, programName, weeklyHours, priceInCents, targetAudience |
+| `accommodation` | title, accommodationType, price, coords, ratings, isPartner, isTopTrip |
+| `place` | name, category, coords, isStudentFavorite, hasDeal, hours (JSON) |
+| `review` | userId, reviewableType, reviewableId, rating, comment |
 
-### Caching (TODO)
-- [ ] Implementar cache Redis
-- [ ] Cache de recomendações (10min TTL)
-- [ ] Invalidação ao atualizar preferências
+### Roles
 
-## 🐛 Debug
-
-### Logs
-```typescript
-// Habilitar logs do Prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-generator client {
-  provider = "prisma-client-js"
-  log      = ["query", "info", "warn", "error"]
+```prisma
+enum Role {
+  STUDENT
+  ADMIN
+  SUPER_ADMIN
 }
 ```
 
-### NestJS Logger
+### Usuários de Seed (senha: `senha123`)
+
+| E-mail | Role |
+|--------|------|
+| `raphael@studentcompanion.dev` | STUDENT |
+| `emily@studentcompanion.dev` | STUDENT |
+| `lucas@studentcompanion.dev` | STUDENT |
+| `admin@studentcompanion.dev` | ADMIN |
+| `superadmin@studentcompanion.dev` | SUPER_ADMIN |
+
+Seed cria também: 3 escolas · 6 cursos · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto).
+
+---
+
+## Docker
+
+`docker-compose.yml` na raiz: serviços `postgres` (5432) + `api` (3000).
+
+`apps/api/Dockerfile` — build multi-stage. Entrypoint: `prisma db push → seed → node dist/main`.
+
 ```bash
-# Verbose mode
-npm run start:dev -- --debug
+make up     # sobe tudo com build
+make down   # para containers
+make logs   # logs da API em tempo real
 ```
-
-## 🚢 Deploy
-
-### Build
-```bash
-npm run build
-```
-
-### Variáveis de Ambiente (Produção)
-```bash
-DATABASE_URL=
-NODE_ENV=production
-PORT=3000
-```
-
-### Docker
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npx prisma generate
-RUN npm run build
-CMD ["npm", "run", "start:prod"]
-```
-
-## 📚 Recursos
-
-- [NestJS Docs](https://docs.nestjs.com/)
-- [Prisma Docs](https://www.prisma.io/docs)
-- [PostgreSQL Docs](https://www.postgresql.org/docs/)
-
-## 🤝 Contribuindo
-
-1. Leia a [documentação de recomendação](./RECOMMENDATION_SYSTEM.md)
-2. Consulte o [TODO](./TODO.md) para tarefas pendentes
-3. Siga os padrões SOLID ao adicionar novas features
-4. Escreva testes para novas funcionalidades

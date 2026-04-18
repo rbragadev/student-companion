@@ -1,11 +1,12 @@
 # Dependencies
-node_modules/
-*/node_modules/
+**/node_modules/
 
 # Environment variables
 .env
 .env.local
 .env.*.local
+apps/api/.env
+apps/mobile/.env
 
 # Logs
 *.log
@@ -14,34 +15,22 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build outputs
-dist/
-build/
-*/dist/
-*/build/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
+**/dist/
+**/build/
+**/.next/
+**/.turbo/
+**/.cache/
 
 # Expo
-.expo/
-*/expo-env.d.ts
+**/.expo/
+**/expo-env.d.ts
 
 # Metro bundler
 .metro-health-check*
 
 # Generated native folders
-ios/
-android/
-*/ios/
-*/android/
+**/ios/
+**/android/
 
 # TypeScript
 *.tsbuildinfo
@@ -59,6 +48,18 @@ pnpm-lock.yaml
 *.db
 *.sqlite
 
-# API keys and secrets
-apps/api/.env
-apps/mobile/.env
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Claude Code
+.claude/
+
+# Prisma generated (regenerado via prisma generate)
+apps/api/src/generated/

@@ -6,12 +6,19 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  STUDENT
+  ADMIN
+  SUPER_ADMIN
+}
+
 model User {
   id           String           @id @default(cuid()) @db.Uuid
   email        String           @unique
   phone        String?
   avatar       String?
   passwordHash String?          @map("password_hash")
+  role         Role             @default(STUDENT)
   createdAt    DateTime         @default(now())
   firstName    String
   lastName     String
