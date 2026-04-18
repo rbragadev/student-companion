@@ -92,7 +92,7 @@ export class AccommodationPricingService {
       accommodation: { select: { id: true, title: true, accommodationType: true } },
     } as const;
 
-    let pricing = periodOption
+    const pricingFromTable = periodOption
       ? await this.prisma.accommodationPricing.findFirst({
           where: {
             accommodationId,
@@ -103,6 +103,7 @@ export class AccommodationPricingService {
         })
       : null;
 
+    let pricing = pricingFromTable;
     if (!pricing) {
       pricing = await this.prisma.accommodationPricing.findFirst({
         where: {
@@ -114,26 +115,61 @@ export class AccommodationPricingService {
       });
     }
 
+    let effectivePrice = pricing ? Number(pricing.basePrice) : 0;
+    let effectiveCurrency = pricing?.currency ?? 'CAD';
+    let effectivePeriodOption = pricing?.periodOption ?? (periodOption || 'fallback');
+    let effectiveAccommodation = pricing?.accommodation ?? null;
+    let effectiveId = pricing?.id ?? '';
+
     if (!pricing) {
-      throw new NotFoundException(
-        `Preço de acomodação não encontrado para accommodationId=${accommodationId}${
-          periodOption ? ` e periodOption=${periodOption}` : ''
-        }`,
-      );
+      const fallbackAccommodation = await this.prisma.accommodation.findUnique({
+        where: { id: accommodationId },
+        select: {
+          id: true,
+          title: true,
+          accommodationType: true,
+          priceInCents: true,
+          isActive: true,
+        },
+      });
+
+      if (!fallbackAccommodation || fallbackAccommodation.isActive === false) {
+        throw new NotFoundException(
+          `Preço de acomodação não encontrado para accommodationId=${accommodationId}${
+            periodOption ? ` e periodOption=${periodOption}` : ''
+          }`,
+        );
+      }
+
+      effectivePrice = Number((Number(fallbackAccommodation.priceInCents) / 100).toFixed(2));
+      effectiveCurrency = 'CAD';
+      effectivePeriodOption = periodOption ?? 'fallback';
+      effectiveId = `fallback-${fallbackAccommodation.id}`;
+      effectiveAccommodation = {
+        id: fallbackAccommodation.id,
+        title: fallbackAccommodation.title,
+        accommodationType: fallbackAccommodation.accommodationType,
+      };
     }
 
     const startDate = this.parseIsoDate(options?.startDate);
     const endDate = this.parseIsoDate(options?.endDate);
     let weeks = 0;
-    let calculatedAmount = Number(pricing.basePrice);
+    let calculatedAmount = effectivePrice;
 
     if (startDate && endDate) {
       weeks = this.validateWeeklyRange(startDate, endDate);
-      calculatedAmount = Number((Number(pricing.basePrice) * weeks).toFixed(2));
+      calculatedAmount = Number((effectivePrice * weeks).toFixed(2));
     }
 
     return {
-      ...pricing,
+      id: effectiveId,
+      accommodationId,
+      periodOption: effectivePeriodOption,
+      basePrice: effectivePrice,
+      currency: effectiveCurrency,
+      isActive: true,
+      accommodation: effectiveAccommodation,
       calculatedAmount,
       weeks,
       pricingLabel: 'per week',

@@ -7,10 +7,13 @@ import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import type {
   EnrollmentAdmin,
+  EnrollmentCheckoutAdmin,
+  PaymentAdmin,
   EnrollmentQuoteAdmin,
   EnrollmentTimelineEventAdmin,
 } from '@/types/catalog.types';
 import {
+  confirmEnrollmentFakePaymentAction,
   createEnrollmentDocumentAction,
   updateEnrollmentAccommodationAction,
   updateEnrollmentAccommodationWorkflowAction,
@@ -54,9 +57,11 @@ export default async function EnrollmentDetailPage({
     apiFetch<EnrollmentTimelineEventAdmin[]>(`/enrollments/${id}/timeline`).catch(() => []),
   ]);
   if (!enrollment) notFound();
-  const quote = await apiFetch<EnrollmentQuoteAdmin>(
-    `/quotes/by-intent/${enrollment.enrollmentIntent.id}`,
-  ).catch(() => null);
+  const [quote, checkout, payments] = await Promise.all([
+    apiFetch<EnrollmentQuoteAdmin>(`/quotes/by-intent/${enrollment.enrollmentIntent.id}`).catch(() => null),
+    apiFetch<EnrollmentCheckoutAdmin>(`/enrollments/${id}/checkout`).catch(() => null),
+    apiFetch<PaymentAdmin[]>(`/payments?enrollmentId=${id}`).catch(() => []),
+  ]);
 
   const recommendedAccommodations = await apiFetch<Array<{
     id: string;
@@ -292,6 +297,45 @@ export default async function EnrollmentDetailPage({
               )}
             </div>
           )}
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Checkout e Pagamento</h2>
+          {!checkout ? (
+            <p className="mt-2 text-xs text-slate-500">Checkout ainda indisponível.</p>
+          ) : (
+            <div className="mt-3 space-y-1 text-xs text-slate-600">
+              <p>
+                Estado do checkout: <strong>{checkout.state}</strong>
+              </p>
+              {checkout.reason && <p>{checkout.reason}</p>}
+              <p>Total: {Number(checkout.financial.totalAmount).toFixed(2)} {checkout.financial.currency}</p>
+              <p>Entrada: {Number(checkout.financial.downPaymentAmount).toFixed(2)} {checkout.financial.currency}</p>
+              <p>Saldo: {Number(checkout.financial.remainingAmount).toFixed(2)} {checkout.financial.currency}</p>
+              {checkout.state === 'available' && (
+                <form action={confirmEnrollmentFakePaymentAction} className="pt-2">
+                  <input type="hidden" name="enrollmentId" value={enrollment.id} />
+                  <Button type="submit" size="sm">Confirmar pagamento fake</Button>
+                </form>
+              )}
+            </div>
+          )}
+
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-semibold text-slate-700">Pagamentos registrados</p>
+            {payments.length === 0 && (
+              <p className="text-xs text-slate-500">Nenhum pagamento registrado.</p>
+            )}
+            {payments.map((payment) => (
+              <div key={payment.id} className="rounded border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
+                <p>
+                  {payment.type} • {payment.status} • {Number(payment.amount).toFixed(2)} {payment.currency}
+                </p>
+                <p>Criado em: {formatDateTime(payment.createdAt)}</p>
+                {payment.paidAt && <p>Pago em: {formatDateTime(payment.paidAt)}</p>}
+              </div>
+            ))}
+          </div>
         </article>
       </section>
 

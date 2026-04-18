@@ -10,6 +10,18 @@ export class UpdateCoursePricingDto {
   academicPeriodId?: string;
 
   @IsOptional()
+  @IsUUID()
+  classGroupId?: string;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(80)
   duration?: string;

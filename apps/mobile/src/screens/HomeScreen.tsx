@@ -68,8 +68,7 @@ export default function HomeScreen() {
   };
 
   const handleNotificationsPress = () => {
-    console.log('Notifications pressed');
-    // TODO: Navegar para tela de notificações
+    navigation.navigate(StackRoutes.NOTIFICATIONS);
   };
 
   const handleAvatarPress = () => {

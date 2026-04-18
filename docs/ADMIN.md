@@ -242,6 +242,14 @@ Status da integração mobile (escopo acadêmico já coberto):
 - Ao iniciar nova intenção, o mobile verifica e exibe em tela se já existe intenção pendente ou matrícula ativa, sem uso de alert nesse fluxo.
 - O mobile exibe na jornada: timeline (`GET /enrollments/:id/timeline`), documentos (`GET/POST /enrollment-documents`) e mensagens (`GET/POST /enrollment-messages`) com dados reais do backend.
 - O mobile exibe indicador de mensagens não lidas via `GET /enrollment-messages/unread-count?studentId=...` e sincroniza leitura com `PATCH /enrollment-messages/read`.
+- O mobile exibe notificações reais via `GET /notifications?userId=...` e `GET /notifications/unread-count?userId=...`, com marcação de leitura por `PATCH /notifications/:id/read`.
+- Fluxo comercial de checkout:
+  - `GET /enrollments/:id/checkout` consulta estado (`available`, `blocked_waiting_approval`, `blocked_rejected`, `paid`);
+  - `POST /enrollments/:id/checkout/pay-fake` confirma entrada fake;
+  - pagamentos operacionais ficam disponíveis em `GET /payments`.
+- Aprovação operacional manual:
+  - quando `autoApproveIntent=false`, checkout fica bloqueado até status da matrícula `approved`;
+  - ao aprovar/rejeitar proposta, backend cria notificação para o aluno com metadado da matrícula/intenção.
 - Upload de documentos no mobile fica visível apenas em status compatível com etapa documental (`documents_pending`, `under_review`).
 - Upsell de acomodação da matrícula usa dados reais com contexto da escola (`GET /accommodation/upsell/enrollment/:enrollmentId`), mostrando apenas acomodações recomendadas para a escola da matrícula com badge configurado no SaaS.
 - No fluxo de intenção/matrícula:

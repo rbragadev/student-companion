@@ -152,3 +152,14 @@ export async function updateEnrollmentAccommodationWorkflowAction(formData: Form
 
   redirect(`/enrollments/${enrollmentId}`);
 }
+
+export async function confirmEnrollmentFakePaymentAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const enrollmentId = getText(formData, 'enrollmentId');
+
+  await apiFetch(`/enrollments/${enrollmentId}/checkout/pay-fake`, {
+    method: 'POST',
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}

@@ -84,6 +84,11 @@ export interface EnrollmentIntent {
     score?: number | null;
     recommendationBadge?: string | null;
   } | null;
+  enrollment?: {
+    id: string;
+    status: string;
+    createdAt?: string;
+  } | null;
 }
 
 export interface CreateEnrollmentIntentPayload {
@@ -227,11 +232,78 @@ export interface EnrollmentPackageSummary {
 
 export interface EnrollmentTimelineEvent {
   id: string;
-  type: 'enrollment_created' | 'status_changed' | 'accommodation_status_changed' | 'document' | 'message';
+  type:
+    | 'enrollment_created'
+    | 'status_changed'
+    | 'accommodation_status_changed'
+    | 'document'
+    | 'message'
+    | 'payment';
   occurredAt: string;
   title: string;
   description?: string | null;
   channel?: 'enrollment' | 'accommodation';
+}
+
+export interface CheckoutPayment {
+  id: string;
+  enrollmentId?: string | null;
+  enrollmentQuoteId?: string | null;
+  type: 'down_payment' | string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'paid' | 'failed' | 'cancelled';
+  provider: string;
+  providerReference?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
+}
+
+export interface EnrollmentCheckoutState {
+  enrollmentId: string;
+  state:
+    | 'available'
+    | 'blocked_waiting_approval'
+    | 'blocked_rejected'
+    | 'blocked_missing_quote'
+    | 'paid';
+  reason?: string | null;
+  autoApproveIntent: boolean;
+  enrollmentStatus: Enrollment['status'];
+  institution?: { id: string; name: string };
+  school?: { id: string; name: string };
+  unit?: { id: string; name: string };
+  course?: { id: string; program_name: string };
+  classGroup?: { id: string; name: string; code: string };
+  academicPeriod?: { id: string; name: string };
+  accommodation?: { id: string; title: string } | null;
+  quote?: EnrollmentQuote | null;
+  financial: {
+    currency: string;
+    totalAmount: number;
+    downPaymentAmount: number;
+    remainingAmount: number;
+  };
+  payments: CheckoutPayment[];
+}
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  metadata?: {
+    enrollmentId?: string;
+    enrollmentIntentId?: string;
+    paymentId?: string;
+    amount?: number;
+    currency?: string;
+    status?: string;
+    [key: string]: unknown;
+  } | null;
+  readAt?: string | null;
+  createdAt: string;
 }
 
 export interface EnrollmentQuote {

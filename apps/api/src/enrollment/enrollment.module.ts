@@ -15,17 +15,23 @@ import { AccommodationPricingController } from './accommodation-pricing.controll
 import { AccommodationPricingService } from './accommodation-pricing.service';
 import { EnrollmentQuoteController } from './enrollment-quote.controller';
 import { EnrollmentQuoteService } from './enrollment-quote.service';
+import { PaymentService } from './payment.service';
+import { PaymentController } from './payment.controller';
+import { EnrollmentCheckoutController } from './enrollment-checkout.controller';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
-  imports: [PrismaModule, EnrollmentIntentModule],
+  imports: [PrismaModule, EnrollmentIntentModule, NotificationModule],
   controllers: [
     EnrollmentController,
+    EnrollmentCheckoutController,
     EnrollmentDocumentController,
     EnrollmentMessageController,
     CommissionConfigController,
     CoursePricingController,
     AccommodationPricingController,
     EnrollmentQuoteController,
+    PaymentController,
   ],
   providers: [
     EnrollmentService,
@@ -35,6 +41,7 @@ import { EnrollmentQuoteService } from './enrollment-quote.service';
     CoursePricingService,
     AccommodationPricingService,
     EnrollmentQuoteService,
+    PaymentService,
   ],
   exports: [CommissionConfigService, EnrollmentQuoteService],
 })

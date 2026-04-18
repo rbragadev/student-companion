@@ -4,10 +4,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateEnrollmentIntentDto } from './dto/create-enrollment-intent.dto';
 import { UpdateEnrollmentIntentDto } from './dto/update-enrollment-intent.dto';
 import { ACTIVE_ENROLLMENT_STATUSES } from '../enrollment/enrollment.constants';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class EnrollmentIntentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   private readonly includeGraph = {
     student: {
@@ -113,6 +117,7 @@ export class EnrollmentIntentService {
         select: {
           id: true,
           unitId: true,
+          auto_approve_intent: true,
           school: { select: { id: true, institutionId: true } },
         },
       }),
@@ -143,6 +148,7 @@ export class EnrollmentIntentService {
       schoolId: course.school.id,
       institutionId: course.school.institutionId,
       unitId: course.unitId,
+      autoApproveIntent: course.auto_approve_intent,
     };
   }
 
@@ -208,7 +214,7 @@ export class EnrollmentIntentService {
     await this.validateCoursePricing(chain.courseId, chain.academicPeriodId);
     const nextStatus = this.nextStudentStatus(student.studentStatus);
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdIntent = await this.prisma.$transaction(async (tx) => {
       const createdIntent = await tx.enrollmentIntent.create({
         data: {
           studentId: dto.studentId,
@@ -220,7 +226,43 @@ export class EnrollmentIntentService {
         },
       });
 
-      if (nextStatus !== student.studentStatus) {
+      if (chain.autoApproveIntent) {
+        const enrollment = await tx.enrollment.create({
+          data: {
+            studentId: dto.studentId,
+            institutionId: chain.institutionId,
+            schoolId: chain.schoolId,
+            unitId: chain.unitId,
+            courseId: chain.courseId,
+            classGroupId: chain.classGroupId,
+            academicPeriodId: chain.academicPeriodId,
+            accommodationId,
+            enrollmentIntentId: createdIntent.id,
+            status: 'approved',
+            accommodationStatus: accommodationId ? 'selected' : 'not_selected',
+          },
+        });
+
+        await tx.enrollmentStatusHistory.create({
+          data: {
+            enrollmentId: enrollment.id,
+            fromStatus: null,
+            toStatus: 'approved',
+            reason: 'Auto-approve habilitado para o curso',
+            changedById: null,
+          },
+        });
+
+        await tx.enrollmentIntent.update({
+          where: { id: createdIntent.id },
+          data: {
+            status: 'converted',
+            convertedAt: new Date(),
+          },
+        });
+
+        await this.recalculateStudentStatus(tx, student.id);
+      } else if (nextStatus !== student.studentStatus) {
         await tx.user.update({
           where: { id: student.id },
           data: { studentStatus: nextStatus },
@@ -232,6 +274,26 @@ export class EnrollmentIntentService {
         include: this.includeGraph,
       });
     });
+
+    if (!createdIntent) {
+      throw new NotFoundException('Falha ao carregar a intenção recém-criada');
+    }
+
+    if (chain.autoApproveIntent && createdIntent.enrollment?.id) {
+      await this.notificationService.create({
+        userId: createdIntent.student.id,
+        type: 'proposal_approved',
+        title: 'Proposta aprovada automaticamente',
+        message:
+          'Seu pacote foi aprovado automaticamente e o checkout já está disponível na sua matrícula.',
+        metadata: {
+          enrollmentId: createdIntent.enrollment.id,
+          enrollmentIntentId: createdIntent.id,
+        },
+      });
+    }
+
+    return createdIntent;
   }
 
   findAll(filters?: {
@@ -393,7 +455,7 @@ export class EnrollmentIntentService {
       throw new BadRequestException('Motivo da negativa é obrigatório');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.enrollmentIntent.update({
         where: { id },
         data: {
@@ -406,6 +468,23 @@ export class EnrollmentIntentService {
       await this.recalculateStudentStatus(tx, intent.student.id);
       return updated;
     });
+
+    if (status === 'denied') {
+      await this.notificationService.create({
+        userId: intent.student.id,
+        type: 'proposal_rejected',
+        title: 'Proposta rejeitada',
+        message: reason?.trim()
+          ? `Sua proposta foi rejeitada: ${reason.trim()}`
+          : 'Sua proposta foi rejeitada pela operação.',
+        metadata: {
+          enrollmentIntentId: id,
+          status,
+        },
+      });
+    }
+
+    return updated;
   }
 
   async resolveIntentForEnrollment(intentId: string) {

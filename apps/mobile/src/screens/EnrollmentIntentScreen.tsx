@@ -133,6 +133,7 @@ export default function EnrollmentIntentScreen() {
 
   const [quotePreview, setQuotePreview] = React.useState<EnrollmentQuote | null>(null);
   const [resultType, setResultType] = React.useState<'auto_approve' | 'proposal'>('proposal');
+  const [createdEnrollmentId, setCreatedEnrollmentId] = React.useState<string | null>(null);
 
   const selectedOffer = React.useMemo(
     () => courseOffers.find((item) => item.id === selectedOfferId) ?? null,
@@ -448,6 +449,9 @@ export default function EnrollmentIntentScreen() {
       });
 
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId) });
+      if (createdIntent.enrollment?.id) {
+        setCreatedEnrollmentId(createdIntent.enrollment.id);
+      }
       setResultType(course?.autoApproveIntent ? 'auto_approve' : 'proposal');
       setStep(4);
     } catch (err) {
@@ -512,7 +516,7 @@ export default function EnrollmentIntentScreen() {
                   : 'border-border bg-white'
               }`}
             >
-              <Text variant="body">{offer.academicPeriodName}</Text>
+              <Text variant="body">Oferta de datas</Text>
               <Text variant="caption">
                 {new Date(offer.startDate).toLocaleDateString()} - {new Date(offer.endDate).toLocaleDateString()}
               </Text>
@@ -770,7 +774,7 @@ export default function EnrollmentIntentScreen() {
       )}
 
       <Card>
-        <Text variant="h3" className="font-semibold">Período da acomodação</Text>
+        <Text variant="h3" className="font-semibold">Datas da acomodação</Text>
         <Text variant="caption" className="mt-1">
           Pré-preenchido com as datas do curso. Selecione em blocos semanais (domingo a domingo).
         </Text>
@@ -932,8 +936,19 @@ export default function EnrollmentIntentScreen() {
             <Text variant="body" className="mt-2">
               Intenção auto-aprovada para este curso. Você pode seguir para checkout.
             </Text>
-            <Button className="mt-3" onPress={() => navigation.replace(StackRoutes.ACADEMIC_JOURNEY)}>
-              Ir para checkout
+            <Button
+              className="mt-3"
+              onPress={() => {
+                if (createdEnrollmentId) {
+                  navigation.replace(StackRoutes.ENROLLMENT_CHECKOUT, {
+                    enrollmentId: createdEnrollmentId,
+                  });
+                  return;
+                }
+                navigation.replace(StackRoutes.ACADEMIC_JOURNEY);
+              }}
+            >
+              {createdEnrollmentId ? 'Ir para checkout' : 'Ver jornada acadêmica'}
             </Button>
           </>
         ) : (
@@ -1046,7 +1061,7 @@ export default function EnrollmentIntentScreen() {
                         </Text>
                       )}
                       <Text variant="caption">
-                        Período atual: {new Date(`${accommodationStartDate}T00:00:00.000Z`).toLocaleDateString()} -{' '}
+                        Janela atual: {new Date(`${accommodationStartDate}T00:00:00.000Z`).toLocaleDateString()} -{' '}
                         {new Date(`${accommodationEndDate}T00:00:00.000Z`).toLocaleDateString()}
                       </Text>
                       <Text variant="body" className="font-medium">

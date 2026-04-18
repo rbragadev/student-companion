@@ -278,6 +278,23 @@ Fluxo no SaaS:
 - `/enrollments` e `/enrollments/:id` para consulta da matrícula real confirmada
 - operação de status em intenção e matrícula no SaaS sem recriar domínio (`PATCH /enrollment-intents/:id/status`, `PATCH /enrollments/:id/status`)
 
+### Checkout e Pagamento (Step Comercial)
+
+- Checkout operacional por matrícula com estado real do backend:
+  - `GET /enrollments/:id/checkout`
+  - `POST /enrollments/:id/checkout`
+- Pagamento fake da entrada:
+  - `POST /enrollments/:id/checkout/pay-fake`
+  - persistência em `payment` com status (`pending`, `paid`, `failed`, `cancelled`)
+- Notificações do aluno:
+  - `GET /notifications?userId=...`
+  - `GET /notifications/unread-count?userId=...`
+  - `PATCH /notifications/:id/read`
+  - `PATCH /notifications/read-all`
+- Aprovação manual:
+  - checkout fica bloqueado enquanto proposta aguarda operação (`blocked_waiting_approval`);
+  - ao aprovar/rejeitar, backend gera notificação e atualiza timeline/estado.
+
 ### Componentes genéricos prontos
 
 | Componente | Uso |

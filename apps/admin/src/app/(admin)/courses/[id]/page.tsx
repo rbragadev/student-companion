@@ -34,9 +34,6 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
   ]);
 
   if (!course) notFound();
-  const classGroupIds = new Set(classGroups.map((item) => item.id));
-  const coursePeriods = periods.filter((period) => classGroupIds.has(period.classGroupId));
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -58,7 +55,7 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Horas semanais</span><input name="weeklyHours" type="number" min={1} required defaultValue={course.weekly_hours} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" /></label>
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Duração</span><input name="duration" required defaultValue={course.duration} disabled={!canWrite} className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" /></label>
           <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Tipo de período</span>
+            <span className="text-sm font-medium text-slate-700">Tipo de oferta</span>
             <select
               name="periodType"
               defaultValue={course.period_type ?? 'fixed'}
@@ -89,28 +86,30 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
       </form>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-900">Oferta e períodos do curso</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Oferta e janelas de datas do curso</h2>
         <p className="mt-1 text-xs text-slate-500">
           {course.period_type === 'weekly'
             ? 'Curso semanal: o app calcula valor por semana (per week) conforme duração selecionada em datas válidas.'
-            : 'Curso fixo: o app exibe total price da oferta para o período selecionado.'}
+            : 'Curso fixo: o app exibe total price da oferta para a janela selecionada.'}
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          Os períodos continuam vinculados às turmas, mas a regra de cálculo/preço da oferta fica centralizada no curso.
+          A estrutura interna usa janelas vinculadas às turmas, mas a regra de cálculo/preço da oferta fica centralizada no curso.
         </p>
 
         <div className="mt-4 space-y-2">
           {canWrite && (
             <form action={createCoursePricingInlineAction.bind(null, course.id)} className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 text-sm sm:grid-cols-6">
               <input type="hidden" name="courseId" value={course.id} />
-              <select name="academicPeriodId" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm">
-                <option value="">Período da oferta</option>
-                {coursePeriods.map((period) => (
-                  <option key={period.id} value={period.id}>
-                    {period.name} ({new Date(period.startDate).toLocaleDateString()} - {new Date(period.endDate).toLocaleDateString()})
+              <select name="classGroupId" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm">
+                <option value="">Turma interna</option>
+                {classGroups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name} ({group.code})
                   </option>
                 ))}
               </select>
+              <input name="startDate" type="date" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm" />
+              <input name="endDate" type="date" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm" />
               <input
                 name="duration"
                 placeholder={course.period_type === 'weekly' ? 'ex: 4-24 weeks' : 'ex: 16 weeks'}
@@ -128,13 +127,33 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
           {pricingRows.map((row) => (
             <form key={row.id} action={updateCoursePricingInlineAction.bind(null, course.id)} className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 text-sm sm:grid-cols-6">
               <input type="hidden" name="id" value={row.id} />
+              <input type="hidden" name="classGroupId" value={row.academicPeriod?.classGroupId ?? ''} />
               <div className="sm:col-span-2">
-                <p className="font-medium text-slate-900">{row.academicPeriod?.name ?? 'Período'}</p>
+                <p className="font-medium text-slate-900">
+                  Janela de datas
+                  {row.academicPeriod?.classGroup?.name
+                    ? ` • ${row.academicPeriod.classGroup.name} (${row.academicPeriod.classGroup.code})`
+                    : ''}
+                </p>
                 <p className="text-xs text-slate-500">
                   Janela: {row.academicPeriod?.startDate ? new Date(row.academicPeriod.startDate).toLocaleDateString() : '-'} -{' '}
                   {row.academicPeriod?.endDate ? new Date(row.academicPeriod.endDate).toLocaleDateString() : '-'}
                 </p>
               </div>
+              <input
+                name="startDate"
+                type="date"
+                defaultValue={row.academicPeriod?.startDate ? new Date(row.academicPeriod.startDate).toISOString().slice(0, 10) : ''}
+                disabled={!canWrite}
+                className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100"
+              />
+              <input
+                name="endDate"
+                type="date"
+                defaultValue={row.academicPeriod?.endDate ? new Date(row.academicPeriod.endDate).toISOString().slice(0, 10) : ''}
+                disabled={!canWrite}
+                className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100"
+              />
               <input name="duration" defaultValue={row.duration ?? ''} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
               <input name="basePrice" type="number" min={0} step="0.01" defaultValue={Number(row.basePrice)} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
               <input name="currency" defaultValue={row.currency} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
@@ -167,7 +186,7 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
                   {group.name} ({group.code})
                 </p>
                 <p className="text-xs text-slate-500">Status: {group.status}</p>
-                <p className="text-xs text-slate-500">Períodos internos: {countPeriods}</p>
+                <p className="text-xs text-slate-500">Janelas internas: {countPeriods}</p>
               </div>
             );
           })}

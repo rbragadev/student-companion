@@ -77,7 +77,9 @@ export async function createCoursePricingInlineAction(courseId: string, formData
     method: 'POST',
     body: JSON.stringify({
       courseId,
-      academicPeriodId: getText(formData, 'academicPeriodId'),
+      classGroupId: getText(formData, 'classGroupId') || undefined,
+      startDate: getText(formData, 'startDate') || undefined,
+      endDate: getText(formData, 'endDate') || undefined,
       duration: getText(formData, 'duration') || undefined,
       basePrice: Number(getText(formData, 'basePrice')),
       currency: getText(formData, 'currency') || 'CAD',
@@ -93,6 +95,9 @@ export async function updateCoursePricingInlineAction(courseId: string, formData
   await apiFetch(`/course-pricing/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({
+      classGroupId: getText(formData, 'classGroupId') || undefined,
+      startDate: getText(formData, 'startDate') || undefined,
+      endDate: getText(formData, 'endDate') || undefined,
       duration: getText(formData, 'duration') || undefined,
       basePrice: Number(getText(formData, 'basePrice')),
       currency: getText(formData, 'currency') || 'CAD',

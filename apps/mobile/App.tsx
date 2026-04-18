@@ -12,6 +12,8 @@ import {
   EnrollmentIntentScreen,
   AcademicJourneyScreen,
   EnrollmentDetailScreen,
+  EnrollmentCheckoutScreen,
+  NotificationsScreen,
   PlaceDetailScreen,
   ProfileScreen,
   LoginScreen,
@@ -49,6 +51,16 @@ function MainStack() {
       <Stack.Screen
         name={StackRoutes.ENROLLMENT_DETAIL}
         component={EnrollmentDetailScreen}
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen
+        name={StackRoutes.ENROLLMENT_CHECKOUT}
+        component={EnrollmentCheckoutScreen}
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen
+        name={StackRoutes.NOTIFICATIONS}
+        component={NotificationsScreen}
         options={{ presentation: 'card' }}
       />
       <Stack.Screen

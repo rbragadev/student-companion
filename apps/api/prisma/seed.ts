@@ -98,6 +98,7 @@ const ids = {
     richmondSpring: 'eeeeeeb3-eeee-4eee-8eee-eeeeeeeeeeb3',
     kitsFall: 'eeeeeeb4-eeee-4eee-8eee-eeeeeeeeeeb4',
     gastownFall: 'eeeeeeb5-eeee-4eee-8eee-eeeeeeeeeeb5',
+    commercialWinter: 'eeeeeeb6-eeee-4eee-8eee-eeeeeeeeeeb6',
   },
   enrollmentQuotes: {
     raphaelPendingCourseOnly: 'eeeeeec1-eeee-4eee-8eee-eeeeeeeeeec1',
@@ -112,6 +113,16 @@ const ids = {
     lucasCourse: 'eeeeeef4-eeee-4eee-8eee-eeeeeeeeeef4',
     lucasAccommodation: 'eeeeeef5-eeee-4eee-8eee-eeeeeeeeeef5',
     accommodationOnly: 'eeeeeef6-eeee-4eee-8eee-eeeeeeeeeef6',
+  },
+  payments: {
+    emilyDownPaymentPaid: '1a111111-1111-4111-8111-111111111111',
+    lucasDownPaymentPending: '1a111111-1111-4111-8111-111111111112',
+  },
+  notifications: {
+    raphaelApproved: '1b111111-1111-4111-8111-111111111111',
+    raphaelPaymentConfirmed: '1b111111-1111-4111-8111-111111111112',
+    lucasRejected: '1b111111-1111-4111-8111-111111111113',
+    emilyDocuments: '1b111111-1111-4111-8111-111111111114',
   },
   enrollmentStatusHistory: {
     emilyStarted: 'fffffff1-ffff-4fff-8fff-fffffffffff1',
@@ -1338,6 +1349,14 @@ async function main() {
         currency: 'CAD',
         isActive: true,
       },
+      {
+        id: ids.accommodationPricing.commercialWinter,
+        accommodationId: ids.accommodations.commercialShared,
+        periodOption: 'Winter 2027',
+        basePrice: 335,
+        currency: 'CAD',
+        isActive: true,
+      },
     ],
     skipDuplicates: true,
   });
@@ -1543,6 +1562,121 @@ async function main() {
       where: { id: item.id },
       create: item,
       update: item,
+    });
+  }
+
+  const payments = [
+    {
+      id: ids.payments.emilyDownPaymentPaid,
+      enrollmentId: ids.enrollments.emilyActive,
+      enrollmentQuoteId: ids.enrollmentQuotes.emilyIntentWithAccommodation,
+      type: 'down_payment',
+      amount: 1995,
+      currency: 'CAD',
+      status: 'paid',
+      provider: 'fake',
+      providerReference: 'fake_seed_emily_001',
+      paidAt: new Date('2026-04-14T11:00:00.000Z'),
+      createdAt: new Date('2026-04-14T10:58:00.000Z'),
+      updatedAt: new Date('2026-04-14T11:00:00.000Z'),
+    },
+    {
+      id: ids.payments.lucasDownPaymentPending,
+      enrollmentId: ids.enrollments.lucasReview,
+      enrollmentQuoteId: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
+      type: 'down_payment',
+      amount: 1875,
+      currency: 'CAD',
+      status: 'pending',
+      provider: 'fake',
+      providerReference: null,
+      paidAt: null,
+      createdAt: new Date('2026-03-05T09:00:00.000Z'),
+      updatedAt: new Date('2026-03-05T09:00:00.000Z'),
+    },
+  ] as const;
+
+  for (const item of payments) {
+    await prisma.payment.upsert({
+      where: { id: item.id },
+      create: item,
+      update: item,
+    });
+  }
+
+  const notifications = [
+    {
+      id: ids.notifications.raphaelApproved,
+      userId: ids.users.raphael,
+      type: 'proposal_approved',
+      title: 'Proposta aprovada',
+      message: 'Sua proposta foi aprovada. O checkout está disponível na sua matrícula.',
+      metadata: {
+        enrollmentIntentId: ids.enrollmentIntents.raphaelPending,
+      },
+      readAt: null,
+      createdAt: new Date('2026-04-16T09:00:00.000Z'),
+    },
+    {
+      id: ids.notifications.raphaelPaymentConfirmed,
+      userId: ids.users.raphael,
+      type: 'payment_confirmed',
+      title: 'Pagamento confirmado',
+      message: 'Recebemos sua entrada. Seguiremos com as etapas operacionais.',
+      metadata: {
+        enrollmentIntentId: ids.enrollmentIntents.raphaelPending,
+      },
+      readAt: null,
+      createdAt: new Date('2026-04-16T12:10:00.000Z'),
+    },
+    {
+      id: ids.notifications.lucasRejected,
+      userId: ids.users.lucas,
+      type: 'proposal_rejected',
+      title: 'Proposta rejeitada',
+      message: 'Sua proposta foi rejeitada: documentação acadêmica incompleta para o período.',
+      metadata: {
+        enrollmentIntentId: ids.enrollmentIntents.lucasDenied,
+      },
+      readAt: null,
+      createdAt: new Date('2026-02-10T09:30:00.000Z'),
+    },
+    {
+      id: ids.notifications.emilyDocuments,
+      userId: ids.users.emily,
+      type: 'documents_requested',
+      title: 'Documentos solicitados',
+      message: 'Envie os documentos pendentes para avançarmos na matrícula.',
+      metadata: {
+        enrollmentId: ids.enrollments.emilyActive,
+      },
+      readAt: new Date('2026-04-12T09:30:00.000Z'),
+      createdAt: new Date('2026-04-11T15:20:00.000Z'),
+    },
+  ] as const;
+
+  for (const item of notifications) {
+    await prisma.notification.upsert({
+      where: { id: item.id },
+      create: item,
+      update: item,
+    });
+  }
+
+  const unreadByUser = await prisma.notification.groupBy({
+    by: ['userId'],
+    where: { readAt: null },
+    _count: { _all: true },
+  });
+  const unreadMap = new Map(unreadByUser.map((row) => [row.userId, row._count._all]));
+  for (const userId of [ids.users.raphael, ids.users.emily, ids.users.lucas]) {
+    const count = unreadMap.get(userId) ?? 0;
+    await prisma.userPreferences.update({
+      where: { userId },
+      data: {
+        notificationCount: count,
+        hasUnreadNotifications: count > 0,
+      },
     });
   }
 

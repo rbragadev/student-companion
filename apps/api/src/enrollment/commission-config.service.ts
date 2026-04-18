@@ -43,7 +43,9 @@ export class CommissionConfigService {
       select: { id: true },
     });
     if (existing) {
-      throw new BadRequestException('Já existe configuração de comissão para este escopo');
+      return this.prisma.commissionConfig.findUnique({
+        where: { id: existing.id },
+      });
     }
 
     return this.prisma.commissionConfig.create({
@@ -117,9 +119,25 @@ export class CommissionConfigService {
     return courseConfig ?? institutionConfig ?? null;
   }
 
-  async resolveForAccommodation(accommodationId: string) {
+  async resolveForAccommodation(params: {
+    accommodationId?: string | null;
+    institutionId?: string | null;
+  }) {
+    const accommodationId = params.accommodationId ?? null;
+    const institutionId = params.institutionId ?? null;
+
+    const accommodationConfig = accommodationId
+      ? await this.prisma.commissionConfig.findFirst({
+          where: { scopeType: 'accommodation', scopeId: accommodationId },
+          orderBy: { createdAt: 'desc' },
+        })
+      : null;
+
+    if (accommodationConfig) return accommodationConfig;
+    if (!institutionId) return null;
+
     return this.prisma.commissionConfig.findFirst({
-      where: { scopeType: 'accommodation', scopeId: accommodationId },
+      where: { scopeType: 'institution', scopeId: institutionId },
       orderBy: { createdAt: 'desc' },
     });
   }

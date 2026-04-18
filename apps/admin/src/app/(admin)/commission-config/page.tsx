@@ -60,20 +60,18 @@ export default async function CommissionConfigPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Configuração de Comissão"
-        description="Regra global por instituição e override específico por curso."
+        description="Defina a comissão padrão por instituição. Curso e acomodação usam essa base automaticamente quando não houver override."
       />
 
       <article className="rounded-lg border border-slate-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-slate-900">Nova Configuração</h2>
         <form action={createCommissionConfigAction} className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="text-xs font-medium text-slate-600">
-            Escopo
+            Tipo de regra
             <select name="scopeType" defaultValue="institution" className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
-              <option value="institution">Instituição</option>
-              <option value="course">Curso</option>
-              <option value="accommodation">Acomodação (futuro)</option>
-              <option value="service">Serviço (futuro)</option>
-              <option value="coupon">Cupom (futuro)</option>
+              <option value="institution">Padrão da instituição</option>
+              <option value="course">Override de curso</option>
+              <option value="accommodation">Override de acomodação</option>
             </select>
           </label>
           <label className="text-xs font-medium text-slate-600">
@@ -94,7 +92,7 @@ export default async function CommissionConfigPage() {
             </select>
           </label>
           <label className="text-xs font-medium text-slate-600">
-            Acomodação (quando escopo for acomodação)
+            Acomodação (quando for override)
             <select name="scopeAccommodationId" className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
               <option value="">Selecione a acomodação</option>
               {accommodationOptions.map((item) => (
@@ -118,17 +116,11 @@ export default async function CommissionConfigPage() {
         </form>
         {institutionOptions.length > 0 && (
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-            <p className="font-semibold text-slate-700">Escopos disponíveis</p>
+            <p className="font-semibold text-slate-700">Como funciona a prioridade</p>
             <ul className="mt-2 space-y-1">
-              {institutionOptions.map((item) => (
-                <li key={`institution-${item.value}`}>Instituição: {item.label}</li>
-              ))}
-              {courseOptions.slice(0, 10).map((item) => (
-                <li key={`course-${item.value}`}>Curso: {item.label}</li>
-              ))}
-              {accommodationOptions.slice(0, 10).map((item) => (
-                <li key={`accommodation-${item.value}`}>Acomodação: {item.label}</li>
-              ))}
+              <li>1. Curso usa override de curso, senão usa comissão da instituição.</li>
+              <li>2. Acomodação usa override de acomodação, senão usa comissão da instituição.</li>
+              <li>3. Cadastre pelo menos a regra padrão da instituição para evitar comissão zerada.</li>
             </ul>
           </div>
         )}
@@ -151,8 +143,6 @@ export default async function CommissionConfigPage() {
                   <option value="institution">Instituição</option>
                   <option value="course">Curso</option>
                   <option value="accommodation">Acomodação</option>
-                  <option value="service">Serviço</option>
-                  <option value="coupon">Cupom</option>
                 </select>
               </label>
               <input type="hidden" name="scopeId" value={config.scopeId} />

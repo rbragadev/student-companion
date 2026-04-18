@@ -244,7 +244,13 @@ export interface EnrollmentStatusHistoryAdmin {
 
 export interface EnrollmentTimelineEventAdmin {
   id: string;
-  type: 'enrollment_created' | 'status_changed' | 'accommodation_status_changed' | 'document' | 'message';
+  type:
+    | 'enrollment_created'
+    | 'status_changed'
+    | 'accommodation_status_changed'
+    | 'document'
+    | 'message'
+    | 'payment';
   occurredAt: string;
   title: string;
   description?: string | null;
@@ -263,6 +269,39 @@ export interface EnrollmentTimelineEventAdmin {
     lastName: string;
     role: 'STUDENT' | 'ADMIN' | 'SUPER_ADMIN';
   };
+}
+
+export interface EnrollmentCheckoutAdmin {
+  enrollmentId: string;
+  state:
+    | 'available'
+    | 'blocked_waiting_approval'
+    | 'blocked_rejected'
+    | 'blocked_missing_quote'
+    | 'paid';
+  reason?: string | null;
+  autoApproveIntent: boolean;
+  enrollmentStatus: EnrollmentAdmin['status'];
+  financial: {
+    currency: string;
+    totalAmount: number;
+    downPaymentAmount: number;
+    remainingAmount: number;
+  };
+}
+
+export interface PaymentAdmin {
+  id: string;
+  enrollmentId?: string | null;
+  enrollmentQuoteId?: string | null;
+  type: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'paid' | 'failed' | 'cancelled';
+  provider: string;
+  providerReference?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
 }
 
 export interface EnrollmentPricingAdmin {
@@ -308,7 +347,14 @@ export interface CoursePricingAdmin {
   createdAt: string;
   updatedAt: string;
   course?: { id: string; program_name: string };
-  academicPeriod?: { id: string; name: string; startDate: string; endDate: string };
+  academicPeriod?: {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    classGroupId?: string;
+    classGroup?: { id: string; name: string; code: string };
+  };
 }
 
 export interface AccommodationPricingAdmin {

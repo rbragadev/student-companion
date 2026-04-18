@@ -7,6 +7,8 @@ export { default as CourseDetailScreen } from './CourseDetailScreen';
 export { default as EnrollmentIntentScreen } from './EnrollmentIntentScreen';
 export { default as AcademicJourneyScreen } from './AcademicJourneyScreen';
 export { default as EnrollmentDetailScreen } from './EnrollmentDetailScreen';
+export { default as EnrollmentCheckoutScreen } from './EnrollmentCheckoutScreen';
+export { default as NotificationsScreen } from './NotificationsScreen';
 export { default as PlacesScreen } from './PlacesScreen';
 export { default as PlaceDetailScreen } from './PlaceDetailScreen';
 export { default as ProfileScreen } from './ProfileScreen';

@@ -53,6 +53,61 @@ export class EnrollmentQuoteService {
     return diffDays / 7;
   }
 
+  private async syncEnrollmentPricingFromQuote(
+    enrollmentId: string,
+    quote: Pick<
+      EnrollmentQuote,
+      | 'courseAmount'
+      | 'accommodationAmount'
+      | 'fees'
+      | 'discounts'
+      | 'totalAmount'
+      | 'currency'
+      | 'commissionAmount'
+      | 'commissionPercentage'
+      | 'commissionCourseAmount'
+      | 'commissionAccommodationAmount'
+    >,
+  ) {
+    await this.prisma.enrollmentPricing.upsert({
+      where: { enrollmentId },
+      create: {
+        enrollmentId,
+        basePrice: this.toNumber(quote.courseAmount),
+        fees: this.toNumber(quote.fees),
+        discounts: this.toNumber(quote.discounts),
+        totalAmount: this.toNumber(quote.totalAmount),
+        enrollmentAmount: this.toNumber(quote.courseAmount),
+        accommodationAmount: this.toNumber(quote.accommodationAmount),
+        packageTotalAmount: this.toNumber(quote.totalAmount),
+        currency: quote.currency,
+        commissionAmount: this.toNumber(quote.commissionAmount),
+        commissionPercentage: this.toNumber(quote.commissionPercentage),
+        enrollmentCommissionAmount: this.toNumber(quote.commissionCourseAmount),
+        enrollmentCommissionPercentage: this.toNumber(quote.commissionPercentage),
+        accommodationCommissionAmount: this.toNumber(quote.commissionAccommodationAmount),
+        accommodationCommissionPercentage: 0,
+        totalCommissionAmount: this.toNumber(quote.commissionAmount),
+      },
+      update: {
+        basePrice: this.toNumber(quote.courseAmount),
+        fees: this.toNumber(quote.fees),
+        discounts: this.toNumber(quote.discounts),
+        totalAmount: this.toNumber(quote.totalAmount),
+        enrollmentAmount: this.toNumber(quote.courseAmount),
+        accommodationAmount: this.toNumber(quote.accommodationAmount),
+        packageTotalAmount: this.toNumber(quote.totalAmount),
+        currency: quote.currency,
+        commissionAmount: this.toNumber(quote.commissionAmount),
+        commissionPercentage: this.toNumber(quote.commissionPercentage),
+        enrollmentCommissionAmount: this.toNumber(quote.commissionCourseAmount),
+        enrollmentCommissionPercentage: this.toNumber(quote.commissionPercentage),
+        accommodationCommissionAmount: this.toNumber(quote.commissionAccommodationAmount),
+        totalCommissionAmount: this.toNumber(quote.commissionAmount),
+      },
+    });
+  }
+
   async create(dto: CreateEnrollmentQuoteDto) {
     const resolvedIntent = dto.enrollmentIntentId
       ? await this.prisma.enrollmentIntent.findUnique({
@@ -61,6 +116,7 @@ export class EnrollmentQuoteService {
             course: { select: { id: true, school: { select: { institutionId: true } } } },
             academicPeriod: { select: { id: true, name: true, startDate: true, endDate: true } },
             accommodation: { select: { id: true } },
+            enrollment: { select: { id: true } },
           },
         })
       : null;
@@ -235,6 +291,8 @@ export class EnrollmentQuoteService {
     }
 
     const resolvedItems: ResolvedQuoteItem[] = [];
+    const contextInstitutionId =
+      resolvedIntent?.course.school.institutionId ?? coursePricing?.course.school.institutionId ?? null;
 
     for (const [index, rawItem] of normalizedItems.entries()) {
       const startDate = new Date(rawItem.startDate);
@@ -318,9 +376,10 @@ export class EnrollmentQuoteService {
 
       this.validateWeeklyRange(startDate, endDate, itemLabel);
 
-      const cfg = await this.commissionConfigService.resolveForAccommodation(
-        resolvedAccommodationPricing.accommodation.id,
-      );
+      const cfg = await this.commissionConfigService.resolveForAccommodation({
+        accommodationId: resolvedAccommodationPricing.accommodation.id,
+        institutionId: contextInstitutionId,
+      });
       const pct = this.toNumber(cfg?.percentage);
       const fixed = this.toNumber(cfg?.fixedAmount ?? 0);
       const amount = Number(
@@ -380,7 +439,7 @@ export class EnrollmentQuoteService {
       ? Number(((commissionAmount / totalAmount) * 100).toFixed(4))
       : 0;
 
-    return this.prisma.enrollmentQuote.create({
+    const createdQuote = await this.prisma.enrollmentQuote.create({
       data: {
         enrollmentIntentId: resolvedIntent?.id ?? dto.enrollmentIntentId ?? null,
         coursePricingId: coursePricing?.id ?? null,
@@ -427,6 +486,12 @@ export class EnrollmentQuoteService {
         items: true,
       },
     });
+
+    if (resolvedIntent?.enrollment?.id) {
+      await this.syncEnrollmentPricingFromQuote(resolvedIntent.enrollment.id, createdQuote);
+    }
+
+    return createdQuote;
   }
 
   findOne(id: string) {

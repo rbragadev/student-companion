@@ -1,8 +1,10 @@
 import type {
   Enrollment,
   EnrollmentDocument,
+  EnrollmentCheckoutState,
   EnrollmentMessage,
   EnrollmentPackageSummary,
+  CheckoutPayment,
   EnrollmentTimelineEvent,
   StudentAcademicJourney,
 } from '../../types/enrollment.types';
@@ -104,5 +106,23 @@ export const enrollmentApi = {
   ): Promise<Enrollment> => {
     const { data } = await apiClient.patch(`/enrollments/${enrollmentId}/accommodation-workflow`, payload);
     return data as Enrollment;
+  },
+
+  getEnrollmentCheckout: async (enrollmentId: string): Promise<EnrollmentCheckoutState> => {
+    const { data } = await apiClient.get(`/enrollments/${enrollmentId}/checkout`);
+    return data as EnrollmentCheckoutState;
+  },
+
+  initializeEnrollmentCheckout: async (enrollmentId: string): Promise<EnrollmentCheckoutState> => {
+    const { data } = await apiClient.post(`/enrollments/${enrollmentId}/checkout`);
+    return data as EnrollmentCheckoutState;
+  },
+
+  payEnrollmentDownPaymentFake: async (enrollmentId: string): Promise<{
+    payment: CheckoutPayment;
+    checkout: EnrollmentCheckoutState;
+  }> => {
+    const { data } = await apiClient.post(`/enrollments/${enrollmentId}/checkout/pay-fake`);
+    return data as { payment: CheckoutPayment; checkout: EnrollmentCheckoutState };
   },
 };

@@ -12,6 +12,7 @@ import {
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { CommissionConfigService } from './commission-config.service';
 import { EnrollmentQuoteService } from './enrollment-quote.service';
+import { NotificationService } from '../notification/notification.service';
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -22,6 +23,7 @@ export class EnrollmentService {
     private readonly enrollmentIntentService: EnrollmentIntentService,
     private readonly commissionConfigService: CommissionConfigService,
     private readonly enrollmentQuoteService: EnrollmentQuoteService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   private readonly includeListGraph = {
@@ -112,6 +114,9 @@ export class EnrollmentService {
           },
         },
       },
+    },
+    payments: {
+      orderBy: { createdAt: 'desc' as const },
     },
   } as const;
 
@@ -241,7 +246,10 @@ export class EnrollmentService {
     );
 
     const accommodationCommissionConfig = enrollment.accommodationId
-      ? await this.commissionConfigService.resolveForAccommodation(enrollment.accommodationId)
+      ? await this.commissionConfigService.resolveForAccommodation({
+          accommodationId: enrollment.accommodationId,
+          institutionId: enrollment.institutionId,
+        })
       : null;
     const accommodationCommissionPercentage = this.toNumber(
       accommodationCommissionConfig?.percentage,
@@ -303,7 +311,7 @@ export class EnrollmentService {
   async createFromIntent(intentId: string) {
     const { intent, chain } = await this.enrollmentIntentService.resolveIntentForEnrollment(intentId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       const enrollment = await tx.enrollment.create({
         data: {
           studentId: intent.studentId,
@@ -330,7 +338,7 @@ export class EnrollmentService {
         null,
       );
 
-      await tx.enrollmentIntent.update({
+      const convertedIntent = await tx.enrollmentIntent.update({
         where: { id: intent.id },
         data: {
           status: 'converted',
@@ -384,11 +392,27 @@ export class EnrollmentService {
         });
       }
 
-      return tx.enrollment.findUnique({
+      const detailedEnrollment = await tx.enrollment.findUnique({
         where: { id: enrollment.id },
         include: this.includeDetailGraph,
       });
+
+      return { enrollment: detailedEnrollment, convertedIntent };
     });
+
+    await this.notificationService.create({
+      userId: intent.studentId,
+      type: 'proposal_approved',
+      title: 'Proposta aprovada',
+      message:
+        'Sua proposta foi aprovada pela operação. O checkout já está liberado para pagamento da entrada.',
+      metadata: {
+        enrollmentId: created.enrollment?.id,
+        enrollmentIntentId: created.convertedIntent.id,
+      },
+    });
+
+    return created.enrollment;
   }
 
   findAll(filters?: {
@@ -515,7 +539,7 @@ export class EnrollmentService {
     });
     if (!enrollment) throw new NotFoundException(`Matrícula ${id} não encontrada`);
 
-    const [statusHistory, documents, messages, accommodationStatusHistory] = await Promise.all([
+    const [statusHistory, documents, messages, accommodationStatusHistory, payments] = await Promise.all([
       this.prisma.enrollmentStatusHistory.findMany({
         where: { enrollmentId: id },
         orderBy: { createdAt: 'asc' },
@@ -546,6 +570,10 @@ export class EnrollmentService {
             select: { id: true, firstName: true, lastName: true, role: true },
           },
         },
+      }),
+      this.prisma.payment.findMany({
+        where: { enrollmentId: id },
+        orderBy: { createdAt: 'asc' },
       }),
     ]);
 
@@ -604,7 +632,26 @@ export class EnrollmentService {
       changedBy: item.changedBy,
     }));
 
-    return [createdEvent, ...statusEvents, ...accommodationEvents, ...documentEvents, ...messageEvents].sort(
+    const paymentEvents = payments.map((item) => ({
+      id: `payment-${item.id}`,
+      type: 'payment',
+      occurredAt: item.paidAt ?? item.createdAt,
+      title:
+        item.status === 'paid'
+          ? 'Pagamento confirmado'
+          : `Pagamento ${item.status}`,
+      description: `${this.toNumber(item.amount).toFixed(2)} ${item.currency} (${item.type})`,
+      channel: 'enrollment',
+    }));
+
+    return [
+      createdEvent,
+      ...statusEvents,
+      ...accommodationEvents,
+      ...documentEvents,
+      ...messageEvents,
+      ...paymentEvents,
+    ].sort(
       (a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime(),
     );
   }
@@ -618,7 +665,7 @@ export class EnrollmentService {
     this.assertValidStatus(status);
     const enrollment = await this.findOne(id);
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.enrollment.update({
         where: { id },
         data: { status },
@@ -639,10 +686,43 @@ export class EnrollmentService {
       await this.recalculateStudentStatus(tx, enrollment.student.id);
       return updated;
     });
+
+    if (status === 'approved') {
+      await this.notificationService.create({
+        userId: enrollment.student.id,
+        type: 'proposal_approved',
+        title: 'Proposta aprovada',
+        message:
+          'Sua proposta foi aprovada pela operação. Acesse a matrícula para concluir o checkout.',
+        metadata: {
+          enrollmentId: id,
+          enrollmentIntentId: enrollment.enrollmentIntent.id,
+        },
+      });
+    }
+
+    if (status === 'rejected' || status === 'denied' || status === 'cancelled') {
+      await this.notificationService.create({
+        userId: enrollment.student.id,
+        type: 'proposal_rejected',
+        title: 'Proposta rejeitada',
+        message: reason?.trim()
+          ? `Sua proposta foi rejeitada: ${reason.trim()}`
+          : 'Sua proposta foi rejeitada/cancelada pela operação.',
+        metadata: {
+          enrollmentId: id,
+          enrollmentIntentId: enrollment.enrollmentIntent.id,
+          status,
+        },
+      });
+    }
+
+    return updated;
   }
 
   async update(id: string, dto: UpdateEnrollmentDto) {
     const enrollment = await this.findOne(id);
+    const requestedStatus = dto.status;
     const hasPricingPayload =
       dto.basePrice !== undefined ||
       dto.fees !== undefined ||
@@ -659,7 +739,7 @@ export class EnrollmentService {
       this.assertValidStatus(dto.status);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedEnrollment = await this.prisma.$transaction(async (tx) => {
       let updatedEnrollment = enrollment;
 
       if (dto.status && dto.status !== enrollment.status) {
@@ -704,6 +784,40 @@ export class EnrollmentService {
         include: this.includeDetailGraph,
       });
     });
+
+    if (requestedStatus && requestedStatus !== enrollment.status) {
+      if (requestedStatus === 'approved') {
+        await this.notificationService.create({
+          userId: enrollment.student.id,
+          type: 'proposal_approved',
+          title: 'Proposta aprovada',
+          message:
+            'Sua proposta foi aprovada pela operação. Acesse a matrícula para concluir o checkout.',
+          metadata: {
+            enrollmentId: id,
+            enrollmentIntentId: enrollment.enrollmentIntent.id,
+          },
+        });
+      }
+
+      if (requestedStatus === 'rejected' || requestedStatus === 'denied' || requestedStatus === 'cancelled') {
+        await this.notificationService.create({
+          userId: enrollment.student.id,
+          type: 'proposal_rejected',
+          title: 'Proposta rejeitada',
+          message: dto.reason?.trim()
+            ? `Sua proposta foi rejeitada: ${dto.reason.trim()}`
+            : 'Sua proposta foi rejeitada/cancelada pela operação.',
+          metadata: {
+            enrollmentId: id,
+            enrollmentIntentId: enrollment.enrollmentIntent.id,
+            status: requestedStatus,
+          },
+        });
+      }
+    }
+
+    return updatedEnrollment;
   }
 
   private async validateAccommodationForSchool(
@@ -847,29 +961,49 @@ export class EnrollmentService {
       ? this.toNumber(enrollment.accommodation.priceInCents) / 100
       : 0;
 
-    const pricingSummary = pricing
-      ? {
-          currency: pricing.currency,
-          enrollmentAmount: this.toNumber(pricing.enrollmentAmount ?? pricing.basePrice),
-          accommodationAmount: this.toNumber(pricing.accommodationAmount),
-          packageTotalAmount: this.toNumber(pricing.packageTotalAmount ?? pricing.totalAmount),
-          enrollmentCommissionAmount: this.toNumber(pricing.enrollmentCommissionAmount),
-          accommodationCommissionAmount: this.toNumber(pricing.accommodationCommissionAmount),
-          totalCommissionAmount: this.toNumber(
-            pricing.totalCommissionAmount ?? pricing.commissionAmount,
-          ),
-          commissionPercentage: this.toNumber(pricing.commissionPercentage),
-        }
-      : {
-          currency: 'CAD',
-          enrollmentAmount: 0,
-          accommodationAmount: fallbackAccommodationAmount,
-          packageTotalAmount: fallbackAccommodationAmount,
-          enrollmentCommissionAmount: 0,
-          accommodationCommissionAmount: 0,
-          totalCommissionAmount: 0,
-          commissionPercentage: 0,
-        };
+    const hasStalePricing =
+      !!pricing &&
+      this.toNumber(pricing.packageTotalAmount ?? pricing.totalAmount) <= 0 &&
+      !!latestQuote &&
+      this.toNumber(latestQuote.totalAmount) > 0;
+
+    const pricingSummary =
+      latestQuote && (!pricing || hasStalePricing)
+        ? {
+            currency: latestQuote.currency,
+            enrollmentAmount: this.toNumber(latestQuote.courseAmount),
+            accommodationAmount: this.toNumber(latestQuote.accommodationAmount),
+            packageTotalAmount: this.toNumber(latestQuote.totalAmount),
+            enrollmentCommissionAmount: this.toNumber(latestQuote.commissionCourseAmount),
+            accommodationCommissionAmount: this.toNumber(
+              latestQuote.commissionAccommodationAmount,
+            ),
+            totalCommissionAmount: this.toNumber(latestQuote.commissionAmount),
+            commissionPercentage: this.toNumber(latestQuote.commissionPercentage),
+          }
+        : pricing
+          ? {
+              currency: pricing.currency,
+              enrollmentAmount: this.toNumber(pricing.enrollmentAmount ?? pricing.basePrice),
+              accommodationAmount: this.toNumber(pricing.accommodationAmount),
+              packageTotalAmount: this.toNumber(pricing.packageTotalAmount ?? pricing.totalAmount),
+              enrollmentCommissionAmount: this.toNumber(pricing.enrollmentCommissionAmount),
+              accommodationCommissionAmount: this.toNumber(pricing.accommodationCommissionAmount),
+              totalCommissionAmount: this.toNumber(
+                pricing.totalCommissionAmount ?? pricing.commissionAmount,
+              ),
+              commissionPercentage: this.toNumber(pricing.commissionPercentage),
+            }
+          : {
+              currency: 'CAD',
+              enrollmentAmount: 0,
+              accommodationAmount: fallbackAccommodationAmount,
+              packageTotalAmount: fallbackAccommodationAmount,
+              enrollmentCommissionAmount: 0,
+              accommodationCommissionAmount: 0,
+              totalCommissionAmount: 0,
+              commissionPercentage: 0,
+            };
 
     return {
       enrollmentId: enrollment.id,

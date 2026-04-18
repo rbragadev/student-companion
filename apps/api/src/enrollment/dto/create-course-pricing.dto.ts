@@ -4,8 +4,21 @@ export class CreateCoursePricingDto {
   @IsUUID()
   courseId!: string;
 
+  @IsOptional()
   @IsUUID()
-  academicPeriodId!: string;
+  academicPeriodId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  classGroupId?: string;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
 
   @IsOptional()
   @IsString()

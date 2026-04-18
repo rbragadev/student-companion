@@ -96,6 +96,11 @@ export default function EnrollmentDetailScreen() {
     queryFn: () => enrollmentApi.getEnrollmentPackageSummary(enrollmentId),
     enabled: !!enrollmentId,
   });
+  const checkoutQuery = useQuery({
+    queryKey: ['enrollment', 'checkout', enrollmentId],
+    queryFn: () => enrollmentApi.getEnrollmentCheckout(enrollmentId),
+    enabled: !!enrollmentId,
+  });
 
   useFocusEffect(
     React.useCallback(() => {
@@ -108,6 +113,7 @@ export default function EnrollmentDetailScreen() {
         });
         await queryClient.invalidateQueries({ queryKey: ['enrollment', 'documents', enrollmentId] });
         await queryClient.invalidateQueries({ queryKey: ['enrollment', 'package-summary', enrollmentId] });
+        await queryClient.invalidateQueries({ queryKey: ['enrollment', 'checkout', enrollmentId] });
         await queryClient.invalidateQueries({ queryKey: ['accommodations', 'upsell-enrollment', enrollmentId] });
         if (userId) {
           await enrollmentApi.markEnrollmentMessagesAsRead({ enrollmentId, userId });
@@ -193,6 +199,7 @@ export default function EnrollmentDetailScreen() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['enrollment', 'detail', enrollmentId] }),
         queryClient.invalidateQueries({ queryKey: ['enrollment', 'package-summary', enrollmentId] }),
+        queryClient.invalidateQueries({ queryKey: ['enrollment', 'checkout', enrollmentId] }),
         queryClient.invalidateQueries({ queryKey: ['accommodations', 'upsell-enrollment', enrollmentId] }),
       ]);
     },
@@ -277,9 +284,6 @@ export default function EnrollmentDetailScreen() {
                   <Text variant="caption">
                     Total do pacote: {packageSummaryQuery.data.pricing.packageTotalAmount.toFixed(2)} {packageSummaryQuery.data.pricing.currency}
                   </Text>
-                  <Text variant="caption">
-                    Comissão total: {packageSummaryQuery.data.pricing.totalCommissionAmount.toFixed(2)} ({packageSummaryQuery.data.pricing.commissionPercentage.toFixed(2)}%)
-                  </Text>
                   {packageSummaryQuery.data.quote && (
                     <>
                       <Text variant="caption">
@@ -296,6 +300,43 @@ export default function EnrollmentDetailScreen() {
                 </View>
               ) : (
                 <Text variant="caption" className="mt-2">Pricing ainda não definido para esta matrícula.</Text>
+              )}
+            </Card>
+
+            <Card>
+              <Text variant="h3" className="font-semibold">Checkout do pacote</Text>
+              {checkoutQuery.isLoading && (
+                <Text variant="caption" className="mt-2">Verificando disponibilidade do checkout...</Text>
+              )}
+              {checkoutQuery.isError && (
+                <Text variant="caption" className="mt-2 text-red-700">
+                  Não foi possível carregar o checkout.
+                </Text>
+              )}
+              {checkoutQuery.data && (
+                <View className="mt-3 gap-1">
+                  <Text variant="caption">Estado: {checkoutQuery.data.state}</Text>
+                  {checkoutQuery.data.reason ? (
+                    <Text variant="caption">{checkoutQuery.data.reason}</Text>
+                  ) : null}
+                  <Text variant="caption">
+                    Total: {checkoutQuery.data.financial.totalAmount.toFixed(2)} {checkoutQuery.data.financial.currency}
+                  </Text>
+                  <Text variant="caption">
+                    Entrada (30%): {checkoutQuery.data.financial.downPaymentAmount.toFixed(2)} {checkoutQuery.data.financial.currency}
+                  </Text>
+                  <Text variant="caption">
+                    Saldo: {checkoutQuery.data.financial.remainingAmount.toFixed(2)} {checkoutQuery.data.financial.currency}
+                  </Text>
+                  <Button
+                    className="mt-3"
+                    onPress={() =>
+                      navigation.navigate(StackRoutes.ENROLLMENT_CHECKOUT, { enrollmentId })
+                    }
+                  >
+                    Ir para checkout
+                  </Button>
+                </View>
               )}
             </Card>
 

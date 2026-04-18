@@ -354,6 +354,23 @@ Regras de acomodação (upsell):
 
 ---
 
+### Checkout · Pagamento · Notificações
+
+| Recurso | Endpoints |
+|---------|-----------|
+| Checkout da matrícula | `GET /enrollments/:id/checkout`, `POST /enrollments/:id/checkout`, `POST /enrollments/:id/checkout/pay-fake` |
+| Pagamentos | `GET /payments`, `GET /payments/:id` |
+| Notificações do aluno | `GET /notifications?userId=...`, `GET /notifications/unread-count?userId=...`, `PATCH /notifications/:id/read?userId=...`, `PATCH /notifications/read-all?userId=...` |
+
+Estados de checkout:
+- `available`: pode pagar entrada.
+- `blocked_waiting_approval`: proposta/matrícula aguardando aprovação operacional.
+- `blocked_rejected`: proposta rejeitada/cancelada.
+- `blocked_missing_quote`: quote ainda não gerada para o contexto.
+- `paid`: entrada já confirmada.
+
+---
+
 ## Banco de Dados
 
 ### Models
