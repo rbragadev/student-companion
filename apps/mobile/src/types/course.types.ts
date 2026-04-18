@@ -27,3 +27,20 @@ export interface Course {
   updatedAt: string;
   school?: School; // Relacionamento incluído
 }
+
+export interface CourseOffer {
+  id: string;
+  courseId: string;
+  classGroupId: string;
+  classGroupName: string;
+  classGroupCode: string;
+  academicPeriodId: string;
+  academicPeriodName: string;
+  startDate: string;
+  endDate: string;
+  coursePricingId: string;
+  basePrice: number;
+  currency: string;
+  duration?: string | null;
+  isActive: boolean;
+}

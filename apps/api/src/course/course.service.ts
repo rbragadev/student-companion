@@ -118,6 +118,74 @@ export class CourseService {
     return course;
   }
 
+  async getCourseOffers(id: string) {
+    await this.getCourseById(id);
+
+    const periods = await this.prisma.academicPeriod.findMany({
+      where: {
+        status: 'ACTIVE',
+        classGroup: {
+          courseId: id,
+          status: 'ACTIVE',
+        },
+      },
+      include: {
+        classGroup: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: [{ startDate: 'asc' }],
+    });
+
+    if (!periods.length) return [];
+
+    const periodIds = periods.map((item) => item.id);
+    const pricings = await this.prisma.coursePricing.findMany({
+      where: {
+        courseId: id,
+        academicPeriodId: { in: periodIds },
+        isActive: true,
+      },
+      select: {
+        id: true,
+        academicPeriodId: true,
+        basePrice: true,
+        currency: true,
+        duration: true,
+        isActive: true,
+      },
+    });
+
+    const pricingByPeriodId = new Map(pricings.map((item) => [item.academicPeriodId, item]));
+
+    return periods
+      .filter((period) => pricingByPeriodId.has(period.id))
+      .map((period) => {
+        const pricing = pricingByPeriodId.get(period.id)!;
+        return {
+          id: `${period.classGroup.id}:${period.id}`,
+          courseId: id,
+          classGroupId: period.classGroup.id,
+          classGroupName: period.classGroup.name,
+          classGroupCode: period.classGroup.code,
+          academicPeriodId: period.id,
+          academicPeriodName: period.name,
+          startDate: period.startDate,
+          endDate: period.endDate,
+          coursePricingId: pricing.id,
+          basePrice: pricing.basePrice,
+          currency: pricing.currency,
+          duration: pricing.duration,
+          isActive: pricing.isActive,
+        };
+      });
+  }
+
   async updateCourse(id: string, data: UpdateCourseDto) {
     const current = await this.getCourseById(id);
 

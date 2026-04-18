@@ -11,13 +11,11 @@ export async function Sidebar() {
   const session = await getSession();
   const permissions = session?.permissions ?? [];
 
-  const [institutions, schools, units, courses, classes, periods] = await Promise.all([
+  const [institutions, schools, units, courses] = await Promise.all([
     apiFetch<unknown[]>('/institution').then((items) => items.length).catch(() => 0),
     apiFetch<unknown[]>('/school').then((items) => items.length).catch(() => 0),
     apiFetch<unknown[]>('/unit').then((items) => items.length).catch(() => 0),
     apiFetch<unknown[]>('/course').then((items) => items.length).catch(() => 0),
-    apiFetch<unknown[]>('/class-group').then((items) => items.length).catch(() => 0),
-    apiFetch<unknown[]>('/academic-period').then((items) => items.length).catch(() => 0),
   ]);
 
   const dependencyCount: Record<NavDependency, number> = {
@@ -25,8 +23,6 @@ export async function Sidebar() {
     schools,
     units,
     courses,
-    classes,
-    periods,
   };
 
   const visibleGroups = navigationGroups

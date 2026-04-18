@@ -19,6 +19,11 @@ export class CourseController {
     return courses;
   }
 
+  @Get(':id/offers')
+  async getCourseOffers(@Param('id') id: string) {
+    return this.courseService.getCourseOffers(id);
+  }
+
   @Get(':id')
   async getCourseById(@Param('id') id: string) {
     const course = await this.courseService.getCourseById(id);

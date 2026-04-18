@@ -713,29 +713,18 @@ export class EnrollmentService {
   ) {
     if (!accommodationId) return null;
 
-    const [accommodation, recommendation] = await Promise.all([
-      tx.accommodation.findUnique({
-        where: { id: accommodationId },
-        select: { id: true, isActive: true },
-      }),
-      tx.schoolAccommodationRecommendation.findFirst({
-        where: {
-          schoolId,
-          accommodationId,
-          isRecommended: true,
-        },
-        select: { id: true },
-      }),
-    ]);
+    const accommodation = await tx.accommodation.findUnique({
+      where: { id: accommodationId },
+      select: { id: true, isActive: true },
+    });
 
     if (!accommodation || accommodation.isActive === false) {
       throw new NotFoundException(`Acomodação ${accommodationId} não encontrada ou inativa`);
     }
-    if (!recommendation) {
-      throw new BadRequestException(
-        'A acomodação selecionada não está recomendada para a escola da matrícula',
-      );
-    }
+
+    // Recomendação por escola segue como sinal de prioridade no upsell.
+    // A operação pode fechar com acomodação não recomendada.
+    void schoolId;
 
     return accommodationId;
   }

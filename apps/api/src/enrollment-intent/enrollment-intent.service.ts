@@ -152,29 +152,18 @@ export class EnrollmentIntentService {
   ) {
     if (!accommodationId) return null;
 
-    const [accommodation, recommendation] = await Promise.all([
-      this.prisma.accommodation.findUnique({
-        where: { id: accommodationId },
-        select: { id: true, isActive: true },
-      }),
-      this.prisma.schoolAccommodationRecommendation.findFirst({
-        where: {
-          schoolId,
-          accommodationId,
-          isRecommended: true,
-        },
-        select: { id: true },
-      }),
-    ]);
+    const accommodation = await this.prisma.accommodation.findUnique({
+      where: { id: accommodationId },
+      select: { id: true, isActive: true },
+    });
 
     if (!accommodation || accommodation.isActive === false) {
       throw new NotFoundException(`Acomodação ${accommodationId} não encontrada ou inativa`);
     }
-    if (!recommendation) {
-      throw new BadRequestException(
-        'A acomodação selecionada não está recomendada para a escola do contexto acadêmico',
-      );
-    }
+
+    // Recomendação por escola continua sendo critério de sugestão/prioridade,
+    // mas não bloqueia o fechamento do pacote.
+    void schoolId;
 
     return accommodationId;
   }

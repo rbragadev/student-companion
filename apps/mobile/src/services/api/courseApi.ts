@@ -3,7 +3,7 @@
  * All course-related API endpoints
  */
 
-import { Course } from '../../types/course.types';
+import { Course, CourseOffer } from '../../types/course.types';
 import { apiClient } from './client';
 import { mapCoursePayload } from './mappers/catalogMappers';
 
@@ -22,5 +22,10 @@ export const courseApi = {
   getCourseById: async (courseId: string): Promise<Course> => {
     const { data } = await apiClient.get(`/course/${courseId}`);
     return mapCoursePayload(data);
+  },
+
+  getCourseOffers: async (courseId: string): Promise<CourseOffer[]> => {
+    const { data } = await apiClient.get(`/course/${courseId}/offers`);
+    return Array.isArray(data) ? (data as CourseOffer[]) : [];
   },
 };

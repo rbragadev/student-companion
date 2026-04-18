@@ -70,3 +70,34 @@ export async function deleteCourseAction(id: string) {
   revalidatePath('/courses');
   redirect('/courses');
 }
+
+export async function createCoursePricingInlineAction(courseId: string, formData: FormData) {
+  await assertActionPermission('structure.write');
+  await apiFetch('/course-pricing', {
+    method: 'POST',
+    body: JSON.stringify({
+      courseId,
+      academicPeriodId: getText(formData, 'academicPeriodId'),
+      duration: getText(formData, 'duration') || undefined,
+      basePrice: Number(getText(formData, 'basePrice')),
+      currency: getText(formData, 'currency') || 'CAD',
+      isActive: getBool(formData, 'isActive'),
+    }),
+  });
+  revalidatePath(`/courses/${courseId}`);
+}
+
+export async function updateCoursePricingInlineAction(courseId: string, formData: FormData) {
+  await assertActionPermission('structure.write');
+  const id = getText(formData, 'id');
+  await apiFetch(`/course-pricing/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      duration: getText(formData, 'duration') || undefined,
+      basePrice: Number(getText(formData, 'basePrice')),
+      currency: getText(formData, 'currency') || 'CAD',
+      isActive: getBool(formData, 'isActive'),
+    }),
+  });
+  revalidatePath(`/courses/${courseId}`);
+}

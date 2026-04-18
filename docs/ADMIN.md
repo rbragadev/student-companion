@@ -117,9 +117,8 @@ apps/admin/
     │       ├── schools/        # CRUD de escolas (catálogo mobile)
     │       ├── units/          # CRUD de unidades
     │       ├── courses/        # CRUD de cursos (catálogo mobile)
-    │       ├── class-groups/   # CRUD de turmas (por curso)
-    │       ├── academic-periods/ # CRUD de períodos da turma
-    │       ├── course-pricing/ # Preço de curso por período
+    │       ├── class-groups/   # Operação interna de turmas (admin)
+    │       ├── academic-periods/ # Operação interna de períodos (admin)
     │       ├── academic-structure/ # Consulta relacional com filtros encadeados
     │       ├── enrollment-intents/ # Lista e detalhe de intenções de matrícula
     │       ├── enrollments/    # Lista e detalhe operacional/financeiro das matrículas
@@ -128,7 +127,7 @@ apps/admin/
     │       ├── financial-overview/ # Visão financeira inicial das comissões geradas
     │       ├── accommodations/ # Catálogo + detalhe por acomodação (dados, pricing e recomendação)
     │       ├── accommodations/[id]/ # Centro do domínio da acomodação
-    │       ├── accommodation-pricing/ # (legado) visão tabular de preços por acomodação/período
+    │       ├── accommodation-pricing/ # (legado interno) visão tabular de preços
     │       ├── places/         # Lista integrada com dados reais
     │       ├── students/       # Lista de usuários STUDENT
     │       ├── profiles/       # Lista, criação e edição de perfis
@@ -198,12 +197,8 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   CRUD real em `/unit` (com vínculo de escola).
 - `/courses`, `/courses/new`, `/courses/[id]`
   CRUD real em `/course` (com vínculo obrigatório de unidade e escola, preservando contrato do mobile).
-- `/class-groups`, `/class-groups/new`, `/class-groups/[id]`
-  CRUD real em `/class-group` (com vínculo obrigatório de curso).
-- `/academic-periods`, `/academic-periods/new`, `/academic-periods/[id]`
-  CRUD real em `/academic-period` (cada período pertence a uma turma).
-- `/course-pricing`
-  Configuração de preço por curso e período real consumido no fluxo de intenção.
+- `class-group` e `academic-period` seguem no backend para operação interna e validação da matrícula, mas deixaram de ser contexto principal de navegação para o usuário administrativo de negócio.
+- pricing de curso foi centralizado no detalhe do próprio curso (`/courses/[id]`).
 - `/academic-structure`
   Consulta operacional da cadeia acadêmica com filtros dependentes:
   instituição -> escola -> unidade -> curso -> turma.
@@ -228,7 +223,7 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
 - `/accommodations` e `/accommodations/[id]`
   Catálogo independente com detalhe centralizado por acomodação: dados gerais, pricing por período e recomendação por escola (recomendada, prioridade e badge), com visualização de uso em intenções e matrículas.
-  A página `/accommodation-pricing` segue disponível apenas como visão tabular legada.
+  A página `/accommodation-pricing` segue disponível apenas como visão tabular interna/legada.
   Regra operacional: máximo de 3 recomendações ativas por escola/contexto.
 
 Fluxo único de dados:
@@ -240,7 +235,7 @@ Status da integração mobile (escopo acadêmico já coberto):
 - `school`: mobile consome `GET /school` real.
 - `course`: mobile consome `GET /course` e `GET /course/:id` reais.
 - Normalização de contrato (`snake_case` -> `camelCase`) ocorre no mobile em `services/api/mappers/catalogMappers.ts`, sem duplicar domínio no backend.
-- Step A monetização: mobile cria intenção real em `POST /enrollment-intents` com seleção de curso/turma/período e o `studentStatus` volta atualizado pela API.
+- Step A monetização: mobile cria intenção real em `POST /enrollment-intents` com seleção de curso + datas/oferta; turma/período são resolvidos internamente.
 - Step B monetização: confirmação via SaaS usa `POST /enrollments/from-intent/:intentId`, converte intenção para matrícula real e inicia workflow operacional.
 - O mobile reflete matrícula ativa via `GET /enrollments/active?studentId=...`.
 - O mobile usa `GET /enrollments/journey/:studentId` como índice da jornada e abre contexto completo por matrícula em tela dedicada (`GET /enrollments/:id`, `/enrollments/:id/timeline`, `/enrollment-documents`, `/enrollment-messages`).
@@ -259,7 +254,7 @@ Status da integração mobile (escopo acadêmico já coberto):
   - quote exibe tipo do pacote (`course_only`, `course_with_accommodation`), total, entrada, saldo e comissão.
   - quote aceita montagem por itens (`course` e `accommodation`) com datas por item; suporta `accommodation_only` (standalone) no backend.
   - no mobile, o fechamento de pacote é em 4 etapas:
-    1. curso + período/datas
+    1. curso + oferta de datas
     2. acomodação (recomendadas no topo, catálogo completo abaixo, opcional)
     3. confirmação final do pacote (itens, datas, total e entrada)
     4. resultado do fechamento (`autoApproveIntent=true` -> checkout; `false` -> proposta enviada para aprovação)
@@ -271,7 +266,7 @@ Status da integração mobile (escopo acadêmico já coberto):
 
 - Dashboard
 - Configuração Acadêmica
-  Instituições → Escolas (Catálogo App) → Unidades → Cursos → Turmas → Períodos da Turma → Estrutura Acadêmica
+  Instituições → Escolas (Catálogo App) → Unidades → Cursos → Estrutura Acadêmica
 - Estrutura Física
   Acomodações → Lugares
 - Pessoas e Acesso

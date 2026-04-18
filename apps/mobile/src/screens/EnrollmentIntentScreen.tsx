@@ -8,8 +8,6 @@ import { Button, Card, Screen, Text } from '../components';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 import { enrollmentIntentApi } from '../services/api/enrollmentIntentApi';
 import type {
-  AcademicPeriodOption,
-  ClassGroupOption,
   CoursePricing,
   AccommodationPricing,
   EnrollmentIntent,
@@ -22,7 +20,7 @@ import { enrollmentApi } from '../services/api/enrollmentApi';
 import type { Accommodation } from '../types/accommodation.types';
 import { accommodationApi } from '../services/api/accommodationApi';
 import { courseApi } from '../services/api/courseApi';
-import type { Course } from '../types/course.types';
+import type { Course, CourseOffer } from '../types/course.types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, typeof StackRoutes.ENROLLMENT_INTENT>;
@@ -105,13 +103,11 @@ export default function EnrollmentIntentScreen() {
   const [error, setError] = React.useState<string | null>(null);
 
   const [course, setCourse] = React.useState<Course | null>(null);
-  const [classGroups, setClassGroups] = React.useState<ClassGroupOption[]>([]);
-  const [periods, setPeriods] = React.useState<AcademicPeriodOption[]>([]);
+  const [courseOffers, setCourseOffers] = React.useState<CourseOffer[]>([]);
   const [openIntent, setOpenIntent] = React.useState<EnrollmentIntent | null>(null);
   const [hasActiveEnrollment, setHasActiveEnrollment] = React.useState(false);
 
-  const [selectedClassGroupId, setSelectedClassGroupId] = React.useState('');
-  const [selectedPeriodId, setSelectedPeriodId] = React.useState('');
+  const [selectedOfferId, setSelectedOfferId] = React.useState('');
   const [courseStartDate, setCourseStartDate] = React.useState(todayIso);
   const [courseEndDate, setCourseEndDate] = React.useState(plus28Iso);
   const [coursePricing, setCoursePricing] = React.useState<CoursePricing | null>(null);
@@ -122,6 +118,8 @@ export default function EnrollmentIntentScreen() {
   const [allAccommodations, setAllAccommodations] = React.useState<Accommodation[]>([]);
   const [showAllAccommodations, setShowAllAccommodations] = React.useState(false);
   const [selectedAccommodationId, setSelectedAccommodationId] = React.useState('');
+  const [acceptedNonRecommendedAccommodation, setAcceptedNonRecommendedAccommodation] =
+    React.useState(false);
   const [accommodationStartDate, setAccommodationStartDate] = React.useState(todayIso);
   const [accommodationEndDate, setAccommodationEndDate] = React.useState(plus28Iso);
   const [accommodationPricing, setAccommodationPricing] = React.useState<AccommodationPricing | null>(
@@ -136,18 +134,21 @@ export default function EnrollmentIntentScreen() {
   const [quotePreview, setQuotePreview] = React.useState<EnrollmentQuote | null>(null);
   const [resultType, setResultType] = React.useState<'auto_approve' | 'proposal'>('proposal');
 
-  const selectedPeriod = React.useMemo(
-    () => periods.find((item) => item.id === selectedPeriodId) ?? null,
-    [periods, selectedPeriodId],
+  const selectedOffer = React.useMemo(
+    () => courseOffers.find((item) => item.id === selectedOfferId) ?? null,
+    [courseOffers, selectedOfferId],
   );
 
+  const selectedClassGroupId = selectedOffer?.classGroupId ?? '';
+  const selectedPeriodId = selectedOffer?.academicPeriodId ?? '';
+
   const weeklyCourseStartOptions = React.useMemo(() => {
-    if (!selectedPeriod) return [];
+    if (!selectedOffer) return [];
     return listSundaysBetween(
-      selectedPeriod.startDate.slice(0, 10),
-      selectedPeriod.endDate.slice(0, 10),
+      selectedOffer.startDate.slice(0, 10),
+      selectedOffer.endDate.slice(0, 10),
     );
-  }, [selectedPeriod]);
+  }, [selectedOffer]);
 
   const weeklyAccommodationOptions = React.useMemo(() => {
     if (!isIsoDate(accommodationStartDate)) return [];
@@ -163,6 +164,11 @@ export default function EnrollmentIntentScreen() {
     return [0, 1, 2, 3, 4, 5, 6].map((offset) => addDays(alignedCourseStart, offset * 7));
   }, [courseStartDate]);
 
+  const isSelectedAccommodationRecommended = React.useMemo(() => {
+    if (!selectedAccommodationId) return true;
+    return recommendedAccommodations.some((item) => item.id === selectedAccommodationId);
+  }, [recommendedAccommodations, selectedAccommodationId]);
+
   React.useEffect(() => {
     const run = async () => {
       if (!userId) {
@@ -173,10 +179,10 @@ export default function EnrollmentIntentScreen() {
       try {
         setLoading(true);
         setError(null);
-        const [courseDetail, groups, pendingIntent, activeEnrollment, recommended, all] =
+        const [courseDetail, offers, pendingIntent, activeEnrollment, recommended, all] =
           await Promise.all([
             courseApi.getCourseById(courseId),
-            enrollmentIntentApi.getClassGroupsByCourse(courseId),
+            courseApi.getCourseOffers(courseId),
             enrollmentIntentApi.getOpenIntentByStudent(userId),
             enrollmentApi.getActiveEnrollmentByStudent(userId),
             enrollmentIntentApi.getRecommendedAccommodationsByCourse(courseId),
@@ -184,7 +190,20 @@ export default function EnrollmentIntentScreen() {
           ]);
 
         setCourse(courseDetail);
-        setClassGroups(groups.filter((item) => item.status === 'ACTIVE'));
+        setCourseOffers(offers);
+        const firstOffer = offers[0] ?? null;
+        if (firstOffer) {
+          setSelectedOfferId(firstOffer.id);
+          const start = firstOffer.startDate.slice(0, 10);
+          const weeklyStart = alignToNextSunday(start);
+          const initialEnd = addDays(weeklyStart, 28);
+          setCourseStartDate(courseDetail.periodType === 'fixed' ? start : weeklyStart);
+          setCourseEndDate(
+            courseDetail.periodType === 'fixed' ? firstOffer.endDate.slice(0, 10) : initialEnd,
+          );
+          setAccommodationStartDate(weeklyStart);
+          setAccommodationEndDate(initialEnd);
+        }
         setOpenIntent(pendingIntent);
         setHasActiveEnrollment(!!activeEnrollment);
         setRecommendedAccommodations(recommended.slice(0, 3));
@@ -208,43 +227,7 @@ export default function EnrollmentIntentScreen() {
 
   React.useEffect(() => {
     const run = async () => {
-      if (!selectedClassGroupId) {
-        setPeriods([]);
-        setSelectedPeriodId('');
-        setCoursePricing(null);
-        return;
-      }
-
-      try {
-        const values = await enrollmentIntentApi.getAcademicPeriodsByClassGroup(selectedClassGroupId);
-        const active = values.filter((item) => item.status === 'ACTIVE');
-        setPeriods(active);
-        setSelectedPeriodId('');
-        setCoursePricing(null);
-        setQuotePreview(null);
-
-        if (active[0]) {
-          const initialStart = active[0].startDate.slice(0, 10);
-          const weeklyStart = alignToNextSunday(initialStart);
-          const initialEnd = addDays(weeklyStart, 28);
-          setCourseStartDate(course?.periodType === 'fixed' ? initialStart : weeklyStart);
-          setCourseEndDate(
-            course?.periodType === 'fixed' ? active[0].endDate.slice(0, 10) : initialEnd,
-          );
-          setAccommodationStartDate(weeklyStart);
-          setAccommodationEndDate(initialEnd);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Falha ao carregar períodos');
-      }
-    };
-
-    void run();
-  }, [course?.periodType, selectedClassGroupId]);
-
-  React.useEffect(() => {
-    const run = async () => {
-      if (!selectedPeriodId) {
+      if (!selectedOffer || !selectedPeriodId) {
         setCoursePricing(null);
         setQuotePreview(null);
         return;
@@ -263,7 +246,7 @@ export default function EnrollmentIntentScreen() {
     };
 
     void run();
-  }, [courseEndDate, courseId, courseStartDate, selectedPeriodId]);
+  }, [courseEndDate, courseId, courseStartDate, selectedOffer, selectedPeriodId]);
 
   React.useEffect(() => {
     const run = async () => {
@@ -273,7 +256,7 @@ export default function EnrollmentIntentScreen() {
       }
 
       try {
-        const periodName = periods.find((item) => item.id === selectedPeriodId)?.name;
+        const periodName = selectedOffer?.academicPeriodName;
         const pricing = await enrollmentIntentApi.getAccommodationPricing(
           selectedAccommodationId,
           periodName,
@@ -296,7 +279,7 @@ export default function EnrollmentIntentScreen() {
     void run();
   }, [
     selectedAccommodationId,
-    periods,
+    selectedOffer,
     selectedPeriodId,
     accommodationStartDate,
     accommodationEndDate,
@@ -305,6 +288,7 @@ export default function EnrollmentIntentScreen() {
   const selectAccommodation = React.useCallback(
     (accommodationId: string) => {
       setSelectedAccommodationId(accommodationId);
+      setAcceptedNonRecommendedAccommodation(false);
       if (isIsoDate(courseStartDate)) {
         const start = alignToNextSunday(courseStartDate);
         const weeks = isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)
@@ -325,7 +309,7 @@ export default function EnrollmentIntentScreen() {
         setModalPricingLoading(true);
         const pricing = await enrollmentIntentApi.getAccommodationPricing(
           item.id,
-          selectedPeriod?.name,
+          selectedOffer?.academicPeriodName,
           {
             startDate: toIsoDate(accommodationStartDate),
             endDate: toIsoDate(accommodationEndDate),
@@ -338,11 +322,11 @@ export default function EnrollmentIntentScreen() {
         setModalPricingLoading(false);
       }
     },
-    [selectedPeriod?.name, accommodationStartDate, accommodationEndDate],
+    [selectedOffer?.academicPeriodName, accommodationStartDate, accommodationEndDate],
   );
 
   const canGoToStep2 = React.useMemo(() => {
-    if (!coursePricing || !selectedClassGroupId || !selectedPeriodId) return false;
+    if (!coursePricing || !selectedOffer) return false;
     if (!isIsoDate(courseStartDate) || !isIsoDate(courseEndDate)) return false;
 
     const start = new Date(`${courseStartDate}T00:00:00.000Z`);
@@ -356,8 +340,7 @@ export default function EnrollmentIntentScreen() {
     return true;
   }, [
     coursePricing,
-    selectedClassGroupId,
-    selectedPeriodId,
+    selectedOffer,
     courseStartDate,
     courseEndDate,
     course?.periodType,
@@ -488,9 +471,9 @@ export default function EnrollmentIntentScreen() {
   const renderCourseStep = () => (
     <>
       <Card>
-        <Text variant="h3" className="font-semibold">Etapa 1 — Curso e Período</Text>
+        <Text variant="h3" className="font-semibold">Etapa 1 — Curso e datas</Text>
         <Text variant="caption" className="mt-1">
-          Selecione turma, período e datas válidas antes de avançar.
+          Selecione a oferta de datas do curso e ajuste o intervalo válido antes de avançar.
         </Text>
         <View className="mt-3 gap-2">
           <Text variant="caption">Curso</Text>
@@ -502,41 +485,20 @@ export default function EnrollmentIntentScreen() {
       </Card>
 
       <Card>
-        <Text variant="h3" className="font-semibold">Turma</Text>
+        <Text variant="h3" className="font-semibold">Oferta disponível</Text>
         <View className="mt-3 gap-2">
-          {classGroups.map((group) => (
+          {courseOffers.map((offer) => (
             <TouchableOpacity
-              key={group.id}
-              onPress={() => setSelectedClassGroupId(group.id)}
-              activeOpacity={0.8}
-              className={`rounded-lg border px-3 py-2 ${
-                selectedClassGroupId === group.id
-                  ? 'border-primary-500 bg-primary-50'
-                  : 'border-border bg-white'
-              }`}
-            >
-              <Text variant="body">{group.name} ({group.code})</Text>
-            </TouchableOpacity>
-          ))}
-          {classGroups.length === 0 && <Text variant="caption">Nenhuma turma ativa disponível.</Text>}
-        </View>
-      </Card>
-
-      <Card>
-        <Text variant="h3" className="font-semibold">Período</Text>
-        <View className="mt-3 gap-2">
-          {periods.map((period) => (
-            <TouchableOpacity
-              key={period.id}
+              key={offer.id}
               onPress={() => {
-                setSelectedPeriodId(period.id);
+                setSelectedOfferId(offer.id);
                 if (course?.periodType === 'fixed') {
-                  setCourseStartDate(period.startDate.slice(0, 10));
-                  setCourseEndDate(period.endDate.slice(0, 10));
-                  setAccommodationStartDate(period.startDate.slice(0, 10));
-                  setAccommodationEndDate(addDays(period.startDate.slice(0, 10), 28));
+                  setCourseStartDate(offer.startDate.slice(0, 10));
+                  setCourseEndDate(offer.endDate.slice(0, 10));
+                  setAccommodationStartDate(offer.startDate.slice(0, 10));
+                  setAccommodationEndDate(addDays(offer.startDate.slice(0, 10), 28));
                 } else {
-                  const weeklyStart = alignToNextSunday(period.startDate.slice(0, 10));
+                  const weeklyStart = alignToNextSunday(offer.startDate.slice(0, 10));
                   setCourseStartDate(weeklyStart);
                   setCourseEndDate(addDays(weeklyStart, 28));
                   setAccommodationStartDate(weeklyStart);
@@ -545,19 +507,22 @@ export default function EnrollmentIntentScreen() {
               }}
               activeOpacity={0.8}
               className={`rounded-lg border px-3 py-2 ${
-                selectedPeriodId === period.id
+                selectedOfferId === offer.id
                   ? 'border-primary-500 bg-primary-50'
                   : 'border-border bg-white'
               }`}
             >
-              <Text variant="body">{period.name}</Text>
+              <Text variant="body">{offer.academicPeriodName}</Text>
               <Text variant="caption">
-                {new Date(period.startDate).toLocaleDateString()} - {new Date(period.endDate).toLocaleDateString()}
+                {new Date(offer.startDate).toLocaleDateString()} - {new Date(offer.endDate).toLocaleDateString()}
+              </Text>
+              <Text variant="caption">
+                Preço base: {formatMoney(Number(offer.basePrice), offer.currency)}
               </Text>
             </TouchableOpacity>
           ))}
-          {selectedClassGroupId && periods.length === 0 && (
-            <Text variant="caption">Nenhum período ativo para essa turma.</Text>
+          {courseOffers.length === 0 && (
+            <Text variant="caption">Nenhuma oferta ativa disponível para este curso.</Text>
           )}
         </View>
       </Card>
@@ -779,10 +744,28 @@ export default function EnrollmentIntentScreen() {
             >
               Ver detalhes
             </Button>
-            <Button variant="ghost" className="flex-1" onPress={() => setSelectedAccommodationId('')}>
-              Remover
-            </Button>
-          </View>
+                <Button variant="ghost" className="flex-1" onPress={() => setSelectedAccommodationId('')}>
+                  Remover
+                </Button>
+              </View>
+            </Card>
+          )}
+
+      {selectedAccommodationId && !isSelectedAccommodationRecommended && (
+        <Card className="border-amber-200 bg-amber-50">
+          <Text variant="h3" className="font-semibold text-amber-900">
+            Acomodação fora da recomendação da escola
+          </Text>
+          <Text variant="caption" className="mt-2 text-amber-700">
+            Você pode seguir mesmo assim, mas essa opção não está entre as recomendadas para o contexto acadêmico.
+          </Text>
+          <Button
+            className="mt-3"
+            variant={acceptedNonRecommendedAccommodation ? 'outline' : 'primary'}
+            onPress={() => setAcceptedNonRecommendedAccommodation((value) => !value)}
+          >
+            {acceptedNonRecommendedAccommodation ? 'Confirmação aplicada' : 'Seguir mesmo assim'}
+          </Button>
         </Card>
       )}
 
@@ -873,13 +856,22 @@ export default function EnrollmentIntentScreen() {
             !quotePreview ||
             (Boolean(selectedAccommodationId) &&
               (!accommodationPricing ||
-                !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)))
+                !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate))) ||
+            (Boolean(selectedAccommodationId) &&
+              !isSelectedAccommodationRecommended &&
+              !acceptedNonRecommendedAccommodation)
           }
         >
           Revisar pacote
         </Button>
       </View>
-      <Button variant="ghost" onPress={() => setSelectedAccommodationId('')}>
+      <Button
+        variant="ghost"
+        onPress={() => {
+          setSelectedAccommodationId('');
+          setAcceptedNonRecommendedAccommodation(false);
+        }}
+      >
         Seguir sem acomodação
       </Button>
     </>

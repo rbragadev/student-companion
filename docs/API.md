@@ -150,6 +150,7 @@ Exemplo `PUT /admin-profile/:id/permissions`:
 | `GET/PATCH/DELETE` | `/class-group/:id` | Detalhe / editar / excluir turma |
 | `GET/POST` | `/academic-period` | Listar / criar período da turma (`?classGroupId=` opcional) |
 | `GET/PATCH/DELETE` | `/academic-period/:id` | Detalhe / editar / excluir período |
+| `GET` | `/course/:id/offers` | Lista ofertas do curso (datas+pricing), com turma/período internos para validação |
 
 Regras de relacionamento:
 - Escola pertence a uma instituição.
@@ -161,6 +162,7 @@ Regras de relacionamento:
 
 Compatibilidade mobile:
 - O app mobile continua consumindo `GET /school` e `GET /course`.
+- No fechamento de pacote, o app consome `GET /course/:id/offers` e exibe apenas curso + datas (sem expor turma/período para o aluno).
 - No domínio de cursos, a API mantém campos persistidos em `snake_case` (ex.: `program_name`, `price_in_cents`, `rating_count`) por compatibilidade histórica.
 - O mobile normaliza esse contrato na camada `services/api/mappers/catalogMappers.ts`, convertendo para `camelCase` antes de chegar nas telas/hooks.
 - O vínculo `course.school_id` permanece ativo para não quebrar a navegação/listagem no app.
@@ -193,7 +195,7 @@ Regras:
 - valida a cadeia `course -> class_group -> academic_period`
 - permite apenas 1 intenção **pendente** por aluno (validação de serviço)
 - `accommodation` é opcional na intenção
-- quando informada, precisa estar recomendada para a escola do contexto acadêmico da intenção
+- quando informada, deve ser uma acomodação ativa; recomendação por escola atua como prioridade de sugestão (não bloqueio)
 - atualiza `users.student_status` no fluxo: `lead -> application_started -> pending_enrollment`
 - histórico de intenções é preservado (`pending`, `converted`, `cancelled`, `denied`)
 

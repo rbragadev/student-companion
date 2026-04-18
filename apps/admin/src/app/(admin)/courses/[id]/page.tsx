@@ -6,9 +6,14 @@ import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import type { CourseAdmin, CoursePricingAdmin, SchoolAdmin } from '@/types/catalog.types';
-import type { Unit } from '@/types/structure.types';
+import type { AcademicPeriod, ClassGroup, Unit } from '@/types/structure.types';
 import { CourseHierarchyFields } from '../course-hierarchy-fields';
-import { deleteCourseAction, updateCourseAction } from '../actions';
+import {
+  createCoursePricingInlineAction,
+  deleteCourseAction,
+  updateCourseAction,
+  updateCoursePricingInlineAction,
+} from '../actions';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -19,14 +24,18 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
   const session = await requirePermission('structure.read');
   const canWrite = session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
-  const [course, schools, units, pricingRows] = await Promise.all([
+  const [course, schools, units, pricingRows, classGroups, periods] = await Promise.all([
     apiFetch<CourseAdmin>(`/course/${id}`).catch(() => null),
     apiFetch<SchoolAdmin[]>('/school').catch(() => []),
     apiFetch<Unit[]>('/unit').catch(() => []),
     apiFetch<CoursePricingAdmin[]>(`/course-pricing?courseId=${id}`).catch(() => []),
+    apiFetch<ClassGroup[]>(`/class-group?courseId=${id}`).catch(() => []),
+    apiFetch<AcademicPeriod[]>('/academic-period').catch(() => []),
   ]);
 
   if (!course) notFound();
+  const classGroupIds = new Set(classGroups.map((item) => item.id));
+  const coursePeriods = periods.filter((period) => classGroupIds.has(period.classGroupId));
 
   return (
     <div className="flex flex-col gap-6">
@@ -91,21 +100,88 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
         </p>
 
         <div className="mt-4 space-y-2">
+          {canWrite && (
+            <form action={createCoursePricingInlineAction.bind(null, course.id)} className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 text-sm sm:grid-cols-6">
+              <input type="hidden" name="courseId" value={course.id} />
+              <select name="academicPeriodId" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm">
+                <option value="">Período da oferta</option>
+                {coursePeriods.map((period) => (
+                  <option key={period.id} value={period.id}>
+                    {period.name} ({new Date(period.startDate).toLocaleDateString()} - {new Date(period.endDate).toLocaleDateString()})
+                  </option>
+                ))}
+              </select>
+              <input
+                name="duration"
+                placeholder={course.period_type === 'weekly' ? 'ex: 4-24 weeks' : 'ex: 16 weeks'}
+                className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
+              />
+              <input name="basePrice" type="number" min={0} step="0.01" required placeholder="Preço base" className="h-9 rounded-lg border border-slate-300 px-3 text-sm" />
+              <input name="currency" defaultValue="CAD" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm" />
+              <label className="flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm">
+                <input type="checkbox" name="isActive" defaultChecked />
+                Ativo
+              </label>
+              <Button type="submit" size="sm">Adicionar pricing</Button>
+            </form>
+          )}
           {pricingRows.map((row) => (
-            <div key={row.id} className="rounded-lg border border-slate-200 p-3 text-sm">
-              <p className="font-medium text-slate-900">{row.academicPeriod?.name ?? 'Período'}</p>
-              <p className="text-slate-600">
-                Preço base: {Number(row.basePrice).toFixed(2)} {row.currency}
-              </p>
-              <p className="text-slate-500">
-                Janela: {row.academicPeriod?.startDate ? new Date(row.academicPeriod.startDate).toLocaleDateString() : '-'} -{' '}
-                {row.academicPeriod?.endDate ? new Date(row.academicPeriod.endDate).toLocaleDateString() : '-'}
-              </p>
-            </div>
+            <form key={row.id} action={updateCoursePricingInlineAction.bind(null, course.id)} className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 text-sm sm:grid-cols-6">
+              <input type="hidden" name="id" value={row.id} />
+              <div className="sm:col-span-2">
+                <p className="font-medium text-slate-900">{row.academicPeriod?.name ?? 'Período'}</p>
+                <p className="text-xs text-slate-500">
+                  Janela: {row.academicPeriod?.startDate ? new Date(row.academicPeriod.startDate).toLocaleDateString() : '-'} -{' '}
+                  {row.academicPeriod?.endDate ? new Date(row.academicPeriod.endDate).toLocaleDateString() : '-'}
+                </p>
+              </div>
+              <input name="duration" defaultValue={row.duration ?? ''} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
+              <input name="basePrice" type="number" min={0} step="0.01" defaultValue={Number(row.basePrice)} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
+              <input name="currency" defaultValue={row.currency} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
+              <div className="flex items-center gap-2">
+                <label className="flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm">
+                  <input type="checkbox" name="isActive" defaultChecked={row.isActive} disabled={!canWrite} />
+                  Ativo
+                </label>
+                <Button type="submit" size="sm" disabled={!canWrite}>Salvar</Button>
+              </div>
+            </form>
           ))}
           {pricingRows.length === 0 && (
             <p className="text-xs text-slate-500">Nenhum pricing configurado para este curso.</p>
           )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-slate-900">Turmas internas vinculadas</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Turma é operacional interno do admin. O aluno não escolhe turma no app.
+        </p>
+        <div className="mt-4 space-y-2">
+          {classGroups.map((group) => {
+            const countPeriods = periods.filter((period) => period.classGroupId === group.id).length;
+            return (
+              <div key={group.id} className="rounded-lg border border-slate-200 p-3">
+                <p className="text-sm font-medium text-slate-900">
+                  {group.name} ({group.code})
+                </p>
+                <p className="text-xs text-slate-500">Status: {group.status}</p>
+                <p className="text-xs text-slate-500">Períodos internos: {countPeriods}</p>
+              </div>
+            );
+          })}
+          {classGroups.length === 0 && (
+            <p className="text-xs text-slate-500">Nenhuma turma cadastrada para este curso.</p>
+          )}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <Link href="/class-groups/new">
+            <Button variant="outline" size="sm">Nova turma interna</Button>
+          </Link>
+          <Link href="/class-groups">
+            <Button variant="outline" size="sm">Gerenciar turmas</Button>
+          </Link>
         </div>
       </section>
     </div>
