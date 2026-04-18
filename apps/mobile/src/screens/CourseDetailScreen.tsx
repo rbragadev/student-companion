@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +8,11 @@ import { useCourseById } from '../hooks/api/useCourses';
 import { useReviewsByReviewable } from '../hooks/api/useReviews';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
+import { useAuth } from '../contexts/AuthContext';
+import { enrollmentIntentApi } from '../services/api/enrollmentIntentApi';
+import { useQueryClient } from '@tanstack/react-query';
+import { userQueryKeys } from '../hooks/api/useUserProfile';
+import type { AcademicPeriodOption, ClassGroupOption } from '../types/enrollment.types';
 
 const { width } = Dimensions.get('window');
 
@@ -21,7 +26,10 @@ export default function CourseDetailScreen() {
 
   const { data: course, isLoading: courseLoading } = useCourseById(courseId);
   const { data: reviews = [], isLoading: reviewsLoading } = useReviewsByReviewable('COURSE', courseId);
+  const { userId } = useAuth();
+  const queryClient = useQueryClient();
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
+  const [submittingIntent, setSubmittingIntent] = React.useState(false);
 
   const loading = courseLoading || reviewsLoading;
   const courseBadge = course?.badges.length ? course.badges[0] : undefined;
@@ -37,9 +45,93 @@ export default function CourseDetailScreen() {
     );
   }
 
-  const handleEnroll = () => {
-    console.log('Navigate to lead form');
-    // TODO: Navegar para tela de lead
+  const selectClassGroup = (classGroups: ClassGroupOption[]) =>
+    new Promise<ClassGroupOption | null>((resolve) => {
+      Alert.alert(
+        'Selecione a turma',
+        'Escolha uma turma para iniciar sua matrícula',
+        [
+          ...classGroups.map((group) => ({
+            text: `${group.name} (${group.code})`,
+            onPress: () => resolve(group),
+          })),
+          {
+            text: 'Cancelar',
+            style: 'cancel' as const,
+            onPress: () => resolve(null),
+          },
+        ],
+      );
+    });
+
+  const selectAcademicPeriod = (periods: AcademicPeriodOption[]) =>
+    new Promise<AcademicPeriodOption | null>((resolve) => {
+      Alert.alert(
+        'Selecione o período',
+        'Escolha o período da turma',
+        [
+          ...periods.map((period) => ({
+            text: period.name,
+            onPress: () => resolve(period),
+          })),
+          {
+            text: 'Cancelar',
+            style: 'cancel' as const,
+            onPress: () => resolve(null),
+          },
+        ],
+      );
+    });
+
+  const handleEnroll = async () => {
+    if (!userId) {
+      Alert.alert('Erro', 'Usuário não autenticado');
+      return;
+    }
+
+    try {
+      setSubmittingIntent(true);
+      const classGroups = await enrollmentIntentApi.getClassGroupsByCourse(courseId);
+      const activeClassGroups = classGroups.filter((group) => group.status === 'ACTIVE');
+
+      if (activeClassGroups.length === 0) {
+        Alert.alert('Sem turmas', 'Este curso não possui turmas ativas para matrícula.');
+        return;
+      }
+
+      const selectedClassGroup = await selectClassGroup(activeClassGroups);
+      if (!selectedClassGroup) return;
+
+      const periods = await enrollmentIntentApi.getAcademicPeriodsByClassGroup(selectedClassGroup.id);
+      const activePeriods = periods.filter((period) => period.status === 'ACTIVE');
+
+      if (activePeriods.length === 0) {
+        Alert.alert('Sem períodos', 'A turma selecionada não possui períodos ativos.');
+        return;
+      }
+
+      const selectedPeriod = await selectAcademicPeriod(activePeriods);
+      if (!selectedPeriod) return;
+
+      const intent = await enrollmentIntentApi.createEnrollmentIntent({
+        studentId: userId,
+        courseId,
+        classGroupId: selectedClassGroup.id,
+        academicPeriodId: selectedPeriod.id,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId) });
+
+      Alert.alert(
+        'Matrícula iniciada',
+        `Sua intenção foi registrada para ${selectedClassGroup.name} / ${selectedPeriod.name}.\nStatus atual: ${intent.student?.studentStatus ?? 'application_started'}`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao iniciar matrícula';
+      Alert.alert('Erro', message);
+    } finally {
+      setSubmittingIntent(false);
+    }
   };
 
   return (
@@ -284,8 +376,8 @@ export default function CourseDetailScreen() {
               </>
             )}
           </View>
-          <Button onPress={handleEnroll} className="flex-1">
-            Quero me matricular
+          <Button onPress={handleEnroll} className="flex-1" disabled={submittingIntent}>
+            {submittingIntent ? 'Processando...' : 'Iniciar matrícula'}
           </Button>
         </View>
       </View>

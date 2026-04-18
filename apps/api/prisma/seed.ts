@@ -57,6 +57,10 @@ const ids = {
     engB2Evening: '88888888-8888-4888-8888-888888888882',
     businessAfternoon: '88888888-8888-4888-8888-888888888883',
   },
+  enrollmentIntents: {
+    raphael: 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    emily: 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+  },
   courses: {
     generalEnglishIlsc: 'd0efb89f-3d37-4607-9eaa-032832ec2b8e',
     businessEnglishIlsc: '4e36abbb-ecf2-4e3b-8104-c74eefb8bb07',
@@ -103,6 +107,7 @@ async function main() {
         email: 'raphael@studentcompanion.dev',
         phone: '+55 11 99999-0001',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Raphael',
+        studentStatus: 'lead',
         passwordHash,
       },
       {
@@ -112,6 +117,7 @@ async function main() {
         email: 'emily@studentcompanion.dev',
         phone: '+1 604 555 1002',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Emily',
+        studentStatus: 'application_started',
         passwordHash,
       },
       {
@@ -121,6 +127,7 @@ async function main() {
         email: 'lucas@studentcompanion.dev',
         phone: '+55 21 98888-4400',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Lucas',
+        studentStatus: 'lead',
         passwordHash,
       },
       {
@@ -504,6 +511,26 @@ async function main() {
         startDate: new Date('2027-01-05T00:00:00.000Z'),
         endDate: new Date('2027-03-20T00:00:00.000Z'),
         status: RecordStatus.ACTIVE,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  await prisma.enrollmentIntent.createMany({
+    data: [
+      {
+        id: ids.enrollmentIntents.raphael,
+        studentId: ids.users.raphael,
+        courseId: ids.courses.generalEnglishIlsc,
+        classGroupId: ids.classGroups.engA1Morning,
+        academicPeriodId: ids.academicPeriods.fall2026,
+      },
+      {
+        id: ids.enrollmentIntents.emily,
+        studentId: ids.users.emily,
+        courseId: ids.courses.ieltsVgc,
+        classGroupId: ids.classGroups.engB2Evening,
+        academicPeriodId: ids.academicPeriods.winter2027,
       },
     ],
     skipDuplicates: true,

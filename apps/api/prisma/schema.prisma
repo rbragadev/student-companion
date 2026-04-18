@@ -32,6 +32,7 @@ model User {
   avatar        String?
   passwordHash  String?            @map("password_hash")
   role          Role               @default(STUDENT)
+  studentStatus String             @default("lead") @map("student_status")
   createdAt     DateTime           @default(now())
   firstName     String
   lastName      String
@@ -39,8 +40,27 @@ model User {
   reviews       Review[]
   preferences   UserPreferences?
   adminProfiles UserAdminProfile[]
+  enrollmentIntent EnrollmentIntent?
 
   @@map("users")
+}
+
+model EnrollmentIntent {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId        String         @unique @map("student_id") @db.Uuid
+  courseId         String         @map("course_id") @db.Uuid
+  classGroupId     String         @map("class_group_id") @db.Uuid
+  academicPeriodId String         @map("academic_period_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at")
+  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course           Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  classGroup       ClassGroup     @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@index([classGroupId])
+  @@index([academicPeriodId])
+  @@map("enrollment_intent")
 }
 
 model Institution {
@@ -83,6 +103,7 @@ model AcademicPeriod {
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
   classGroup   ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  enrollmentIntents EnrollmentIntent[]
 
   @@index([classGroupId])
   @@index([startDate, endDate])
@@ -101,6 +122,7 @@ model ClassGroup {
   updatedAt  DateTime       @updatedAt @map("updated_at")
   course     Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   periods    AcademicPeriod[]
+  enrollmentIntents EnrollmentIntent[]
 
   @@unique([courseId, code])
   @@index([courseId])
@@ -202,6 +224,7 @@ model Course {
   unit            Unit     @relation(fields: [unitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   school          School   @relation(fields: [school_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
   classes         ClassGroup[]
+  enrollmentIntents EnrollmentIntent[]
 
   @@index([unitId])
   @@map("course")

@@ -25,6 +25,7 @@ export interface UserProfile {
   email: string;
   phone?: string;
   avatar?: string;
+  studentStatus: 'lead' | 'application_started' | 'pending_enrollment' | 'enrolled';
   createdAt: string;
   updatedAt: string;
   preferences: UserPreferences;

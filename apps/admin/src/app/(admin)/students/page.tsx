@@ -30,6 +30,11 @@ const columns: Column<StudentAdmin>[] = [
     label: 'Inglês',
     render: (item) => item.preferences?.englishLevel ?? '-',
   },
+  {
+    key: 'studentStatus',
+    label: 'Status Aluno',
+    render: (item) => item.studentStatus ?? 'lead',
+  },
 ];
 
 export default async function StudentsPage() {

@@ -64,10 +64,44 @@ export interface StudentAdmin {
   lastName: string;
   email: string;
   role: 'STUDENT';
+  studentStatus?: 'lead' | 'application_started' | 'pending_enrollment' | 'enrolled';
   preferences?: {
     destinationCity: string;
     destinationCountry: string;
     purpose: string;
     englishLevel: string | null;
   } | null;
+}
+
+export interface EnrollmentIntentAdmin {
+  id: string;
+  createdAt: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    studentStatus: 'lead' | 'application_started' | 'pending_enrollment' | 'enrolled';
+  };
+  course: {
+    id: string;
+    program_name: string;
+    school?: {
+      id: string;
+      name: string;
+      institution?: { id: string; name: string };
+    };
+  };
+  classGroup: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  academicPeriod: {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+  };
 }

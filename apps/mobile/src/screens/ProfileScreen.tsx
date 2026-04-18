@@ -188,6 +188,19 @@ export default function ProfileScreen() {
               </View>
             </View>
 
+            <View className="h-px bg-border" />
+            <View className="flex-row items-center gap-3">
+              <Ionicons name="pulse-outline" size={20} color={colorValues.primary[500]} />
+              <View className="flex-1">
+                <Text variant="caption" className="text-textMuted">
+                  Student Status
+                </Text>
+                <Text variant="body" className="font-medium">
+                  {user.studentStatus}
+                </Text>
+              </View>
+            </View>
+
             {user.preferences.englishLevel && (
               <>
                 <View className="h-px bg-border" />

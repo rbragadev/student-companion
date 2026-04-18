@@ -108,6 +108,12 @@ JWT payload: `{ sub, email, role }`. Expiração: 30 dias.
 | `PUT` | `/users/:id/admin-profiles` | Substituir perfis administrativos do usuário |
 | `POST` | `/users/:id/preferences` | Criar/atualizar preferências |
 
+Status do aluno (`users.student_status`):
+- `lead`
+- `application_started`
+- `pending_enrollment`
+- `enrolled`
+
 ---
 
 ### Permissões e Perfis Admin
@@ -158,6 +164,30 @@ Compatibilidade mobile:
 - No domínio de cursos, a API mantém campos persistidos em `snake_case` (ex.: `program_name`, `price_in_cents`, `rating_count`) por compatibilidade histórica.
 - O mobile normaliza esse contrato na camada `services/api/mappers/catalogMappers.ts`, convertendo para `camelCase` antes de chegar nas telas/hooks.
 - O vínculo `course.school_id` permanece ativo para não quebrar a navegação/listagem no app.
+
+### Intenção de Matrícula (Step A)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/enrollment-intents` | Cria intenção de matrícula para aluno |
+| `GET` | `/enrollment-intents` | Lista intenções (`?studentStatus=&institutionId=&schoolId=`) |
+| `GET` | `/enrollment-intents/:id` | Detalhe da intenção |
+
+Payload de criação:
+
+```json
+{
+  "studentId": "uuid",
+  "courseId": "uuid",
+  "classGroupId": "uuid",
+  "academicPeriodId": "uuid"
+}
+```
+
+Regras:
+- valida a cadeia `course -> class_group -> academic_period`
+- permite apenas 1 intenção ativa por aluno (`studentId` único em `enrollment_intent`)
+- atualiza `users.student_status` no fluxo: `lead -> application_started -> pending_enrollment`
 
 Distinção conceitual:
 - `institution`: escopo administrativo do cliente no SaaS.

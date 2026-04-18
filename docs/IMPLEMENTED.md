@@ -31,6 +31,9 @@ JWT payload: `{ sub, email, role }`. Campo `passwordHash` no model `User` (bcryp
 | `POST /users` | Criar usuário |
 | `GET /users/:id` | Buscar usuário com preferências |
 | `POST /users/:id/preferences` | Criar/atualizar preferências |
+| `POST /enrollment-intents` | Criar intenção de matrícula (aluno + curso + turma + período) |
+| `GET /enrollment-intents` | Listar intenções de matrícula (filtros: status/instituição/escola) |
+| `GET /enrollment-intents/:id` | Detalhe de intenção de matrícula |
 
 ---
 
@@ -88,6 +91,7 @@ PostgreSQL 16 · Prisma 7 · adapter `@prisma/adapter-pg`
 | `course` | unitId, school_id, program_name, weekly_hours, price_in_cents, target_audience |
 | `class_group` | courseId, name, code, shift, status, capacity |
 | `academic_period` | classGroupId, name, startDate, endDate, status |
+| `enrollment_intent` | studentId (único), courseId, classGroupId, academicPeriodId, createdAt |
 | `accommodation` | title, accommodationType, price, coords, ratings detalhados, isPartner, isTopTrip |
 | `place` | name, category, coords, isStudentFavorite, hasDeal, hours (JSON) |
 | `review` | userId, reviewableType, reviewableId, rating, comment |
@@ -104,7 +108,7 @@ Usuários de teste (senha: `senha123`):
 | `admin@studentcompanion.dev` | ADMIN | — |
 | `superadmin@studentcompanion.dev` | SUPER_ADMIN | — |
 
-1 instituição + 3 escolas + 3 unidades + 6 cursos + 3 turmas + 3 períodos da turma · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto).
+1 instituição + 3 escolas + 3 unidades + 6 cursos + 3 turmas + 3 períodos da turma + intenções de matrícula válidas · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto).
 
 ---
 
@@ -150,6 +154,7 @@ Diagnóstico atual:
 | Unidades | Parcial (admin/backend) | Disponível no SaaS/backend; não consumido diretamente no mobile neste step |
 | Turmas | Parcial (admin/backend) | Disponível no SaaS/backend; não consumido diretamente no mobile neste step |
 | Períodos da turma | Parcial (admin/backend) | Disponível no SaaS/backend; não consumido diretamente no mobile neste step |
+| Intenção de matrícula (`/enrollment-intents`) | Integrado | Mobile cria intenção real e backend atualiza `studentStatus` |
 
 Ajustes aplicados para fechar compatibilidade mobile:
 - Normalização centralizada de payload em `apps/mobile/src/services/api/mappers/catalogMappers.ts` (snake_case -> camelCase).
@@ -157,6 +162,9 @@ Ajustes aplicados para fechar compatibilidade mobile:
 - Remoção de fallback artificial de escola (`Unknown School`) no fluxo de cursos.
 - Filtro de escola na lista de cursos passou a usar IDs reais do backend (sem modal fake/TODO).
 - Endpoint de cursos passou a incluir `school.isPartner` no backend para refletir o estado real no mobile.
+- Ação de iniciar matrícula no `CourseDetailScreen` passou a usar endpoints reais:
+  `GET /class-group?courseId=...`, `GET /academic-period?classGroupId=...`, `POST /enrollment-intents`.
+- `studentStatus` foi adicionado ao perfil do usuário e refletido no mobile após criação da intenção.
 
 ---
 
@@ -202,7 +210,8 @@ apps/admin/
     │   └── (admin)/
     │       ├── layout.tsx      # Shell com Sidebar
     │       ├── dashboard/      # Dashboard com stats reais da API
-    │       └── academic-structure/ # Consulta da cadeia acadêmica com filtros encadeados
+    │       ├── academic-structure/ # Consulta da cadeia acadêmica com filtros encadeados
+    │       └── enrollment-intents/ # Lista + detalhe das intenções de matrícula
     ├── components/
     │   ├── layout/             # Sidebar, Header, NavItem, LogoutButton
     │   ├── ui/                 # Button, Input, Badge, DataTable, PageHeader
@@ -222,6 +231,12 @@ Busca contagens reais da API (`/school`, `/course`, `/accommodation`, `/place`) 
 Tela de consulta operacional (`/academic-structure`) com dados reais da API:
 `/institution`, `/school`, `/unit`, `/course`, `/class-group`, `/academic-period`.
 Permite filtros encadeados por instituição, escola, unidade, curso e turma, e exibe os vínculos entre as entidades em cadeia.
+
+### Intenções de Matrícula (Step A)
+
+Tela de operação no SaaS:
+- `/enrollment-intents` (listagem com filtros por status, instituição e escola)
+- `/enrollment-intents/:id` (detalhe simples do vínculo aluno > curso > turma > período)
 
 ### Componentes genéricos prontos
 

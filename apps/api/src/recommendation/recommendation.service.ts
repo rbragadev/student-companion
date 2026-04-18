@@ -27,6 +27,15 @@ export class RecommendationService {
       throw new NotFoundException('User preferences not found');
     }
 
+    const activeIntent = await this.prisma.enrollmentIntent.findUnique({
+      where: { studentId: userId },
+      select: { courseId: true },
+    });
+
+    if (type === RecommendationType.COURSE && user.studentStatus === 'enrolled') {
+      return [];
+    }
+
     // 2. Obter strategy apropriada
     const strategy = this.strategyFactory.getStrategy(type);
 
@@ -67,9 +76,17 @@ export class RecommendationService {
     }
 
     // 5. Ordenar por score e limitar
-    return recommendations
+    const sorted = recommendations
       .toSorted((a, b) => b.score - a.score)
       .slice(0, limit);
+
+    if (type === RecommendationType.COURSE && activeIntent?.courseId) {
+      const selectedCourse = sorted.find((item) => item.id === activeIntent.courseId);
+      if (!selectedCourse) return sorted;
+      return [selectedCourse, ...sorted.filter((item) => item.id !== activeIntent.courseId)];
+    }
+
+    return sorted;
   }
 
   /**

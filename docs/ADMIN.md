@@ -120,6 +120,7 @@ apps/admin/
     │       ├── class-groups/   # CRUD de turmas (por curso)
     │       ├── academic-periods/ # CRUD de períodos da turma
     │       ├── academic-structure/ # Consulta relacional com filtros encadeados
+    │       ├── enrollment-intents/ # Lista e detalhe de intenções de matrícula
     │       ├── accommodations/ # Lista integrada com dados reais
     │       ├── places/         # Lista integrada com dados reais
     │       ├── students/       # Lista de usuários STUDENT
@@ -198,6 +199,8 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Consulta operacional da cadeia acadêmica com filtros dependentes:
   instituição -> escola -> unidade -> curso -> turma.
   Exibe de forma consolidada escolas, unidades, cursos, turmas e períodos relacionados.
+- `/enrollment-intents`, `/enrollment-intents/[id]`
+  Lista e detalhe das intenções de matrícula com filtros por status do aluno, instituição e escola.
 - `/accommodations`, `/places`, `/students`
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
 
@@ -210,6 +213,7 @@ Status da integração mobile (escopo acadêmico já coberto):
 - `school`: mobile consome `GET /school` real.
 - `course`: mobile consome `GET /course` e `GET /course/:id` reais.
 - Normalização de contrato (`snake_case` -> `camelCase`) ocorre no mobile em `services/api/mappers/catalogMappers.ts`, sem duplicar domínio no backend.
+- Step A monetização: mobile cria intenção real em `POST /enrollment-intents` com seleção de curso/turma/período e o `studentStatus` volta atualizado pela API.
 
 ## Sidebar (Ordem de Operação)
 
@@ -219,7 +223,7 @@ Status da integração mobile (escopo acadêmico já coberto):
 - Estrutura Física
   Acomodações → Lugares
 - Pessoas e Acesso
-  Alunos → Usuários Admin → Perfis → Permissões
+  Alunos → Intenções de Matrícula → Usuários Admin → Perfis → Permissões
 
 Regras de exposição no menu:
 - Itens dependentes só aparecem quando pré-requisitos existem (ex.: Turmas exige Curso; Períodos exige Turma).
