@@ -20,6 +20,7 @@ export function EnrollmentView({
   const [statusFilter, setStatusFilter] = useState('');
   const [institutionFilter, setInstitutionFilter] = useState('');
   const [schoolFilter, setSchoolFilter] = useState('');
+  const [accommodationStatusFilter, setAccommodationStatusFilter] = useState('');
 
   const filteredSchools = useMemo(
     () => schools.filter((school) => !institutionFilter || school.institutionId === institutionFilter),
@@ -31,9 +32,11 @@ export function EnrollmentView({
       const statusMatch = !statusFilter || enrollment.status === statusFilter;
       const institutionMatch = !institutionFilter || enrollment.institution.id === institutionFilter;
       const schoolMatch = !schoolFilter || enrollment.school.id === schoolFilter;
-      return statusMatch && institutionMatch && schoolMatch;
+      const accommodationStatusMatch =
+        !accommodationStatusFilter || enrollment.accommodationStatus === accommodationStatusFilter;
+      return statusMatch && institutionMatch && schoolMatch && accommodationStatusMatch;
     });
-  }, [enrollments, statusFilter, institutionFilter, schoolFilter]);
+  }, [enrollments, statusFilter, institutionFilter, schoolFilter, accommodationStatusFilter]);
 
   const columns: Column<EnrollmentAdmin>[] = [
     {
@@ -62,6 +65,27 @@ export function EnrollmentView({
       label: 'Status',
       render: (item) => item.status,
     },
+    {
+      key: 'accommodation',
+      label: 'Acomodação',
+      render: (item) =>
+        item.accommodation
+          ? `${item.accommodation.title} (${(item.accommodation.priceInCents / 100).toFixed(0)}/${item.accommodation.priceUnit})`
+          : 'Sem acomodação',
+    },
+    {
+      key: 'accommodationStatus',
+      label: 'Status Acomodação',
+      render: (item) => item.accommodationStatus,
+    },
+    {
+      key: 'package',
+      label: 'Pacote',
+      render: (item) =>
+        item.pricing
+          ? `${(Number(item.pricing.packageTotalAmount ?? item.pricing.totalAmount) || 0).toFixed(2)} ${item.pricing.currency}`
+          : '-',
+    },
   ];
 
   return (
@@ -84,6 +108,19 @@ export function EnrollmentView({
               { label: 'active (legacy)', value: 'active' },
               { label: 'completed (legacy)', value: 'completed' },
               { label: 'denied (legacy)', value: 'denied' },
+            ],
+          },
+          {
+            key: 'accommodationStatus',
+            label: 'Status Acomodação',
+            value: accommodationStatusFilter,
+            onChange: setAccommodationStatusFilter,
+            options: [
+              { label: 'not_selected', value: 'not_selected' },
+              { label: 'selected', value: 'selected' },
+              { label: 'approved', value: 'approved' },
+              { label: 'denied', value: 'denied' },
+              { label: 'closed', value: 'closed' },
             ],
           },
           {

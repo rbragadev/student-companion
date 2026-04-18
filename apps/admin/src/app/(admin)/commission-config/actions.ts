@@ -25,13 +25,17 @@ export async function createCommissionConfigAction(formData: FormData) {
   const scopeType = getText(formData, 'scopeType');
   const courseIdValue = formData.get('scopeCourseId');
   const institutionIdValue = formData.get('scopeInstitutionId');
+  const accommodationIdValue = formData.get('scopeAccommodationId');
   const scopeCourseId = typeof courseIdValue === 'string' ? courseIdValue.trim() : '';
   const scopeInstitutionId = typeof institutionIdValue === 'string' ? institutionIdValue.trim() : '';
+  const scopeAccommodationId = typeof accommodationIdValue === 'string' ? accommodationIdValue.trim() : '';
 
   const scopeId =
     scopeType === 'course'
       ? scopeCourseId
-      : scopeInstitutionId;
+      : scopeType === 'accommodation'
+        ? scopeAccommodationId
+        : scopeInstitutionId;
   if (!scopeId) {
     throw new Error('Selecione um escopo válido para configurar comissão.');
   }

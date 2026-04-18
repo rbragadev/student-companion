@@ -48,9 +48,11 @@ export default function EnrollmentDetailScreen() {
   const queryClient = useQueryClient();
 
   const [messageDraft, setMessageDraft] = React.useState('');
+  const [accommodationMessageDraft, setAccommodationMessageDraft] = React.useState('');
   const [documentType, setDocumentType] = React.useState('');
   const [documentUrl, setDocumentUrl] = React.useState('');
   const [feedback, setFeedback] = React.useState<string | null>(null);
+  const [selectedAccommodationId, setSelectedAccommodationId] = React.useState('');
 
   const enrollmentQuery = useQuery({
     queryKey: ['enrollment', 'detail', enrollmentId],
@@ -74,7 +76,13 @@ export default function EnrollmentDetailScreen() {
 
   const messagesQuery = useQuery({
     queryKey: ['enrollment', 'messages', enrollmentId],
-    queryFn: () => enrollmentApi.getEnrollmentMessages(enrollmentId),
+    queryFn: () => enrollmentApi.getEnrollmentMessages(enrollmentId, 'enrollment'),
+    enabled: !!enrollmentId,
+  });
+
+  const accommodationMessagesQuery = useQuery({
+    queryKey: ['enrollment', 'messages', 'accommodation', enrollmentId],
+    queryFn: () => enrollmentApi.getEnrollmentMessages(enrollmentId, 'accommodation'),
     enabled: !!enrollmentId,
   });
 
@@ -83,6 +91,11 @@ export default function EnrollmentDetailScreen() {
     queryFn: () => enrollmentApi.getUnreadMessagesCount(userId ?? ''),
     enabled: !!userId,
   });
+  const packageSummaryQuery = useQuery({
+    queryKey: ['enrollment', 'package-summary', enrollmentId],
+    queryFn: () => enrollmentApi.getEnrollmentPackageSummary(enrollmentId),
+    enabled: !!enrollmentId,
+  });
 
   useFocusEffect(
     React.useCallback(() => {
@@ -90,7 +103,12 @@ export default function EnrollmentDetailScreen() {
         await queryClient.invalidateQueries({ queryKey: ['enrollment', 'detail', enrollmentId] });
         await queryClient.invalidateQueries({ queryKey: ['enrollment', 'timeline', enrollmentId] });
         await queryClient.invalidateQueries({ queryKey: ['enrollment', 'messages', enrollmentId] });
+        await queryClient.invalidateQueries({
+          queryKey: ['enrollment', 'messages', 'accommodation', enrollmentId],
+        });
         await queryClient.invalidateQueries({ queryKey: ['enrollment', 'documents', enrollmentId] });
+        await queryClient.invalidateQueries({ queryKey: ['enrollment', 'package-summary', enrollmentId] });
+        await queryClient.invalidateQueries({ queryKey: ['accommodations', 'upsell-enrollment', enrollmentId] });
         if (userId) {
           await enrollmentApi.markEnrollmentMessagesAsRead({ enrollmentId, userId });
           await queryClient.invalidateQueries({ queryKey: ['enrollment', 'unread-count', userId] });
@@ -107,6 +125,7 @@ export default function EnrollmentDetailScreen() {
         enrollmentId,
         senderId: userId,
         message: messageDraft.trim(),
+        channel: 'enrollment',
       });
     },
     onSuccess: async () => {
@@ -114,6 +133,31 @@ export default function EnrollmentDetailScreen() {
       setFeedback('Mensagem enviada.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['enrollment', 'messages', enrollmentId] }),
+        queryClient.invalidateQueries({ queryKey: ['enrollment', 'timeline', enrollmentId] }),
+        userId
+          ? queryClient.invalidateQueries({ queryKey: ['enrollment', 'unread-count', userId] })
+          : Promise.resolve(),
+      ]);
+    },
+  });
+
+  const sendAccommodationMessageMutation = useMutation({
+    mutationFn: async () => {
+      if (!userId || !accommodationMessageDraft.trim()) return;
+      await enrollmentApi.sendEnrollmentMessage({
+        enrollmentId,
+        senderId: userId,
+        message: accommodationMessageDraft.trim(),
+        channel: 'accommodation',
+      });
+    },
+    onSuccess: async () => {
+      setAccommodationMessageDraft('');
+      setFeedback('Mensagem da acomodação enviada.');
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['enrollment', 'messages', 'accommodation', enrollmentId],
+        }),
         queryClient.invalidateQueries({ queryKey: ['enrollment', 'timeline', enrollmentId] }),
         userId
           ? queryClient.invalidateQueries({ queryKey: ['enrollment', 'unread-count', userId] })
@@ -141,15 +185,33 @@ export default function EnrollmentDetailScreen() {
       ]);
     },
   });
+  const setAccommodationMutation = useMutation({
+    mutationFn: async (accommodationId?: string | null) =>
+      enrollmentApi.setEnrollmentAccommodation(enrollmentId, accommodationId),
+    onSuccess: async () => {
+      setFeedback('Acomodação do pacote atualizada.');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['enrollment', 'detail', enrollmentId] }),
+        queryClient.invalidateQueries({ queryKey: ['enrollment', 'package-summary', enrollmentId] }),
+        queryClient.invalidateQueries({ queryKey: ['accommodations', 'upsell-enrollment', enrollmentId] }),
+      ]);
+    },
+  });
 
   const enrollment = enrollmentQuery.data;
   const timeline = timelineQuery.data ?? [];
   const documents = documentsQuery.data ?? [];
   const messages = messagesQuery.data ?? [];
+  const accommodationMessages = accommodationMessagesQuery.data ?? [];
   const unreadCount = unreadQuery.data ?? 0;
   const chatEvents: EnrollmentTimelineEvent[] = timeline.filter((item) => item.type !== 'enrollment_created');
   const upsellAccommodationsQuery = useUpsellAccommodationsByEnrollment(enrollmentId);
   const upsellAccommodations = upsellAccommodationsQuery.data ?? [];
+  const isAccommodationClosed = enrollment?.accommodationStatus === 'closed';
+
+  React.useEffect(() => {
+    setSelectedAccommodationId(enrollment?.accommodation?.id ?? '');
+  }, [enrollment?.accommodation?.id]);
 
   return (
     <Screen safeArea={true} scrollable={true}>
@@ -204,13 +266,20 @@ export default function EnrollmentDetailScreen() {
 
             <Card>
               <Text variant="h3" className="font-semibold">Financeiro</Text>
-              {enrollment.pricing ? (
+              {packageSummaryQuery.data?.pricing ? (
                 <View className="mt-3 gap-1">
-                  <Text variant="caption">Base: {enrollment.pricing.basePrice} {enrollment.pricing.currency}</Text>
-                  <Text variant="caption">Fees: {enrollment.pricing.fees}</Text>
-                  <Text variant="caption">Discounts: {enrollment.pricing.discounts}</Text>
-                  <Text variant="caption">Total: {enrollment.pricing.totalAmount}</Text>
-                  <Text variant="caption">Comissão: {enrollment.pricing.commissionAmount} ({enrollment.pricing.commissionPercentage}%)</Text>
+                  <Text variant="caption">
+                    Matrícula: {packageSummaryQuery.data.pricing.enrollmentAmount.toFixed(2)} {packageSummaryQuery.data.pricing.currency}
+                  </Text>
+                  <Text variant="caption">
+                    Acomodação: {packageSummaryQuery.data.pricing.accommodationAmount.toFixed(2)} {packageSummaryQuery.data.pricing.currency}
+                  </Text>
+                  <Text variant="caption">
+                    Total do pacote: {packageSummaryQuery.data.pricing.packageTotalAmount.toFixed(2)} {packageSummaryQuery.data.pricing.currency}
+                  </Text>
+                  <Text variant="caption">
+                    Comissão total: {packageSummaryQuery.data.pricing.totalCommissionAmount.toFixed(2)} ({packageSummaryQuery.data.pricing.commissionPercentage.toFixed(2)}%)
+                  </Text>
                 </View>
               ) : (
                 <Text variant="caption" className="mt-2">Pricing ainda não definido para esta matrícula.</Text>
@@ -245,12 +314,8 @@ export default function EnrollmentDetailScreen() {
                     <TouchableOpacity
                       key={item.id}
                       activeOpacity={0.7}
-                      onPress={() =>
-                        navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, {
-                          accommodationId: item.id,
-                        })
-                      }
-                      className="rounded-lg border border-border px-3 py-2"
+                      onPress={() => setSelectedAccommodationId(item.id)}
+                      className={`rounded-lg border px-3 py-2 ${selectedAccommodationId === item.id ? 'border-primary-500 bg-primary-50' : 'border-border'}`}
                     >
                       <View className="flex-row items-start justify-between gap-2">
                         <View className="flex-1">
@@ -270,6 +335,46 @@ export default function EnrollmentDetailScreen() {
                       </View>
                     </TouchableOpacity>
                   ))}
+
+                  <View className="mt-2 flex-row gap-2">
+                    <Button
+                      className="flex-1"
+                      onPress={() => setAccommodationMutation.mutate(selectedAccommodationId || null)}
+                      disabled={setAccommodationMutation.isPending || isAccommodationClosed}
+                    >
+                      {setAccommodationMutation.isPending ? 'Salvando...' : 'Salvar acomodação'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onPress={() => setAccommodationMutation.mutate(null)}
+                      disabled={setAccommodationMutation.isPending || isAccommodationClosed}
+                    >
+                      Sem acomodação
+                    </Button>
+                  </View>
+                  <Text variant="caption" className="text-textSecondary">
+                    Status da acomodação: {enrollment.accommodationStatus}
+                    {enrollment.accommodationClosedAt ? ` • Fechada em ${formatDate(enrollment.accommodationClosedAt)}` : ''}
+                  </Text>
+                  {isAccommodationClosed && (
+                    <Text variant="caption" className="text-amber-700">
+                      Acomodação fechada pelo time. Não é possível trocar.
+                    </Text>
+                  )}
+
+                  {!!selectedAccommodationId && (
+                    <Button
+                      variant="ghost"
+                      onPress={() =>
+                        navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, {
+                          accommodationId: selectedAccommodationId,
+                        })
+                      }
+                    >
+                      Ver detalhes da acomodação selecionada
+                    </Button>
+                  )}
                 </View>
               )}
             </Card>
@@ -357,6 +462,44 @@ export default function EnrollmentDetailScreen() {
                       <Text variant="caption">{event.title}</Text>
                       {event.description && <Text variant="caption">{event.description}</Text>}
                       <Text variant="caption">{formatDate(event.occurredAt)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </Card>
+
+            <Card>
+              <Text variant="h3" className="font-semibold">Chat da acomodação</Text>
+              <View className="mt-3 gap-2">
+                <TextInput
+                  value={accommodationMessageDraft}
+                  onChangeText={setAccommodationMessageDraft}
+                  placeholder="Escreva uma mensagem sobre acomodação"
+                  className="rounded-lg border border-border px-3 py-2 text-textPrimary"
+                  multiline={true}
+                />
+                <Button
+                  onPress={() => sendAccommodationMessageMutation.mutate()}
+                  disabled={sendAccommodationMessageMutation.isPending || !accommodationMessageDraft.trim()}
+                >
+                  {sendAccommodationMessageMutation.isPending ? 'Enviando...' : 'Enviar mensagem da acomodação'}
+                </Button>
+              </View>
+
+              <ScrollView className="mt-3 max-h-80" nestedScrollEnabled>
+                <View className="gap-2">
+                  {accommodationMessages.length === 0 && (
+                    <Text variant="caption" className="text-textSecondary">
+                      Sem mensagens no canal de acomodação.
+                    </Text>
+                  )}
+                  {accommodationMessages.map((message) => (
+                    <View key={message.id} className="rounded-lg border border-border px-3 py-2">
+                      <Text variant="caption" className="font-medium">
+                        {message.sender ? `${message.sender.firstName} ${message.sender.lastName}` : 'Usuário'}
+                      </Text>
+                      <Text variant="body">{message.message}</Text>
+                      <Text variant="caption">{formatDate(message.createdAt)}</Text>
                     </View>
                   ))}
                 </View>

@@ -7,10 +7,11 @@ import { ACTIVE_ENROLLMENT_STATUSES } from './enrollment.constants';
 export class EnrollmentMessageService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(filters?: { enrollmentId?: string; studentId?: string }) {
+  findAll(filters?: { enrollmentId?: string; studentId?: string; channel?: string }) {
     return this.prisma.enrollmentMessage.findMany({
       where: {
         enrollmentId: filters?.enrollmentId,
+        channel: filters?.channel,
         enrollment: filters?.studentId ? { studentId: filters.studentId } : undefined,
       },
       orderBy: { createdAt: 'asc' },
@@ -46,6 +47,7 @@ export class EnrollmentMessageService {
       data: {
         enrollmentId: dto.enrollmentId,
         senderId: dto.senderId,
+        channel: dto.channel ?? 'enrollment',
         message: dto.message,
       },
       include: {

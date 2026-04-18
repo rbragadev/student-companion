@@ -54,6 +54,17 @@ export class EnrollmentIntentService {
         status: true,
       },
     },
+    accommodation: {
+      select: {
+        id: true,
+        title: true,
+        accommodationType: true,
+        location: true,
+        priceInCents: true,
+        priceUnit: true,
+        score: true,
+      },
+    },
   } as const;
 
   private nextStudentStatus(currentStatus: string): string {
@@ -135,6 +146,39 @@ export class EnrollmentIntentService {
     };
   }
 
+  private async validateAccommodationForSchool(
+    schoolId: string,
+    accommodationId?: string | null,
+  ) {
+    if (!accommodationId) return null;
+
+    const [accommodation, recommendation] = await Promise.all([
+      this.prisma.accommodation.findUnique({
+        where: { id: accommodationId },
+        select: { id: true, isActive: true },
+      }),
+      this.prisma.schoolAccommodationRecommendation.findFirst({
+        where: {
+          schoolId,
+          accommodationId,
+          isRecommended: true,
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!accommodation || accommodation.isActive === false) {
+      throw new NotFoundException(`Acomodação ${accommodationId} não encontrada ou inativa`);
+    }
+    if (!recommendation) {
+      throw new BadRequestException(
+        'A acomodação selecionada não está recomendada para a escola do contexto acadêmico',
+      );
+    }
+
+    return accommodationId;
+  }
+
   async create(dto: CreateEnrollmentIntentDto) {
     const [student, existingIntent, chain] = await Promise.all([
       this.prisma.user.findUnique({
@@ -156,6 +200,10 @@ export class EnrollmentIntentService {
       throw new BadRequestException('O aluno já possui uma intenção de matrícula ativa');
     }
 
+    const accommodationId = await this.validateAccommodationForSchool(
+      chain.schoolId,
+      dto.accommodationId,
+    );
     const nextStatus = this.nextStudentStatus(student.studentStatus);
 
     return this.prisma.$transaction(async (tx) => {
@@ -165,6 +213,7 @@ export class EnrollmentIntentService {
           courseId: chain.courseId,
           classGroupId: chain.classGroupId,
           academicPeriodId: chain.academicPeriodId,
+          accommodationId,
           status: 'pending',
         },
       });
@@ -230,6 +279,10 @@ export class EnrollmentIntentService {
     const classGroupId = dto.classGroupId ?? intent.classGroup.id;
     const academicPeriodId = dto.academicPeriodId ?? intent.academicPeriod.id;
     const chain = await this.validateChain(courseId, classGroupId, academicPeriodId);
+    const accommodationId =
+      dto.accommodationId !== undefined
+        ? await this.validateAccommodationForSchool(chain.schoolId, dto.accommodationId)
+        : intent.accommodation?.id ?? null;
 
     return this.prisma.enrollmentIntent.update({
       where: { id },
@@ -237,9 +290,80 @@ export class EnrollmentIntentService {
         courseId: chain.courseId,
         classGroupId: chain.classGroupId,
         academicPeriodId: chain.academicPeriodId,
+        accommodationId,
       },
       include: this.includeGraph,
     });
+  }
+
+  async setAccommodation(id: string, accommodationId?: string | null) {
+    const intent = await this.findOne(id);
+    if (intent.status !== 'pending') {
+      throw new BadRequestException('Somente intenções pendentes podem alterar acomodação');
+    }
+    if (intent.enrollment) {
+      throw new BadRequestException('A intenção já foi convertida e não pode ser alterada');
+    }
+
+    const schoolId = intent.course.school?.id;
+    if (!schoolId) {
+      throw new BadRequestException('Não foi possível identificar a escola do contexto da intenção');
+    }
+
+    const nextAccommodationId = await this.validateAccommodationForSchool(
+      schoolId,
+      accommodationId ?? null,
+    );
+
+    return this.prisma.enrollmentIntent.update({
+      where: { id },
+      data: { accommodationId: nextAccommodationId },
+      include: this.includeGraph,
+    });
+  }
+
+  async findRecommendedAccommodations(params: { courseId?: string; intentId?: string }) {
+    let schoolId: string | null = null;
+
+    if (params.intentId) {
+      const intent = await this.prisma.enrollmentIntent.findUnique({
+        where: { id: params.intentId },
+        select: { course: { select: { school: { select: { id: true } } } } },
+      });
+      if (!intent) throw new NotFoundException(`Intenção ${params.intentId} não encontrada`);
+      schoolId = intent.course.school.id;
+    } else if (params.courseId) {
+      const course = await this.prisma.course.findUnique({
+        where: { id: params.courseId },
+        select: { school: { select: { id: true } } },
+      });
+      if (!course) throw new NotFoundException(`Curso ${params.courseId} não encontrado`);
+      schoolId = course.school.id;
+    }
+
+    if (!schoolId) {
+      throw new BadRequestException('Informe intentId ou courseId para obter acomodações recomendadas');
+    }
+
+    const recommendations = await this.prisma.schoolAccommodationRecommendation.findMany({
+      where: {
+        schoolId,
+        isRecommended: true,
+        accommodation: { isActive: true },
+      },
+      include: {
+        accommodation: true,
+      },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    return recommendations.map((item) => ({
+      ...item.accommodation,
+      recommendationBadge: item.badgeLabel ?? item.accommodation.badges[0] ?? null,
+      recommendationPriority: item.priority,
+      isRecommendedBySchool: item.isRecommended,
+      schoolId,
+    }));
   }
 
   async updateStatus(id: string, status: 'pending' | 'cancelled' | 'denied', reason?: string) {

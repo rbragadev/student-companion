@@ -12,4 +12,8 @@ export class UpdateEnrollmentIntentDto {
   @IsOptional()
   @IsUUID()
   academicPeriodId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  accommodationId?: string;
 }

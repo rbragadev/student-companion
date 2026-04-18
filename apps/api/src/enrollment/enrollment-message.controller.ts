@@ -10,8 +10,9 @@ export class EnrollmentMessageController {
   findAll(
     @Query('enrollmentId') enrollmentId?: string,
     @Query('studentId') studentId?: string,
+    @Query('channel') channel?: string,
   ) {
-    return this.enrollmentMessageService.findAll({ enrollmentId, studentId });
+    return this.enrollmentMessageService.findAll({ enrollmentId, studentId, channel });
   }
 
   @Get('unread-count')

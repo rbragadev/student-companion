@@ -12,6 +12,7 @@ import { colorValues } from '../utils/design-tokens';
 import { useAuth } from '../contexts/AuthContext';
 import { userQueryKeys } from '../hooks/api/useUserProfile';
 import { enrollmentApi } from '../services/api/enrollmentApi';
+import type { Accommodation } from '../types/accommodation.types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, typeof StackRoutes.ENROLLMENT_INTENT>;
@@ -33,6 +34,8 @@ export default function EnrollmentIntentScreen() {
   const [error, setError] = React.useState<string | null>(null);
   const [openIntent, setOpenIntent] = React.useState<EnrollmentIntent | null>(null);
   const [hasActiveEnrollment, setHasActiveEnrollment] = React.useState(false);
+  const [recommendedAccommodations, setRecommendedAccommodations] = React.useState<Accommodation[]>([]);
+  const [selectedAccommodationId, setSelectedAccommodationId] = React.useState<string>('');
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const toastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -51,15 +54,18 @@ export default function EnrollmentIntentScreen() {
       try {
         setLoading(true);
         setError(null);
-        const [groups, pendingIntent, activeEnrollment] = await Promise.all([
+        const [groups, pendingIntent, activeEnrollment, accommodations] = await Promise.all([
           enrollmentIntentApi.getClassGroupsByCourse(courseId),
           enrollmentIntentApi.getOpenIntentByStudent(userId),
           enrollmentApi.getActiveEnrollmentByStudent(userId),
+          enrollmentIntentApi.getRecommendedAccommodationsByCourse(courseId),
         ]);
         const active = groups.filter((group) => group.status === 'ACTIVE');
         setClassGroups(active);
         setOpenIntent(pendingIntent);
         setHasActiveEnrollment(!!activeEnrollment);
+        setRecommendedAccommodations(accommodations);
+        setSelectedAccommodationId(pendingIntent?.accommodation?.id ?? '');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar turmas');
       } finally {
@@ -99,6 +105,7 @@ export default function EnrollmentIntentScreen() {
         courseId,
         classGroupId: selectedClassGroupId,
         academicPeriodId: selectedPeriodId,
+        accommodationId: selectedAccommodationId || undefined,
       });
 
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId) });
@@ -109,6 +116,27 @@ export default function EnrollmentIntentScreen() {
       }, 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao registrar intenção');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateOpenIntentAccommodation = async (accommodationId?: string) => {
+    if (!openIntent) return;
+    try {
+      setSaving(true);
+      setError(null);
+      const updated = await enrollmentIntentApi.setIntentAccommodation(
+        openIntent.id,
+        accommodationId ?? null,
+      );
+      setOpenIntent(updated);
+      setSelectedAccommodationId(updated.accommodation?.id ?? '');
+      setToastMessage(
+        accommodationId ? 'Acomodação atualizada na intenção' : 'Acomodação removida da intenção',
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao atualizar acomodação da intenção');
     } finally {
       setSaving(false);
     }
@@ -183,6 +211,57 @@ export default function EnrollmentIntentScreen() {
           <Text variant="body">Carregando turmas...</Text>
         ) : openIntent ? (
           <>
+            <Card>
+              <Text variant="h3" className="font-semibold">Acomodação do pacote (opcional)</Text>
+              <Text variant="caption" className="mt-1">
+                Sugestões recomendadas pela escola do seu curso.
+              </Text>
+              <View className="mt-3 gap-2">
+                {recommendedAccommodations.map((accommodation) => {
+                  const selected = selectedAccommodationId === accommodation.id;
+                  return (
+                    <TouchableOpacity
+                      key={accommodation.id}
+                      onPress={() => setSelectedAccommodationId(accommodation.id)}
+                      activeOpacity={0.7}
+                      className={`rounded-lg border px-3 py-2 ${selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'}`}
+                    >
+                      <Text variant="body" className="font-medium">
+                        {accommodation.title}
+                      </Text>
+                      <Text variant="caption">
+                        {accommodation.accommodationType} • CAD {(accommodation.priceInCents / 100).toLocaleString()}/{accommodation.priceUnit}
+                      </Text>
+                      {!!accommodation.recommendationBadge && (
+                        <Text variant="caption" className="text-primary-700">
+                          {accommodation.recommendationBadge}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+                {recommendedAccommodations.length === 0 && (
+                  <Text variant="caption">Nenhuma acomodação recomendada para este contexto.</Text>
+                )}
+              </View>
+              <View className="mt-3 flex-row gap-2">
+                <Button
+                  className="flex-1"
+                  onPress={() => updateOpenIntentAccommodation(selectedAccommodationId || undefined)}
+                  disabled={saving}
+                >
+                  {saving ? 'Salvando...' : 'Salvar acomodação'}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onPress={() => updateOpenIntentAccommodation(undefined)}
+                  disabled={saving}
+                >
+                  Seguir sem acomodação
+                </Button>
+              </View>
+            </Card>
             <Button
               variant="outline"
               onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
@@ -236,6 +315,77 @@ export default function EnrollmentIntentScreen() {
                   );
                 })}
                 {selectedClassGroupId && periods.length === 0 && <Text variant="caption">Nenhum período ativo para essa turma.</Text>}
+              </View>
+            </Card>
+
+            <Card>
+              <Text variant="h3" className="font-semibold">3. Acomodação (opcional)</Text>
+              <Text variant="caption" className="mt-1">
+                Recomendadas pela escola deste curso para upsell do pacote.
+              </Text>
+              <View className="mt-3 gap-2">
+                {recommendedAccommodations.map((accommodation) => {
+                  const selected = selectedAccommodationId === accommodation.id;
+                  return (
+                    <TouchableOpacity
+                      key={accommodation.id}
+                      onPress={() => setSelectedAccommodationId(accommodation.id)}
+                      activeOpacity={0.7}
+                      className={`rounded-lg border px-3 py-2 ${selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'}`}
+                    >
+                      <Text variant="body" className={selected ? 'text-primary-600 font-medium' : 'font-medium'}>
+                        {accommodation.title}
+                      </Text>
+                      <Text variant="caption">
+                        {accommodation.accommodationType} • CAD {(accommodation.priceInCents / 100).toLocaleString()}/{accommodation.priceUnit}
+                      </Text>
+                      <Text variant="caption">
+                        Score: {Number(accommodation.score ?? 0).toFixed(1)}
+                      </Text>
+                      {!!accommodation.recommendationBadge && (
+                        <Text variant="caption" className="text-primary-700">
+                          {accommodation.recommendationBadge}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+                {recommendedAccommodations.length === 0 && (
+                  <Text variant="caption">Nenhuma acomodação recomendada para este contexto.</Text>
+                )}
+                <Button
+                  variant="outline"
+                  onPress={() => setSelectedAccommodationId('')}
+                  disabled={!selectedAccommodationId}
+                >
+                  Seguir sem acomodação
+                </Button>
+              </View>
+            </Card>
+
+            <Card>
+              <Text variant="h3" className="font-semibold">Resumo do pacote</Text>
+              <View className="mt-2 gap-1">
+                <Text variant="caption">Matrícula: ao confirmar intenção no SaaS</Text>
+                {selectedAccommodationId ? (
+                  (() => {
+                    const selectedAccommodation = recommendedAccommodations.find(
+                      (item) => item.id === selectedAccommodationId,
+                    );
+                    return (
+                      <>
+                        <Text variant="caption">
+                          Acomodação: {selectedAccommodation?.title ?? '-'}
+                        </Text>
+                        <Text variant="caption">
+                          Valor acomodação: CAD {((selectedAccommodation?.priceInCents ?? 0) / 100).toFixed(2)}
+                        </Text>
+                      </>
+                    );
+                  })()
+                ) : (
+                  <Text variant="caption">Acomodação: não selecionada</Text>
+                )}
               </View>
             </Card>
 

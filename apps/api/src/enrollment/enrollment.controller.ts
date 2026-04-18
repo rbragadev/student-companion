@@ -2,6 +2,8 @@ import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common
 import { EnrollmentService } from './enrollment.service';
 import { UpdateEnrollmentStatusDto } from './dto/update-enrollment-status.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
+import { SetEnrollmentAccommodationDto } from './dto/set-enrollment-accommodation.dto';
+import { UpdateEnrollmentAccommodationWorkflowDto } from './dto/update-enrollment-accommodation-workflow.dto';
 
 @Controller('enrollments')
 export class EnrollmentController {
@@ -18,12 +20,14 @@ export class EnrollmentController {
     @Query('status') status?: string,
     @Query('institutionId') institutionId?: string,
     @Query('schoolId') schoolId?: string,
+    @Query('accommodationStatus') accommodationStatus?: string,
   ) {
     return this.enrollmentService.findAll({
       studentId,
       status,
       institutionId,
       schoolId,
+      accommodationStatus,
     });
   }
 
@@ -42,9 +46,35 @@ export class EnrollmentController {
     return this.enrollmentService.getTimeline(id);
   }
 
+  @Get(':id/package-summary')
+  getPackageSummary(@Param('id') id: string) {
+    return this.enrollmentService.getPackageSummary(id);
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateEnrollmentDto) {
     return this.enrollmentService.update(id, dto);
+  }
+
+  @Patch(':id/accommodation')
+  setAccommodation(
+    @Param('id') id: string,
+    @Body() dto: SetEnrollmentAccommodationDto,
+  ) {
+    return this.enrollmentService.setAccommodation(id, dto.accommodationId);
+  }
+
+  @Patch(':id/accommodation-workflow')
+  updateAccommodationWorkflow(
+    @Param('id') id: string,
+    @Body() dto: UpdateEnrollmentAccommodationWorkflowDto,
+  ) {
+    return this.enrollmentService.updateAccommodationWorkflow(
+      id,
+      dto.status,
+      dto.reason,
+      dto.changedById,
+    );
   }
 
   @Patch(':id/status')

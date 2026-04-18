@@ -171,8 +171,11 @@ Compatibilidade mobile:
 |--------|------|-----------|
 | `POST` | `/enrollment-intents` | Cria intenção de matrícula para aluno |
 | `GET` | `/enrollment-intents` | Lista intenções (`?studentId=&status=&studentStatus=&institutionId=&schoolId=`) |
+| `GET` | `/enrollment-intents/recommended-accommodations?courseId=...` | Lista acomodações recomendadas para o contexto do curso |
+| `GET` | `/enrollment-intents/recommended-accommodations?intentId=...` | Lista acomodações recomendadas para a escola da intenção |
 | `GET` | `/enrollment-intents/:id` | Detalhe da intenção |
 | `PATCH` | `/enrollment-intents/:id` | Edita curso/turma/período da intenção pendente |
+| `PATCH` | `/enrollment-intents/:id/accommodation` | Seleciona/troca/remove acomodação da intenção |
 | `PATCH` | `/enrollment-intents/:id/status` | Atualiza status operacional (`pending`, `cancelled`, `denied`) |
 
 Payload de criação:
@@ -189,6 +192,8 @@ Payload de criação:
 Regras:
 - valida a cadeia `course -> class_group -> academic_period`
 - permite apenas 1 intenção **pendente** por aluno (validação de serviço)
+- `accommodation` é opcional na intenção
+- quando informada, precisa estar recomendada para a escola do contexto acadêmico da intenção
 - atualiza `users.student_status` no fluxo: `lead -> application_started -> pending_enrollment`
 - histórico de intenções é preservado (`pending`, `converted`, `cancelled`, `denied`)
 
@@ -197,18 +202,21 @@ Regras:
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | `POST` | `/enrollments/from-intent/:intentId` | Converte intenção pendente em matrícula real |
-| `GET` | `/enrollments` | Lista matrículas (`?studentId=&status=&institutionId=&schoolId=`) |
+| `GET` | `/enrollments` | Lista matrículas (`?studentId=&status=&institutionId=&schoolId=&accommodationStatus=`) |
 | `GET` | `/enrollments/active?studentId=...` | Retorna matrícula ativa do aluno (ou `null`) |
 | `GET` | `/enrollments/journey/:studentId` | Retorna visão consolidada: intenção pendente, matrícula ativa e históricos |
 | `GET` | `/enrollments/:id/timeline` | Timeline consolidada da matrícula (status, docs, mensagens) |
+| `GET` | `/enrollments/:id/package-summary` | Resumo financeiro consolidado do pacote (matrícula + acomodação) |
 | `GET` | `/enrollments/:id` | Detalhe de matrícula |
 | `PATCH` | `/enrollments/:id` | Atualiza status e/ou pricing (`basePrice`, `fees`, `discounts`, `currency`) |
+| `PATCH` | `/enrollments/:id/accommodation` | Seleciona/troca/remove acomodação da matrícula |
+| `PATCH` | `/enrollments/:id/accommodation-workflow` | Atualiza workflow operacional da acomodação (`not_selected`, `selected`, `approved`, `denied`, `closed`) |
 | `PATCH` | `/enrollments/:id/status` | Atualização legada apenas de status |
 | `GET` | `/enrollment-documents` | Lista documentos (`?enrollmentId=`) |
 | `POST` | `/enrollment-documents` | Adiciona documento da matrícula |
 | `PATCH` | `/enrollment-documents/:id` | Aprova/rejeita/atualiza documento |
-| `GET` | `/enrollment-messages` | Lista mensagens (`?enrollmentId=` ou `?studentId=`) |
-| `POST` | `/enrollment-messages` | Envia mensagem vinculada à matrícula |
+| `GET` | `/enrollment-messages` | Lista mensagens (`?enrollmentId=` ou `?studentId=` e opcional `?channel=enrollment|accommodation`) |
+| `POST` | `/enrollment-messages` | Envia mensagem vinculada à matrícula (opcional `channel`) |
 | `GET` | `/enrollment-messages/unread-count?studentId=...` | Contador de mensagens não lidas para o aluno |
 | `PATCH` | `/enrollment-messages/read?enrollmentId=...&userId=...` | Marca chat da matrícula como lido |
 | `GET` | `/commission-config` | Lista regras de comissão (`?scopeType=&scopeId=`) |
@@ -220,10 +228,17 @@ Regras:
 - uma intenção pode ser confirmada no máximo uma vez
 - confirmação valida novamente a cadeia acadêmica completa
 - confirmação cria matrícula com status inicial `application_started`
+- confirmação carrega a acomodação selecionada na intenção (quando existir)
+- acomodação possui workflow operacional no contexto da matrícula: `not_selected -> selected -> approved|denied -> closed`
+- após `accommodationStatus = closed`, troca/remoção de acomodação é bloqueada
 - confirmação marca intenção como `converted` (`converted_at` preenchido)
-- pricing é calculado no backend com `totalAmount = basePrice + fees - discounts`
+- pricing de pacote é calculado no backend:
+  - `enrollmentAmount = basePrice + fees - discounts`
+  - `accommodationAmount` vem do preço da acomodação vinculada (quando existir)
+  - `packageTotalAmount = enrollmentAmount + accommodationAmount`
 - comissão usa precedência: `course` override `institution`
-- comissão calculada em `enrollment_pricing` (`commissionAmount`, `commissionPercentage`)
+- se existir configuração de comissão em `scopeType=accommodation`, ela também entra no cálculo do pacote
+- comissão consolidada é salva em `enrollment_pricing` (`totalCommissionAmount`, `commissionAmount`, `commissionPercentage`)
 - `student_status` global do aluno prioriza matrícula ativa (qualquer estágio ativo do workflow)
 - mudanças de status em intenção/matrícula recalculam `users.student_status` automaticamente:
   - matrícula com status final (`enrolled`/`active`) -> `enrolled`

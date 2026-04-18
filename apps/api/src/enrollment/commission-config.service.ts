@@ -116,4 +116,11 @@ export class CommissionConfigService {
 
     return courseConfig ?? institutionConfig ?? null;
   }
+
+  async resolveForAccommodation(accommodationId: string) {
+    return this.prisma.commissionConfig.findFirst({
+      where: { scopeType: 'accommodation', scopeId: accommodationId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

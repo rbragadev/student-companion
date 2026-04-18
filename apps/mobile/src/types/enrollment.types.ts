@@ -24,6 +24,7 @@ export interface EnrollmentIntent {
   courseId: string;
   classGroupId: string;
   academicPeriodId: string;
+  accommodationId?: string | null;
   createdAt: string;
   student?: {
     id: string;
@@ -47,6 +48,16 @@ export interface EnrollmentIntent {
     startDate: string;
     endDate: string;
   };
+  accommodation?: {
+    id: string;
+    title: string;
+    accommodationType: string;
+    location: string;
+    priceInCents: number;
+    priceUnit: string;
+    score?: number | null;
+    recommendationBadge?: string | null;
+  } | null;
 }
 
 export interface CreateEnrollmentIntentPayload {
@@ -54,6 +65,7 @@ export interface CreateEnrollmentIntentPayload {
   courseId: string;
   classGroupId: string;
   academicPeriodId: string;
+  accommodationId?: string;
 }
 
 export interface Enrollment {
@@ -70,12 +82,23 @@ export interface Enrollment {
     | 'completed'
     | 'denied';
   createdAt: string;
+  accommodationStatus: 'not_selected' | 'selected' | 'approved' | 'denied' | 'closed';
+  accommodationClosedAt?: string | null;
   institution: { id: string; name: string };
   school: { id: string; name: string };
   unit: { id: string; name: string; code: string };
   course: { id: string; program_name: string };
   classGroup: { id: string; name: string; code: string };
   academicPeriod: { id: string; name: string; startDate: string; endDate: string };
+  accommodation?: {
+    id: string;
+    title: string;
+    accommodationType: string;
+    location: string;
+    priceInCents: number;
+    priceUnit: string;
+    score?: number | null;
+  } | null;
   enrollmentIntent?: { id: string; status: string; convertedAt?: string | null };
   pricing?: EnrollmentPricing | null;
   documents?: EnrollmentDocument[];
@@ -104,6 +127,7 @@ export interface EnrollmentMessage {
   enrollmentId: string;
   senderId: string;
   message: string;
+  channel?: 'enrollment' | 'accommodation';
   createdAt: string;
   sender?: {
     id: string;
@@ -120,17 +144,59 @@ export interface EnrollmentPricing {
   fees: number;
   discounts: number;
   totalAmount: number;
+  enrollmentAmount?: number;
+  accommodationAmount?: number;
+  packageTotalAmount?: number;
   currency: string;
   commissionAmount: number;
   commissionPercentage: number;
+  enrollmentCommissionAmount?: number;
+  enrollmentCommissionPercentage?: number;
+  accommodationCommissionAmount?: number;
+  accommodationCommissionPercentage?: number;
+  totalCommissionAmount?: number;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface EnrollmentPackageSummary {
+  enrollmentId: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    studentStatus: string;
+  };
+  institution: { id: string; name: string };
+  school: { id: string; name: string };
+  course: { id: string; program_name: string };
+  accommodation?: {
+    id: string;
+    title: string;
+    accommodationType: string;
+    location: string;
+    priceInCents: number;
+    priceUnit: string;
+    score?: number | null;
+  } | null;
+  pricing?: {
+    currency: string;
+    enrollmentAmount: number;
+    accommodationAmount: number;
+    packageTotalAmount: number;
+    enrollmentCommissionAmount: number;
+    accommodationCommissionAmount: number;
+    totalCommissionAmount: number;
+    commissionPercentage: number;
+  } | null;
+}
+
 export interface EnrollmentTimelineEvent {
   id: string;
-  type: 'enrollment_created' | 'status_changed' | 'document' | 'message';
+  type: 'enrollment_created' | 'status_changed' | 'accommodation_status_changed' | 'document' | 'message';
   occurredAt: string;
   title: string;
   description?: string | null;
+  channel?: 'enrollment' | 'accommodation';
 }

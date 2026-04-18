@@ -11,6 +11,8 @@ import type {
 } from '@/types/catalog.types';
 import {
   createEnrollmentDocumentAction,
+  updateEnrollmentAccommodationAction,
+  updateEnrollmentAccommodationWorkflowAction,
   createEnrollmentMessageAction,
   updateEnrollmentDocumentAction,
   updateEnrollmentPricingAction,
@@ -25,6 +27,14 @@ const STATUS_OPTIONS = [
   { value: 'enrolled', label: 'Enrolled' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'cancelled', label: 'Cancelled' },
+];
+
+const ACCOMMODATION_STATUS_OPTIONS = [
+  { value: 'not_selected', label: 'Não selecionada' },
+  { value: 'selected', label: 'Selecionada' },
+  { value: 'approved', label: 'Aprovada' },
+  { value: 'denied', label: 'Negada' },
+  { value: 'closed', label: 'Fechada (sem troca)' },
 ];
 
 function formatDateTime(value?: string | null) {
@@ -44,7 +54,25 @@ export default async function EnrollmentDetailPage({
   ]);
   if (!enrollment) notFound();
 
+  const recommendedAccommodations = await apiFetch<Array<{
+    id: string;
+    title: string;
+    accommodationType: string;
+    location: string;
+    priceInCents: number;
+    priceUnit: string;
+    score?: number | null;
+    recommendationBadge?: string | null;
+  }>>(`/accommodation/recommended/school/${enrollment.school.id}`).catch(() => []);
+
   const pricing = enrollment.pricing;
+  const enrollmentMessages = (enrollment.messages ?? []).filter(
+    (message) => (message.channel ?? 'enrollment') === 'enrollment',
+  );
+  const accommodationMessages = (enrollment.messages ?? []).filter(
+    (message) => message.channel === 'accommodation',
+  );
+  const isAccommodationClosed = enrollment.accommodationStatus === 'closed';
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,6 +113,49 @@ export default async function EnrollmentDetailPage({
             {new Date(enrollment.academicPeriod.startDate).toLocaleDateString('pt-BR')} - {new Date(enrollment.academicPeriod.endDate).toLocaleDateString('pt-BR')}
           </p>
           <p className="mt-1 text-xs text-slate-500">Status matrícula: {enrollment.status}</p>
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
+          <h2 className="text-sm font-semibold text-slate-900">Acomodação do pacote</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Selecione uma acomodação recomendada para a escola desta matrícula, ou mantenha sem acomodação.
+          </p>
+          <form action={updateEnrollmentAccommodationAction} className="mt-3 flex flex-wrap items-end gap-2">
+            <input type="hidden" name="enrollmentId" value={enrollment.id} />
+            <label className="min-w-[280px] flex-1 text-xs font-medium text-slate-600">
+              Acomodação
+              <select
+                name="accommodationId"
+                defaultValue={enrollment.accommodation?.id ?? ''}
+                disabled={isAccommodationClosed}
+                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              >
+                <option value="">Sem acomodação</option>
+                {recommendedAccommodations.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title} ({item.accommodationType}) - ${(item.priceInCents / 100).toFixed(0)}/{item.priceUnit}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button type="submit" size="sm" variant="outline" disabled={isAccommodationClosed}>
+              Salvar acomodação
+            </Button>
+          </form>
+          {enrollment.accommodation && (
+            <p className="mt-2 text-xs text-slate-500">
+              Atual: {enrollment.accommodation.title} • {(enrollment.accommodation.priceInCents / 100).toFixed(2)} {enrollment.accommodation.priceUnit}
+            </p>
+          )}
+          <p className="mt-1 text-xs text-slate-500">
+            Status operacional da acomodação: <strong>{enrollment.accommodationStatus}</strong>
+            {enrollment.accommodationClosedAt ? ` • Fechada em ${formatDateTime(enrollment.accommodationClosedAt)}` : ''}
+          </p>
+          {isAccommodationClosed && (
+            <p className="mt-1 text-xs text-amber-700">
+              Acomodação fechada. Troca/remoção bloqueada para preservar fechamento e faturamento.
+            </p>
+          )}
         </article>
       </section>
 
@@ -139,11 +210,51 @@ export default async function EnrollmentDetailPage({
               <input name="currency" defaultValue={pricing?.currency ?? 'CAD'} className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" />
             </label>
             <div className="col-span-2 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-              <span>Total: {pricing?.totalAmount ?? '-'}</span>
-              <span>Comissão: {pricing?.commissionAmount ?? '-'} ({pricing?.commissionPercentage ?? 0}%)</span>
+              <span>Matrícula: {pricing?.enrollmentAmount ?? pricing?.basePrice ?? '-'}</span>
+              <span>Acomodação: {pricing?.accommodationAmount ?? 0}</span>
+              <span>Total pacote: {pricing?.packageTotalAmount ?? pricing?.totalAmount ?? '-'}</span>
+              <span>Comissão matrícula: {pricing?.enrollmentCommissionAmount ?? '-'}</span>
+              <span>Comissão acomodação: {pricing?.accommodationCommissionAmount ?? '-'}</span>
+              <span>Comissão total: {pricing?.totalCommissionAmount ?? pricing?.commissionAmount ?? '-'} ({pricing?.commissionPercentage ?? 0}%)</span>
             </div>
             <div className="col-span-2">
               <Button type="submit" size="sm">Salvar Pricing</Button>
+            </div>
+          </form>
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Workflow da Acomodação</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Aprovado/negado/fechado no contexto da matrícula. Ao fechar, não permite trocar.
+          </p>
+          <form action={updateEnrollmentAccommodationWorkflowAction} className="mt-4 grid gap-3">
+            <input type="hidden" name="enrollmentId" value={enrollment.id} />
+            <label className="text-xs font-medium text-slate-600">
+              Status da acomodação
+              <select
+                name="status"
+                defaultValue={enrollment.accommodationStatus}
+                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              >
+                {ACCOMMODATION_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-medium text-slate-600">
+              Motivo (opcional)
+              <textarea
+                name="reason"
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="Ex.: acomodação aprovada e fechada para faturamento"
+              />
+            </label>
+            <div>
+              <Button type="submit" size="sm" disabled={!enrollment.accommodation && enrollment.accommodationStatus === 'not_selected'}>
+                Atualizar workflow da acomodação
+              </Button>
             </div>
           </form>
         </article>
@@ -193,6 +304,7 @@ export default async function EnrollmentDetailPage({
           <p className="mt-1 text-xs text-slate-500">Comunicação aluno e operação dentro da matrícula.</p>
           <form action={createEnrollmentMessageAction} className="mt-4 grid gap-2 rounded-lg border border-slate-200 p-3">
             <input type="hidden" name="enrollmentId" value={enrollment.id} />
+            <input type="hidden" name="channel" value="enrollment" />
             <textarea
               name="message"
               required
@@ -205,10 +317,43 @@ export default async function EnrollmentDetailPage({
             </div>
           </form>
           <div className="mt-4 max-h-80 space-y-3 overflow-y-auto pr-1">
-            {(enrollment.messages ?? []).length === 0 && (
+            {enrollmentMessages.length === 0 && (
               <p className="text-xs text-slate-500">Nenhuma mensagem registrada.</p>
             )}
-            {(enrollment.messages ?? []).map((message) => (
+            {enrollmentMessages.map((message) => (
+              <div key={message.id} className="rounded-lg border border-slate-200 p-3">
+                <p className="text-xs font-semibold text-slate-700">
+                  {message.sender ? `${message.sender.firstName} ${message.sender.lastName}` : 'Usuário'}
+                </p>
+                <p className="mt-1 text-sm text-slate-700">{message.message}</p>
+                <p className="mt-1 text-xs text-slate-500">{formatDateTime(message.createdAt)}</p>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Chat da Acomodação</h2>
+          <p className="mt-1 text-xs text-slate-500">Canal específico da acomodação vinculada à matrícula.</p>
+          <form action={createEnrollmentMessageAction} className="mt-4 grid gap-2 rounded-lg border border-slate-200 p-3">
+            <input type="hidden" name="enrollmentId" value={enrollment.id} />
+            <input type="hidden" name="channel" value="accommodation" />
+            <textarea
+              name="message"
+              required
+              rows={3}
+              placeholder="Digite uma mensagem sobre a acomodação..."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <div>
+              <Button type="submit" size="sm">Enviar Mensagem de Acomodação</Button>
+            </div>
+          </form>
+          <div className="mt-4 max-h-80 space-y-3 overflow-y-auto pr-1">
+            {accommodationMessages.length === 0 && (
+              <p className="text-xs text-slate-500">Nenhuma mensagem de acomodação registrada.</p>
+            )}
+            {accommodationMessages.map((message) => (
               <div key={message.id} className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-semibold text-slate-700">
                   {message.sender ? `${message.sender.firstName} ${message.sender.lastName}` : 'Usuário'}

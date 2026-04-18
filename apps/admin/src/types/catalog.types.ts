@@ -126,6 +126,15 @@ export interface EnrollmentIntentAdmin {
     endDate: string;
     status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
   };
+  accommodation?: {
+    id: string;
+    title: string;
+    accommodationType: string;
+    location: string;
+    priceInCents: number;
+    priceUnit: string;
+    score?: number | null;
+  } | null;
   enrollment?: {
     id: string;
     status: string;
@@ -146,6 +155,8 @@ export interface EnrollmentAdmin {
     | 'completed'
     | 'denied';
   createdAt: string;
+  accommodationStatus: 'not_selected' | 'selected' | 'approved' | 'denied' | 'closed';
+  accommodationClosedAt?: string | null;
   student: {
     id: string;
     firstName: string;
@@ -159,6 +170,15 @@ export interface EnrollmentAdmin {
   course: { id: string; program_name: string };
   classGroup: { id: string; name: string; code: string };
   academicPeriod: { id: string; name: string; startDate: string; endDate: string };
+  accommodation?: {
+    id: string;
+    title: string;
+    accommodationType: string;
+    location: string;
+    priceInCents: number;
+    priceUnit: string;
+    score?: number | null;
+  } | null;
   enrollmentIntent: { id: string; status: string; convertedAt: string | null };
   pricing?: EnrollmentPricingAdmin | null;
   documents?: EnrollmentDocumentAdmin[];
@@ -189,6 +209,7 @@ export interface EnrollmentMessageAdmin {
   enrollmentId: string;
   senderId: string;
   message: string;
+  channel?: 'enrollment' | 'accommodation';
   createdAt: string;
   sender?: {
     id: string;
@@ -216,12 +237,13 @@ export interface EnrollmentStatusHistoryAdmin {
 
 export interface EnrollmentTimelineEventAdmin {
   id: string;
-  type: 'enrollment_created' | 'status_changed' | 'document' | 'message';
+  type: 'enrollment_created' | 'status_changed' | 'accommodation_status_changed' | 'document' | 'message';
   occurredAt: string;
   title: string;
   description?: string | null;
   fromStatus?: string | null;
   toStatus?: string | null;
+  channel?: 'enrollment' | 'accommodation';
   sender?: {
     id: string;
     firstName: string;
@@ -243,9 +265,17 @@ export interface EnrollmentPricingAdmin {
   fees: number;
   discounts: number;
   totalAmount: number;
+  enrollmentAmount?: number;
+  accommodationAmount?: number;
+  packageTotalAmount?: number;
   currency: string;
   commissionAmount: number;
   commissionPercentage: number;
+  enrollmentCommissionAmount?: number;
+  enrollmentCommissionPercentage?: number;
+  accommodationCommissionAmount?: number;
+  accommodationCommissionPercentage?: number;
+  totalCommissionAmount?: number;
   createdAt: string;
   updatedAt: string;
 }

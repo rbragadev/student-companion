@@ -1,7 +1,7 @@
 import { PageHeader } from '@/components/ui/page-header';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import type { CommissionConfigAdmin, CourseAdmin, InstitutionAdmin } from '@/types/catalog.types';
+import type { AccommodationAdmin, CommissionConfigAdmin, CourseAdmin, InstitutionAdmin } from '@/types/catalog.types';
 import { createCommissionConfigAction, updateCommissionConfigAction } from './actions';
 
 function scopeLabel(scopeType: CommissionConfigAdmin['scopeType']) {
@@ -15,20 +15,26 @@ function scopeLabel(scopeType: CommissionConfigAdmin['scopeType']) {
 export default async function CommissionConfigPage() {
   await requirePermission('users.read');
 
-  const [configs, institutions, courses, schools] = await Promise.all([
+  const [configs, institutions, courses, schools, accommodations] = await Promise.all([
     apiFetch<CommissionConfigAdmin[]>('/commission-config').catch(() => []),
     apiFetch<InstitutionAdmin[]>('/institution').catch(() => []),
     apiFetch<CourseAdmin[]>('/course').catch(() => []),
     apiFetch<{ id: string; name: string }[]>('/school').catch(() => []),
+    apiFetch<AccommodationAdmin[]>('/accommodation').catch(() => []),
   ]);
 
   const institutionById = new Map(institutions.map((item) => [item.id, item.name]));
   const schoolById = new Map(schools.map((item) => [item.id, item.name]));
   const courseById = new Map(courses.map((item) => [item.id, item]));
+  const accommodationById = new Map(accommodations.map((item) => [item.id, item]));
 
   const institutionOptions = institutions.map((item) => ({ label: item.name, value: item.id }));
   const courseOptions = courses.map((item) => ({
     label: `${item.program_name} (${schoolById.get(item.school_id) ?? 'Escola'})`,
+    value: item.id,
+  }));
+  const accommodationOptions = accommodations.map((item) => ({
+    label: `${item.title} (${item.accommodationType})`,
     value: item.id,
   }));
 
@@ -41,6 +47,11 @@ export default async function CommissionConfigPage() {
       if (!course) return config.scopeId;
       const schoolName = schoolById.get(course.school_id) ?? 'Escola';
       return `${course.program_name} (${schoolName})`;
+    }
+    if (config.scopeType === 'accommodation') {
+      const accommodation = accommodationById.get(config.scopeId);
+      if (!accommodation) return config.scopeId;
+      return `${accommodation.title} (${accommodation.accommodationType})`;
     }
     return config.scopeId;
   }
@@ -83,6 +94,15 @@ export default async function CommissionConfigPage() {
             </select>
           </label>
           <label className="text-xs font-medium text-slate-600">
+            Acomodação (quando escopo for acomodação)
+            <select name="scopeAccommodationId" className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
+              <option value="">Selecione a acomodação</option>
+              {accommodationOptions.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-medium text-slate-600">
             Percentual (%)
             <input name="percentage" type="number" min={0} max={100} step="0.01" className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" />
           </label>
@@ -105,6 +125,9 @@ export default async function CommissionConfigPage() {
               ))}
               {courseOptions.slice(0, 10).map((item) => (
                 <li key={`course-${item.value}`}>Curso: {item.label}</li>
+              ))}
+              {accommodationOptions.slice(0, 10).map((item) => (
+                <li key={`accommodation-${item.value}`}>Acomodação: {item.label}</li>
               ))}
             </ul>
           </div>

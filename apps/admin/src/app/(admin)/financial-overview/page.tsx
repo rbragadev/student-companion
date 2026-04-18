@@ -54,14 +54,37 @@ export default async function FinancialOverviewPage() {
     {
       key: 'value',
       label: 'Valor Matrícula',
-      render: (item) => formatMoney(item.pricing?.totalAmount, item.pricing?.currency),
+      render: (item) =>
+        formatMoney(item.pricing?.enrollmentAmount ?? item.pricing?.basePrice, item.pricing?.currency),
+    },
+    {
+      key: 'accommodation',
+      label: 'Acomodação',
+      render: (item) => (
+        <div>
+          <p className="text-sm text-slate-700">{item.accommodation?.title ?? 'Sem acomodação'}</p>
+          <p className="text-xs text-slate-500">
+            {item.accommodation
+              ? formatMoney(item.pricing?.accommodationAmount, item.pricing?.currency)
+              : '-'}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'packageTotal',
+      label: 'Total Pacote',
+      render: (item) =>
+        formatMoney(item.pricing?.packageTotalAmount ?? item.pricing?.totalAmount, item.pricing?.currency),
     },
     {
       key: 'commission',
       label: 'Comissão',
       render: (item) => (
         <div>
-          <p className="text-sm text-slate-700">{formatMoney(item.pricing?.commissionAmount, item.pricing?.currency)}</p>
+          <p className="text-sm text-slate-700">
+            {formatMoney(item.pricing?.totalCommissionAmount ?? item.pricing?.commissionAmount, item.pricing?.currency)}
+          </p>
           <p className="text-xs text-slate-500">{num(item.pricing?.commissionPercentage).toFixed(2)}%</p>
         </div>
       ),

@@ -95,6 +95,11 @@ export async function createEnrollmentMessageAction(formData: FormData) {
   const session = await requireSession();
   const enrollmentId = getText(formData, 'enrollmentId');
   const message = getText(formData, 'message');
+  const channelValue = formData.get('channel');
+  const channel =
+    typeof channelValue === 'string' && channelValue.trim() !== ''
+      ? channelValue.trim()
+      : 'enrollment';
 
   await apiFetch('/enrollment-messages', {
     method: 'POST',
@@ -102,6 +107,46 @@ export async function createEnrollmentMessageAction(formData: FormData) {
       enrollmentId,
       senderId: session.sub,
       message,
+      channel,
+    }),
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}
+
+export async function updateEnrollmentAccommodationAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const enrollmentId = getText(formData, 'enrollmentId');
+  const accommodationValue = formData.get('accommodationId');
+  const accommodationId =
+    typeof accommodationValue === 'string' && accommodationValue.trim() !== ''
+      ? accommodationValue.trim()
+      : null;
+
+  await apiFetch(`/enrollments/${enrollmentId}/accommodation`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      accommodationId,
+    }),
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}
+
+export async function updateEnrollmentAccommodationWorkflowAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const session = await requireSession();
+  const enrollmentId = getText(formData, 'enrollmentId');
+  const status = getText(formData, 'status');
+  const reasonValue = formData.get('reason');
+  const reason = typeof reasonValue === 'string' ? reasonValue.trim() : '';
+
+  await apiFetch(`/enrollments/${enrollmentId}/accommodation-workflow`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status,
+      reason: reason || undefined,
+      changedById: session.sub,
     }),
   });
 

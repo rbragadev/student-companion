@@ -12,6 +12,13 @@ function getText(formData: FormData, key: string): string {
   return value.trim();
 }
 
+function getOptionalText(formData: FormData, key: string): string | undefined {
+  const value = formData.get(key);
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim();
+  return normalized ? normalized : undefined;
+}
+
 export async function updateEnrollmentIntentAction(formData: FormData) {
   await assertActionPermission('users.write');
   const intentId = getText(formData, 'intentId');
@@ -22,6 +29,7 @@ export async function updateEnrollmentIntentAction(formData: FormData) {
       courseId: getText(formData, 'courseId'),
       classGroupId: getText(formData, 'classGroupId'),
       academicPeriodId: getText(formData, 'academicPeriodId'),
+      accommodationId: getOptionalText(formData, 'accommodationId'),
     }),
   });
 
@@ -31,6 +39,18 @@ export async function updateEnrollmentIntentAction(formData: FormData) {
 export async function confirmEnrollmentFromIntentAction(formData: FormData) {
   await assertActionPermission('users.write');
   const intentId = getText(formData, 'intentId');
+  const accommodationValue = formData.get('accommodationId');
+  const accommodationId =
+    typeof accommodationValue === 'string' && accommodationValue.trim() !== ''
+      ? accommodationValue.trim()
+      : null;
+
+  if (accommodationValue !== null) {
+    await apiFetch(`/enrollment-intents/${intentId}/accommodation`, {
+      method: 'PATCH',
+      body: JSON.stringify({ accommodationId }),
+    });
+  }
 
   const enrollment = await apiFetch<{ id: string }>(`/enrollments/from-intent/${intentId}`, {
     method: 'POST',
@@ -65,4 +85,23 @@ export async function updateEnrollmentStatusAction(formData: FormData) {
   });
 
   redirect(`/enrollments/${enrollmentId}`);
+}
+
+export async function updateEnrollmentIntentAccommodationAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const intentId = getText(formData, 'intentId');
+  const accommodationValue = formData.get('accommodationId');
+  const accommodationId =
+    typeof accommodationValue === 'string' && accommodationValue.trim() !== ''
+      ? accommodationValue.trim()
+      : null;
+
+  await apiFetch(`/enrollment-intents/${intentId}/accommodation`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      accommodationId,
+    }),
+  });
+
+  redirect(`/enrollment-intents/${intentId}`);
 }

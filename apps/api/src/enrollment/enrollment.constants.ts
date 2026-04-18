@@ -29,6 +29,18 @@ export type EnrollmentDocumentStatus = (typeof ENROLLMENT_DOCUMENT_STATUSES)[num
 export const ENROLLMENT_INTENT_STATUSES = ['pending', 'converted', 'cancelled', 'denied'] as const;
 export type EnrollmentIntentStatus = (typeof ENROLLMENT_INTENT_STATUSES)[number];
 
+export const ENROLLMENT_ACCOMMODATION_STATUSES = [
+  'not_selected',
+  'selected',
+  'approved',
+  'denied',
+  'closed',
+] as const;
+export type EnrollmentAccommodationStatus = (typeof ENROLLMENT_ACCOMMODATION_STATUSES)[number];
+
+export const ENROLLMENT_MESSAGE_CHANNELS = ['enrollment', 'accommodation'] as const;
+export type EnrollmentMessageChannel = (typeof ENROLLMENT_MESSAGE_CHANNELS)[number];
+
 export const COMMISSION_SCOPE_TYPES = [
   'institution',
   'course',

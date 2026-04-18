@@ -70,6 +70,14 @@ export function EnrollmentIntentsView({
       render: (item) => item.academicPeriod.name,
     },
     {
+      key: 'accommodation',
+      label: 'Acomodação',
+      render: (item) =>
+        item.accommodation
+          ? `${item.accommodation.title} (${(item.accommodation.priceInCents / 100).toFixed(0)}/${item.accommodation.priceUnit})`
+          : 'Sem acomodação',
+    },
+    {
       key: 'school',
       label: 'Escola/Instituição',
       render: (item) => `${item.course.school?.institution?.name ?? '-'} > ${item.course.school?.name ?? '-'}`,

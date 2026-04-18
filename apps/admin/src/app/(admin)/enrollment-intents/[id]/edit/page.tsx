@@ -15,11 +15,18 @@ export default async function EditEnrollmentIntentPage({
   await requirePermission('users.write');
   const { id } = await params;
 
-  const [intent, courses, classGroups, periods] = await Promise.all([
+  const [intent, courses, classGroups, periods, recommendedAccommodations] = await Promise.all([
     apiFetch<EnrollmentIntentAdmin>(`/enrollment-intents/${id}`).catch(() => null),
     apiFetch<CourseAdmin[]>('/course').catch(() => []),
     apiFetch<ClassGroup[]>('/class-group').catch(() => []),
     apiFetch<AcademicPeriod[]>('/academic-period').catch(() => []),
+    apiFetch<Array<{
+      id: string;
+      title: string;
+      accommodationType: string;
+      priceInCents: number;
+      priceUnit: string;
+    }>>(`/enrollment-intents/recommended-accommodations?intentId=${id}`).catch(() => []),
   ]);
 
   if (!intent) notFound();
@@ -72,6 +79,22 @@ export default async function EditEnrollmentIntentPage({
           <select name="academicPeriodId" defaultValue={intent.academicPeriod.id} className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
             {periods.map((period) => (
               <option key={period.id} value={period.id}>{period.name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="text-sm text-slate-700 md:col-span-2">
+          Acomodação (opcional)
+          <select
+            name="accommodationId"
+            defaultValue={intent.accommodation?.id ?? ''}
+            className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+          >
+            <option value="">Sem acomodação</option>
+            {recommendedAccommodations.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.title} ({item.accommodationType}) - ${(item.priceInCents / 100).toFixed(0)}/{item.priceUnit}
+              </option>
             ))}
           </select>
         </label>

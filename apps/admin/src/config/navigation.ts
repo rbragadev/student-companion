@@ -100,6 +100,7 @@ export const navigationGroups: NavGroup[] = [
       { label: 'Alunos', href: '/students', icon: 'Users', permission: 'users.read' },
       { label: 'Intenções de Matrícula', href: '/enrollment-intents', icon: 'FileBadge2', permission: 'users.read' },
       { label: 'Matrículas', href: '/enrollments', icon: 'BadgeCheck', permission: 'users.read' },
+      { label: 'Fechamento Acomodação', href: '/accommodation-operations', icon: 'Home', permission: 'users.read' },
       { label: 'Comissões', href: '/commission-config', icon: 'CircleDollarSign', permission: 'users.read' },
       { label: 'Financeiro', href: '/financial-overview', icon: 'Wallet', permission: 'users.read' },
       { label: 'Usuários Admin', href: '/admin-users', icon: 'UserCog', permission: 'users.read' },

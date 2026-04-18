@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import type { EnrollmentIntentAdmin } from '@/types/catalog.types';
-import { updateEnrollmentIntentStatusAction } from '../actions';
+import { updateEnrollmentIntentAccommodationAction, updateEnrollmentIntentStatusAction } from '../actions';
 
 const STATUS_LABEL: Record<EnrollmentIntentAdmin['student']['studentStatus'], string> = {
   lead: 'Lead',
@@ -28,7 +28,19 @@ export default async function EnrollmentIntentDetailPage({
   await requirePermission('users.read');
   const { id } = await params;
 
-  const intent = await apiFetch<EnrollmentIntentAdmin>(`/enrollment-intents/${id}`).catch(() => null);
+  const [intent, recommendedAccommodations] = await Promise.all([
+    apiFetch<EnrollmentIntentAdmin>(`/enrollment-intents/${id}`).catch(() => null),
+    apiFetch<Array<{
+      id: string;
+      title: string;
+      accommodationType: string;
+      location: string;
+      priceInCents: number;
+      priceUnit: string;
+      score?: number | null;
+      recommendationBadge?: string | null;
+    }>>(`/enrollment-intents/recommended-accommodations?intentId=${id}`).catch(() => []),
+  ]);
   if (!intent) notFound();
 
   return (
@@ -103,6 +115,37 @@ export default async function EnrollmentIntentDetailPage({
           <p className="text-xs text-slate-500">
             {new Date(intent.academicPeriod.startDate).toLocaleDateString('pt-BR')} - {new Date(intent.academicPeriod.endDate).toLocaleDateString('pt-BR')}
           </p>
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
+          <h2 className="text-sm font-semibold text-slate-900">Acomodação do pacote (opcional)</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Sugestões recomendadas pela escola da intenção. Você pode confirmar com ou sem acomodação.
+          </p>
+          <form action={updateEnrollmentIntentAccommodationAction} className="mt-3 flex flex-wrap items-end gap-2">
+            <input type="hidden" name="intentId" value={intent.id} />
+            <label className="min-w-[280px] flex-1 text-xs font-medium text-slate-600">
+              Acomodação selecionada
+              <select
+                name="accommodationId"
+                defaultValue={intent.accommodation?.id ?? ''}
+                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              >
+                <option value="">Sem acomodação</option>
+                {recommendedAccommodations.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title} ({item.accommodationType}) - ${(item.priceInCents / 100).toFixed(0)}/{item.priceUnit}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button type="submit" size="sm" variant="outline">Salvar acomodação</Button>
+          </form>
+          {intent.accommodation && (
+            <p className="mt-2 text-xs text-slate-500">
+              Atual: {intent.accommodation.title} • {(intent.accommodation.priceInCents / 100).toFixed(2)} {intent.accommodation.priceUnit}
+            </p>
+          )}
         </article>
       </section>
     </div>

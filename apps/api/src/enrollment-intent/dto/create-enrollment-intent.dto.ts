@@ -1,4 +1,4 @@
-import { IsUUID } from 'class-validator';
+import { IsOptional, IsUUID } from 'class-validator';
 
 export class CreateEnrollmentIntentDto {
   @IsUUID()
@@ -12,4 +12,8 @@ export class CreateEnrollmentIntentDto {
 
   @IsUUID()
   academicPeriodId: string;
+
+  @IsOptional()
+  @IsUUID()
+  accommodationId?: string;
 }

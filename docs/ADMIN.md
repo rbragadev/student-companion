@@ -122,6 +122,7 @@ apps/admin/
     │       ├── academic-structure/ # Consulta relacional com filtros encadeados
     │       ├── enrollment-intents/ # Lista e detalhe de intenções de matrícula
     │       ├── enrollments/    # Lista e detalhe operacional/financeiro das matrículas
+    │       ├── accommodation-operations/ # Fechamento/faturamento de acomodação por matrícula
     │       ├── commission-config/ # Configuração de comissão por instituição/curso
     │       ├── financial-overview/ # Visão financeira inicial das comissões geradas
     │       ├── accommodations/ # Lista integrada com dados reais
@@ -205,13 +206,15 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
 - `/enrollment-intents`, `/enrollment-intents/[id]`
   Lista e detalhe das intenções de matrícula com filtros por status do aluno, instituição e escola.
 - `/enrollment-intents/[id]/edit`
-  Página dedicada para alterar curso/turma/período da intenção pendente.
+  Página dedicada para alterar curso/turma/período e acomodação da intenção pendente.
 - `/enrollment-intents/[id]/confirm`
-  Página dedicada para confirmar matrícula (conversão da intenção).
+  Página dedicada para confirmar matrícula (conversão da intenção), podendo selecionar/trocar/remover acomodação antes da efetivação.
 - `/students/[id]`
   Jornada acadêmica do aluno com intenção pendente, matrícula ativa e histórico completo.
 - `/enrollments`, `/enrollments/[id]`
-  Lista e detalhe de matrículas com workflow operacional (`application_started`, `documents_pending`, `under_review`, `approved`, `enrolled`, `rejected`, `cancelled`), pricing, comissão, documentos, mensagens e timeline.
+  Lista e detalhe de matrículas com workflow operacional (`application_started`, `documents_pending`, `under_review`, `approved`, `enrolled`, `rejected`, `cancelled`), pricing de pacote (matrícula + acomodação), comissão, documentos, mensagens e timeline.
+- `/accommodation-operations`
+  Operação dedicada para fechamento de acomodação e faturamento no contexto da matrícula (status da acomodação + acesso rápido ao detalhe da matrícula).
 - `/commission-config`
   Configuração de comissão por instituição (global) e por curso (override), com nomes legíveis de domínio (instituição/escola/curso).
 - `/financial-overview`
@@ -219,7 +222,7 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
 - `/accommodations`, `/places`, `/students`
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
 - `/accommodations` (evolução de upsell contextual)
-  Catálogo independente + configuração de recomendação por escola (recomendada, prioridade e badge).
+  Catálogo independente + configuração de recomendação por escola (recomendada, prioridade e badge), com visualização de uso em intenções e matrículas.
 
 Fluxo único de dados:
 - Admin atualiza dados reais.
@@ -239,6 +242,14 @@ Status da integração mobile (escopo acadêmico já coberto):
 - O mobile exibe indicador de mensagens não lidas via `GET /enrollment-messages/unread-count?studentId=...` e sincroniza leitura com `PATCH /enrollment-messages/read`.
 - Upload de documentos no mobile fica visível apenas em status compatível com etapa documental (`documents_pending`, `under_review`).
 - Upsell de acomodação da matrícula usa dados reais com contexto da escola (`GET /accommodation/upsell/enrollment/:enrollmentId`), mostrando apenas acomodações recomendadas para a escola da matrícula com badge configurado no SaaS.
+- No fluxo de intenção/matrícula:
+  - mobile consome `GET /enrollment-intents/recommended-accommodations?courseId=...` para mostrar acomodação elegível no momento de iniciar a intenção;
+  - intenção aceita seleção/troca/remoção de acomodação via `PATCH /enrollment-intents/:id/accommodation`;
+  - matrícula aceita seleção/troca/remoção de acomodação via `PATCH /enrollments/:id/accommodation`;
+  - financeiro consolidado do pacote é exposto por `GET /enrollments/:id/package-summary` e refletido no SaaS/mobile.
+  - workflow de acomodação no contexto da matrícula é atualizado por `PATCH /enrollments/:id/accommodation-workflow`;
+  - após status `closed`, a acomodação não pode mais ser trocada/removida;
+  - chat da acomodação usa o mesmo endpoint de mensagens com canal dedicado (`channel=accommodation`), mantendo fonte única no backend.
 
 ## Sidebar (Ordem de Operação)
 

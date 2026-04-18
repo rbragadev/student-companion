@@ -6,6 +6,8 @@ import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import type {
   AccommodationAdmin,
+  EnrollmentAdmin,
+  EnrollmentIntentAdmin,
   SchoolAccommodationRecommendationAdmin,
   SchoolAdmin,
 } from '@/types/catalog.types';
@@ -43,9 +45,11 @@ export default async function AccommodationsPage() {
   const session = await requirePermission('structure.read');
   const canWrite = session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
-  const [accommodations, schools] = await Promise.all([
+  const [accommodations, schools, intents, enrollments] = await Promise.all([
     apiFetch<AccommodationAdmin[]>('/accommodation').catch(() => []),
     apiFetch<SchoolAdmin[]>('/school').catch(() => []),
+    apiFetch<EnrollmentIntentAdmin[]>('/enrollment-intents').catch(() => []),
+    apiFetch<EnrollmentAdmin[]>('/enrollments').catch(() => []),
   ]);
 
   const recommendationEntries = await Promise.all(
@@ -162,6 +166,53 @@ export default async function AccommodationsPage() {
           {schools.length === 0 && (
             <p className="text-sm text-slate-500">Cadastre escolas para configurar recomendações de acomodação por contexto acadêmico.</p>
           )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="text-base font-semibold text-slate-900">Uso em intenções e matrículas</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Acompanhe onde as acomodações estão vinculadas dentro do fluxo acadêmico.
+        </p>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <article className="rounded-lg border border-slate-200 p-4">
+            <h3 className="text-sm font-semibold text-slate-900">Intenções com acomodação</h3>
+            <div className="mt-3 space-y-2">
+              {intents.filter((item) => item.accommodation).map((intent) => (
+                <div key={intent.id} className="rounded border border-slate-200 p-2">
+                  <p className="text-sm font-medium text-slate-900">
+                    {intent.student.firstName} {intent.student.lastName}
+                  </p>
+                  <p className="text-xs text-slate-500">{intent.course.program_name}</p>
+                  <p className="text-xs text-slate-500">{intent.accommodation?.title ?? '-'}</p>
+                  <p className="text-xs text-slate-500">Status: {intent.status}</p>
+                </div>
+              ))}
+              {intents.filter((item) => item.accommodation).length === 0 && (
+                <p className="text-xs text-slate-500">Nenhuma intenção com acomodação no momento.</p>
+              )}
+            </div>
+          </article>
+
+          <article className="rounded-lg border border-slate-200 p-4">
+            <h3 className="text-sm font-semibold text-slate-900">Matrículas com acomodação</h3>
+            <div className="mt-3 space-y-2">
+              {enrollments.filter((item) => item.accommodation).map((enrollment) => (
+                <div key={enrollment.id} className="rounded border border-slate-200 p-2">
+                  <p className="text-sm font-medium text-slate-900">
+                    {enrollment.student.firstName} {enrollment.student.lastName}
+                  </p>
+                  <p className="text-xs text-slate-500">{enrollment.course.program_name}</p>
+                  <p className="text-xs text-slate-500">{enrollment.accommodation?.title ?? '-'}</p>
+                  <p className="text-xs text-slate-500">Escola: {enrollment.school.name}</p>
+                </div>
+              ))}
+              {enrollments.filter((item) => item.accommodation).length === 0 && (
+                <p className="text-xs text-slate-500">Nenhuma matrícula com acomodação vinculada.</p>
+              )}
+            </div>
+          </article>
         </div>
       </section>
     </div>

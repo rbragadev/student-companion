@@ -101,6 +101,9 @@ export default function AcademicJourneyScreen() {
                   <Text variant="body" className="font-medium">{activeIntent.course?.program_name ?? 'Curso'}</Text>
                   <Text variant="caption">Turma: {activeIntent.classGroup?.name ?? '-'} ({activeIntent.classGroup?.code ?? '-'})</Text>
                   <Text variant="caption">Período: {activeIntent.academicPeriod?.name ?? '-'}</Text>
+                  <Text variant="caption">
+                    Acomodação: {activeIntent.accommodation ? activeIntent.accommodation.title : 'Sem acomodação'}
+                  </Text>
                   <Text variant="caption">Status: {intentStatusLabel[activeIntent.status]}</Text>
                   <Text variant="caption">Criada em: {formatDate(activeIntent.createdAt)}</Text>
                   <Button
@@ -121,6 +124,9 @@ export default function AcademicJourneyScreen() {
                 <View className="mt-3 gap-2">
                   <Text variant="body" className="font-medium">{activeEnrollment.course.program_name}</Text>
                   <Text variant="caption">{activeEnrollment.institution.name} {'>'} {activeEnrollment.school.name} {'>'} {activeEnrollment.unit.name}</Text>
+                  <Text variant="caption">
+                    Acomodação: {activeEnrollment.accommodation ? activeEnrollment.accommodation.title : 'Sem acomodação'}
+                  </Text>
                   <Text variant="caption">Status: {enrollmentStatusLabel[activeEnrollment.status]}</Text>
                   <Button
                     className="mt-2"
@@ -144,6 +150,7 @@ export default function AcademicJourneyScreen() {
                     <Text variant="caption">Status: {enrollmentStatusLabel[enrollment.status]}</Text>
                     <Text variant="caption">Turma: {enrollment.classGroup.name} ({enrollment.classGroup.code})</Text>
                     <Text variant="caption">Período: {enrollment.academicPeriod.name}</Text>
+                    <Text variant="caption">Acomodação: {enrollment.accommodation ? enrollment.accommodation.title : 'Sem acomodação'}</Text>
                     <Button
                       className="mt-2"
                       variant="outline"
@@ -168,6 +175,7 @@ export default function AcademicJourneyScreen() {
                       <Text variant="caption">Motivo da negativa: {intent.deniedReason}</Text>
                     )}
                     <Text variant="caption">Período: {intent.academicPeriod?.name ?? '-'}</Text>
+                    <Text variant="caption">Acomodação: {intent.accommodation ? intent.accommodation.title : 'Sem acomodação'}</Text>
                     <Text variant="caption">Criada em: {formatDate(intent.createdAt)}</Text>
                   </View>
                 ))}

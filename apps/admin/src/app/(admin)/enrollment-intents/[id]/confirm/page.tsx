@@ -14,7 +14,16 @@ export default async function ConfirmEnrollmentIntentPage({
   await requirePermission('users.write');
   const { id } = await params;
 
-  const intent = await apiFetch<EnrollmentIntentAdmin>(`/enrollment-intents/${id}`).catch(() => null);
+  const [intent, recommendedAccommodations] = await Promise.all([
+    apiFetch<EnrollmentIntentAdmin>(`/enrollment-intents/${id}`).catch(() => null),
+    apiFetch<Array<{
+      id: string;
+      title: string;
+      accommodationType: string;
+      priceInCents: number;
+      priceUnit: string;
+    }>>(`/enrollment-intents/recommended-accommodations?intentId=${id}`).catch(() => []),
+  ]);
   if (!intent) notFound();
 
   return (
@@ -42,11 +51,31 @@ export default async function ConfirmEnrollmentIntentPage({
         <p className="text-sm text-slate-700 mt-1">
           <strong>Período:</strong> {intent.academicPeriod.name}
         </p>
+        <p className="text-sm text-slate-700 mt-1">
+          <strong>Acomodação:</strong> {intent.accommodation ? `${intent.accommodation.title} (${(intent.accommodation.priceInCents / 100).toFixed(0)}/${intent.accommodation.priceUnit})` : 'Sem acomodação'}
+        </p>
       </section>
 
-      <form action={confirmEnrollmentFromIntentAction} className="flex justify-end">
+      <form action={confirmEnrollmentFromIntentAction} className="grid gap-3">
         <input type="hidden" name="intentId" value={intent.id} />
-        <Button type="submit"><CheckCircle2 size={14} />Confirmar matrícula</Button>
+        <label className="text-sm text-slate-700">
+          Acomodação do pacote (opcional)
+          <select
+            name="accommodationId"
+            defaultValue={intent.accommodation?.id ?? ''}
+            className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+          >
+            <option value="">Sem acomodação</option>
+            {recommendedAccommodations.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.title} ({item.accommodationType}) - ${(item.priceInCents / 100).toFixed(0)}/{item.priceUnit}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="flex justify-end">
+          <Button type="submit"><CheckCircle2 size={14} />Confirmar matrícula</Button>
+        </div>
       </form>
     </div>
   );

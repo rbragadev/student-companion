@@ -2,6 +2,7 @@ import type {
   Enrollment,
   EnrollmentDocument,
   EnrollmentMessage,
+  EnrollmentPackageSummary,
   EnrollmentTimelineEvent,
   StudentAcademicJourney,
 } from '../../types/enrollment.types';
@@ -23,6 +24,11 @@ export const enrollmentApi = {
     return data as Enrollment;
   },
 
+  getEnrollmentPackageSummary: async (enrollmentId: string): Promise<EnrollmentPackageSummary> => {
+    const { data } = await apiClient.get(`/enrollments/${enrollmentId}/package-summary`);
+    return data as EnrollmentPackageSummary;
+  },
+
   getStudentJourney: async (studentId: string): Promise<StudentAcademicJourney> => {
     const { data } = await apiClient.get(`/enrollments/journey/${studentId}`);
     return data as StudentAcademicJourney;
@@ -33,8 +39,12 @@ export const enrollmentApi = {
     return Array.isArray(data) ? (data as EnrollmentTimelineEvent[]) : [];
   },
 
-  getEnrollmentMessages: async (enrollmentId: string): Promise<EnrollmentMessage[]> => {
-    const { data } = await apiClient.get(`/enrollment-messages?enrollmentId=${enrollmentId}`);
+  getEnrollmentMessages: async (
+    enrollmentId: string,
+    channel?: 'enrollment' | 'accommodation',
+  ): Promise<EnrollmentMessage[]> => {
+    const query = channel ? `&channel=${channel}` : '';
+    const { data } = await apiClient.get(`/enrollment-messages?enrollmentId=${enrollmentId}${query}`);
     return Array.isArray(data) ? (data as EnrollmentMessage[]) : [];
   },
 
@@ -42,6 +52,7 @@ export const enrollmentApi = {
     enrollmentId: string;
     senderId: string;
     message: string;
+    channel?: 'enrollment' | 'accommodation';
   }): Promise<EnrollmentMessage> => {
     const { data } = await apiClient.post('/enrollment-messages', payload);
     return data as EnrollmentMessage;
@@ -71,5 +82,27 @@ export const enrollmentApi = {
   }): Promise<EnrollmentDocument> => {
     const { data } = await apiClient.post('/enrollment-documents', payload);
     return data as EnrollmentDocument;
+  },
+
+  setEnrollmentAccommodation: async (
+    enrollmentId: string,
+    accommodationId?: string | null,
+  ): Promise<Enrollment> => {
+    const { data } = await apiClient.patch(`/enrollments/${enrollmentId}/accommodation`, {
+      accommodationId: accommodationId ?? null,
+    });
+    return data as Enrollment;
+  },
+
+  updateEnrollmentAccommodationWorkflow: async (
+    enrollmentId: string,
+    payload: {
+      status: 'not_selected' | 'selected' | 'approved' | 'denied' | 'closed';
+      reason?: string;
+      changedById?: string;
+    },
+  ): Promise<Enrollment> => {
+    const { data } = await apiClient.patch(`/enrollments/${enrollmentId}/accommodation-workflow`, payload);
+    return data as Enrollment;
   },
 };

@@ -4,6 +4,7 @@ import type {
   CreateEnrollmentIntentPayload,
   EnrollmentIntent,
 } from '../../types/enrollment.types';
+import type { Accommodation } from '../../types/accommodation.types';
 import { apiClient } from './client';
 
 export const enrollmentIntentApi = {
@@ -33,5 +34,22 @@ export const enrollmentIntentApi = {
   getIntentsByStudent: async (studentId: string): Promise<EnrollmentIntent[]> => {
     const { data } = await apiClient.get(`/enrollment-intents?studentId=${studentId}`);
     return Array.isArray(data) ? (data as EnrollmentIntent[]) : [];
+  },
+
+  getRecommendedAccommodationsByCourse: async (courseId: string): Promise<Accommodation[]> => {
+    const { data } = await apiClient.get(
+      `/enrollment-intents/recommended-accommodations?courseId=${courseId}`,
+    );
+    return Array.isArray(data) ? (data as Accommodation[]) : [];
+  },
+
+  setIntentAccommodation: async (
+    intentId: string,
+    accommodationId?: string | null,
+  ): Promise<EnrollmentIntent> => {
+    const { data } = await apiClient.patch(`/enrollment-intents/${intentId}/accommodation`, {
+      accommodationId: accommodationId ?? null,
+    });
+    return data as EnrollmentIntent;
   },
 };
