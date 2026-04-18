@@ -10,6 +10,8 @@ import { AccommodationModule } from './accommodation/accommodation.module';
 import { PlaceModule } from './place/place.module';
 import { RecommendationModule } from './recommendation/recommendation.module';
 import { AuthModule } from './auth/auth.module';
+import { PermissionModule } from './permission/permission.module';
+import { AdminProfileModule } from './admin-profile/admin-profile.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { AuthModule } from './auth/auth.module';
     AccommodationModule,
     PlaceModule,
     RecommendationModule,
+    PermissionModule,
+    AdminProfileModule,
   ],
   controllers: [AppController],
   providers: [AppService],

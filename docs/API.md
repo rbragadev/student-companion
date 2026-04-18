@@ -20,6 +20,8 @@ apps/api/
 ├── src/
 │   ├── auth/               # AuthModule, AuthService, AuthController
 │   ├── user/               # UserModule, UserService, UserController
+│   ├── permission/         # PermissionModule (GET /permission)
+│   ├── admin-profile/      # CRUD de perfis + set de permissões
 │   ├── school/
 │   ├── course/
 │   ├── accommodation/
@@ -91,8 +93,37 @@ JWT payload: `{ sub, email, role }`. Expiração: 30 dias.
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | `POST` | `/users` | Criar usuário |
+| `GET` | `/users/admin` | Listar usuários com role ADMIN/SUPER_ADMIN |
+| `GET` | `/users/admin/:id` | Buscar usuário admin por id |
+| `POST` | `/users/admin` | Criar usuário admin (com senha, role e perfis) |
+| `PATCH` | `/users/admin/:id` | Atualizar usuário admin (dados e perfis) |
+| `DELETE` | `/users/admin/:id` | Excluir usuário admin |
 | `GET` | `/users/:id` | Buscar usuário com preferências |
+| `GET` | `/users/:id/permissions` | Permissões efetivas do usuário (union dos perfis) |
+| `PUT` | `/users/:id/admin-profiles` | Substituir perfis administrativos do usuário |
 | `POST` | `/users/:id/preferences` | Criar/atualizar preferências |
+
+---
+
+### Permissões e Perfis Admin
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/permission` | Listar permissões |
+| `GET` | `/admin-profile` | Listar perfis admin |
+| `GET` | `/admin-profile/:id` | Detalhe de perfil (permissões e usuários) |
+| `POST` | `/admin-profile` | Criar perfil |
+| `PATCH` | `/admin-profile/:id` | Atualizar perfil |
+| `DELETE` | `/admin-profile/:id` | Excluir perfil não-sistêmico |
+| `PUT` | `/admin-profile/:id/permissions` | Substituir permissões do perfil |
+
+Exemplo `PUT /admin-profile/:id/permissions`:
+
+```json
+{
+  "permissionIds": ["clz...", "clz..."]
+}
+```
 
 ---
 
@@ -157,6 +188,10 @@ JWT payload: `{ sub, email, role }`. Expiração: 30 dias.
 | `accommodation` | title, accommodationType, price, coords, ratings, isPartner, isTopTrip |
 | `place` | name, category, coords, isStudentFavorite, hasDeal, hours (JSON) |
 | `review` | userId, reviewableType, reviewableId, rating, comment |
+| `permission` | key, description |
+| `admin_profile` | name, label, isSystem |
+| `admin_profile_permission` | profileId + permissionId |
+| `user_admin_profile` | userId + profileId |
 
 ### Roles
 
@@ -177,8 +212,9 @@ enum Role {
 | `lucas@studentcompanion.dev` | STUDENT |
 | `admin@studentcompanion.dev` | ADMIN |
 | `superadmin@studentcompanion.dev` | SUPER_ADMIN |
+| `operador@studentcompanion.dev` | ADMIN |
 
-Seed cria também: 3 escolas · 6 cursos · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto).
+Seed cria também: 3 escolas · 6 cursos · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto) + permissões administrativas + perfis (`super_admin`, `admin`, `operador`) + vínculos iniciais de usuários admin.
 
 ---
 

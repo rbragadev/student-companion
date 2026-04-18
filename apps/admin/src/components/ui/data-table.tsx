@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { LoadingState } from './loading-state';
 import { EmptyState } from './empty-state';
@@ -15,7 +16,8 @@ interface DataTableProps<T> {
   columns: Column<T>[];
   data: T[];
   keyExtractor: (row: T) => string;
-  onRowClick?: (row: T) => void;
+  /** Quando definido, cada linha vira um link para esse href (Server Component friendly). */
+  getRowHref?: (row: T) => string;
   isLoading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
@@ -27,7 +29,7 @@ export function DataTable<T>({
   columns,
   data,
   keyExtractor,
-  onRowClick,
+  getRowHref,
   isLoading,
   emptyTitle,
   emptyDescription,
@@ -65,27 +67,38 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {data.map((row) => (
-            <tr
-              key={keyExtractor(row)}
-              onClick={() => onRowClick?.(row)}
-              className={cn(
-                'transition-colors',
-                onRowClick && 'cursor-pointer hover:bg-slate-50',
-              )}
-            >
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className={cn('px-4 py-3 text-slate-700', col.className)}
-                >
-                  {col.render
+          {data.map((row) => {
+            const rowHref = getRowHref?.(row);
+            return (
+              <tr
+                key={keyExtractor(row)}
+                className={cn(
+                  'transition-colors',
+                  rowHref && 'hover:bg-slate-50',
+                )}
+              >
+                {columns.map((col) => {
+                  const content = col.render
                     ? col.render(row)
-                    : String((row as Record<string, unknown>)[col.key] ?? '—')}
-                </td>
-              ))}
-            </tr>
-          ))}
+                    : String((row as Record<string, unknown>)[col.key] ?? '—');
+                  return (
+                    <td
+                      key={col.key}
+                      className={cn('px-4 py-3 text-slate-700', col.className)}
+                    >
+                      {rowHref
+                        ? (
+                            <Link href={rowHref} className="block">
+                              {content}
+                            </Link>
+                          )
+                        : content}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

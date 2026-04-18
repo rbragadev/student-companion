@@ -40,6 +40,7 @@ JWT_SECRET=student-companion-dev-secret
 |--------|------|
 | `admin@studentcompanion.dev` | ADMIN |
 | `superadmin@studentcompanion.dev` | SUPER_ADMIN |
+| `operador@studentcompanion.dev` | ADMIN |
 
 Senha: `senha123`
 
@@ -47,15 +48,25 @@ Senha: `senha123`
 
 ## Roles e Permissões
 
-`ROLE_PERMISSIONS` em `src/types/permissions.types.ts`:
+Permissões são dinâmicas e vêm da API:
 
-| Role | Acesso |
-|------|--------|
-| `STUDENT` | Bloqueado |
-| `ADMIN` | Dashboard + CRUD escolas, cursos, acomodações, lugares · visualização de alunos |
-| `SUPER_ADMIN` | Tudo (`*`) |
+| Fonte | Uso |
+|------|-----|
+| JWT (`role`) | Gate inicial de acesso ao painel (`ADMIN`/`SUPER_ADMIN`) |
+| `/users/:id/permissions` | Permissões efetivas (union dos perfis atribuídos) |
+| cookie `admin_permissions` | Cache de permissões para renderização de navegação |
+| `lib/authorization.ts` | Guard server-side para rotas e server actions sensíveis |
 
-`hasPermission(role, permission)` é usado na sidebar para filtrar itens de navegação.
+`hasPermission(permissions, permission)` aplica regra especial: `admin.full` concede acesso irrestrito.
+
+Permissões atuais de navegação:
+
+- `users.read`
+- `users.write`
+- `roles.read`
+- `roles.write`
+- `permissions.read`
+- `admin.full`
 
 ---
 
@@ -75,7 +86,10 @@ apps/admin/
     │   │   └── actions.ts      # Server Actions: loginAction, logoutAction
     │   └── (admin)/
     │       ├── layout.tsx      # Shell com Sidebar
-    │       └── dashboard/      # Dashboard com stats reais da API
+    │       ├── dashboard/      # Dashboard com stats reais da API
+    │       ├── admin-users/    # Lista, criação e edição de usuários admin
+    │       ├── profiles/       # Lista, criação e edição de perfis
+    │       └── permissions/    # Catálogo de permissões
     ├── components/
     │   ├── layout/             # Sidebar, Header, NavItem (client), LogoutButton
     │   ├── ui/                 # Componentes genéricos (ver abaixo)
@@ -83,11 +97,12 @@ apps/admin/
     ├── lib/
     │   ├── session.ts          # getSession() — lê e verifica cookie
     │   ├── permissions.ts      # hasPermission(), ADMIN_ROLES
+    │   ├── authorization.ts    # requirePermission() e assertActionPermission()
     │   ├── api.ts              # apiFetch<T>() — unwrap envelope da API
     │   └── cn.ts               # clsx + tailwind-merge
     ├── types/
-    │   ├── auth.types.ts       # Session, Role
-    │   └── permissions.types.ts # Permission, ROLE_PERMISSIONS
+    │   ├── auth.types.ts       # Session, Role, AdminUser, AdminProfile, Permission
+    │   └── permissions.types.ts # Tipos de permissões de navegação
     └── config/navigation.ts    # Itens do menu com permissão associada
 ```
 
@@ -112,6 +127,31 @@ apps/admin/
 ## Dashboard
 
 Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/course`, `/accommodation`, `/place`. Exibe stat cards + grid de módulos futuros.
+
+## Módulos Administrativos Novos
+
+- `/admin-users`:
+  Lista usuários `ADMIN` e `SUPER_ADMIN`.
+- `/admin-users/new`:
+  Criação de usuário admin com role e perfis.
+- `/admin-users/[id]`:
+  Edição de dados, role e perfis; também permite exclusão do usuário.
+- `/profiles`:
+  Listagem de perfis com contagem de permissões/usuários.
+- `/profiles/new`:
+  Criação de perfil + seleção inicial de permissões.
+- `/profiles/[id]`:
+  Edição de label/descrição + substituição de permissões (`PUT /admin-profile/:id/permissions`).
+- `/permissions`:
+  Catálogo somente leitura de permissões (`GET /permission`).
+
+## Regras de Autorização na UI
+
+- Rotas server-side críticas usam `requirePermission(permission)`:
+  `users.read`, `users.write`, `roles.read`, `roles.write`, `permissions.read`.
+- Server actions sensíveis usam `assertActionPermission(permission)`:
+  criação/edição/exclusão de usuários e perfis.
+- A sidebar continua filtrando navegação por permissão, mas agora não é o único gate.
 
 ---
 

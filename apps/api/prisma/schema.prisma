@@ -13,20 +13,66 @@ enum Role {
 }
 
 model User {
-  id           String           @id @default(cuid()) @db.Uuid
-  email        String           @unique
-  phone        String?
-  avatar       String?
-  passwordHash String?          @map("password_hash")
-  role         Role             @default(STUDENT)
-  createdAt    DateTime         @default(now())
-  firstName    String
-  lastName     String
-  updatedAt    DateTime         @updatedAt
-  reviews      Review[]
-  preferences  UserPreferences?
+  id            String             @id @default(cuid()) @db.Uuid
+  email         String             @unique
+  phone         String?
+  avatar        String?
+  passwordHash  String?            @map("password_hash")
+  role          Role               @default(STUDENT)
+  createdAt     DateTime           @default(now())
+  firstName     String
+  lastName      String
+  updatedAt     DateTime           @updatedAt
+  reviews       Review[]
+  preferences   UserPreferences?
+  adminProfiles UserAdminProfile[]
 
   @@map("users")
+}
+
+model Permission {
+  id          String                   @id @default(cuid())
+  key         String                   @unique
+  description String
+  createdAt   DateTime                 @default(now())
+  profiles    AdminProfilePermission[]
+
+  @@map("permission")
+}
+
+model AdminProfile {
+  id          String                   @id @default(cuid())
+  name        String                   @unique
+  label       String
+  description String?
+  isSystem    Boolean                  @default(false)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  permissions AdminProfilePermission[]
+  users       UserAdminProfile[]
+
+  @@map("admin_profile")
+}
+
+model AdminProfilePermission {
+  profileId    String
+  permissionId String
+  profile      AdminProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  permission   Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, permissionId])
+  @@map("admin_profile_permission")
+}
+
+model UserAdminProfile {
+  userId     String       @db.Uuid
+  profileId  String
+  assignedAt DateTime     @default(now())
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile    AdminProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([userId, profileId])
+  @@map("user_admin_profile")
 }
 
 model UserPreferences {

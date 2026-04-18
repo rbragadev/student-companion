@@ -1,19 +1,16 @@
 import type { Role } from '@/types/auth.types';
-import type { Permission } from '@/types/permissions.types';
-import { ROLE_PERMISSIONS } from '@/types/permissions.types';
-
-export function hasPermission(role: Role, permission: Permission): boolean {
-  const permissions = ROLE_PERMISSIONS[role];
-  if (permissions[0] === '*') return true;
-  return (permissions as Permission[]).includes(permission);
-}
-
-export function canAccess(role: Role, permissions: Permission[]): boolean {
-  return permissions.every((p) => hasPermission(role, p));
-}
 
 export const ADMIN_ROLES: Role[] = ['ADMIN', 'SUPER_ADMIN'];
 
-export function isAdminRole(role: Role): boolean {
-  return ADMIN_ROLES.includes(role);
+export function isAdminRole(role: string): role is Role {
+  return ADMIN_ROLES.includes(role as Role);
+}
+
+/** `admin.full` concede acesso irrestrito a qualquer permissão. */
+export function hasPermission(permissions: string[], permission: string): boolean {
+  return permissions.includes('admin.full') || permissions.includes(permission);
+}
+
+export function canAccess(permissions: string[], required: string[]): boolean {
+  return required.every((p) => hasPermission(permissions, p));
 }

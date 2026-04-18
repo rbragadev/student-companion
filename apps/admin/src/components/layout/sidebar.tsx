@@ -8,10 +8,9 @@ import { LogoutButton } from './logout-button';
 
 export async function Sidebar() {
   const session = await getSession();
-  const role = session?.role ?? 'STUDENT';
-
+  const permissions = session?.permissions ?? [];
   const visibleItems = navigation.filter(
-    (item) => item.permission === null || hasPermission(role, item.permission),
+    (item) => item.permission === null || hasPermission(permissions, item.permission),
   );
 
   return (
@@ -22,8 +21,8 @@ export async function Sidebar() {
           <GraduationCap size={18} className="text-white" />
         </div>
         <Link href="/dashboard" className="text-sm font-semibold text-white">
-          Student Companion
-          <span className="ml-1.5 rounded bg-white/10 px-1.5 py-0.5 text-xs font-normal text-slate-300">
+          {'Student Companion '}
+          <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-normal text-slate-300">
             Admin
           </span>
         </Link>

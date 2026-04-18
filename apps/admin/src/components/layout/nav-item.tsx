@@ -9,7 +9,9 @@ import {
   Home,
   MapPin,
   Users,
-  ShieldCheck,
+  UserCog,
+  Shield,
+  KeyRound,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import type { NavIconName } from '@/config/navigation';
@@ -21,7 +23,9 @@ const ICONS: Record<NavIconName, React.ElementType> = {
   Home,
   MapPin,
   Users,
-  ShieldCheck,
+  UserCog,
+  Shield,
+  KeyRound,
 };
 
 interface NavItemProps {
@@ -30,9 +34,9 @@ interface NavItemProps {
   icon: NavIconName;
 }
 
-export function NavItem({ href, label, icon }: NavItemProps) {
+export function NavItem({ href, label, icon }: Readonly<NavItemProps>) {
   const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = pathname === href || (pathname?.startsWith(`${href}/`) ?? false);
   const Icon = ICONS[icon];
 
   return (

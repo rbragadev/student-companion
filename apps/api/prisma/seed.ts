@@ -26,6 +26,7 @@ const ids = {
     lucas: '7f15be1f-3c9d-4d2d-8b2f-0bc8f1df74b2',
     admin: 'b1c2d3e4-f5a6-7890-abcd-ef1234567890',
     superAdmin: 'c2d3e4f5-a6b7-8901-bcde-f12345678901',
+    operador: 'd3e4f5a6-b7c8-9012-cdef-123456789012',
   },
   preferences: {
     raphael: '7a8d0b4f-03c0-4633-8070-f334d2831bf1',
@@ -119,6 +120,15 @@ async function main() {
         email: 'superadmin@studentcompanion.dev',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=SuperAdmin',
         role: Role.SUPER_ADMIN,
+        passwordHash,
+      },
+      {
+        id: ids.users.operador,
+        firstName: 'Operador',
+        lastName: 'Base',
+        email: 'operador@studentcompanion.dev',
+        avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=OperadorBase',
+        role: Role.ADMIN,
         passwordHash,
       },
     ],
@@ -769,6 +779,94 @@ async function main() {
     ],
     skipDuplicates: true,
   });
+
+  // ── Permissions ──────────────────────────────────────────────────────────
+  const permissionDefs = [
+    { key: 'admin.full',        description: 'Acesso total ao sistema administrativo' },
+    { key: 'users.read',        description: 'Visualizar usuários administrativos' },
+    { key: 'users.write',       description: 'Criar e editar usuários administrativos' },
+    { key: 'roles.read',        description: 'Visualizar perfis de acesso' },
+    { key: 'roles.write',       description: 'Criar e editar perfis de acesso' },
+    { key: 'permissions.read',  description: 'Visualizar permissões do sistema' },
+  ];
+
+  const permMap: Record<string, string> = {};
+  for (const def of permissionDefs) {
+    const p = await prisma.permission.upsert({
+      where: { key: def.key },
+      update: { description: def.description },
+      create: def,
+    });
+    permMap[def.key] = p.id;
+  }
+
+  // ── Admin Profiles ────────────────────────────────────────────────────────
+  const profileDefs = [
+    {
+      name: 'super_admin',
+      label: 'Super Admin',
+      description: 'Acesso irrestrito ao sistema',
+      isSystem: true,
+      permissions: ['admin.full'],
+    },
+    {
+      name: 'admin',
+      label: 'Admin',
+      description: 'Gestão de conteúdo e usuários',
+      isSystem: true,
+      permissions: ['users.read', 'users.write', 'roles.read', 'roles.write', 'permissions.read'],
+    },
+    {
+      name: 'operador',
+      label: 'Operador',
+      description: 'Visualização de usuários e perfis',
+      isSystem: false,
+      permissions: ['users.read', 'roles.read', 'permissions.read'],
+    },
+  ];
+
+  const profileMap: Record<string, string> = {};
+  for (const def of profileDefs) {
+    const { permissions: permKeys, ...profileData } = def;
+    const profile = await prisma.adminProfile.upsert({
+      where: { name: profileData.name },
+      update: { label: profileData.label, description: profileData.description },
+      create: profileData,
+    });
+    profileMap[profileData.name] = profile.id;
+
+    // Replace permissions
+    await prisma.adminProfilePermission.deleteMany({ where: { profileId: profile.id } });
+    await prisma.adminProfilePermission.createMany({
+      data: permKeys.map((key) => ({
+        profileId: profile.id,
+        permissionId: permMap[key],
+      })),
+    });
+  }
+
+  // ── User → Profile assignments ────────────────────────────────────────────
+  const userProfileAssignments = [
+    { userId: ids.users.superAdmin, profileName: 'super_admin' },
+    { userId: ids.users.admin,      profileName: 'admin' },
+    { userId: ids.users.operador,   profileName: 'operador' },
+  ];
+
+  for (const assignment of userProfileAssignments) {
+    await prisma.userAdminProfile.upsert({
+      where: {
+        userId_profileId: {
+          userId: assignment.userId,
+          profileId: profileMap[assignment.profileName],
+        },
+      },
+      update: {},
+      create: {
+        userId: assignment.userId,
+        profileId: profileMap[assignment.profileName],
+      },
+    });
+  }
 
   console.log('Seed concluido com sucesso.');
   console.log(`Usuario principal do app: ${ids.users.raphael}`);

@@ -30,6 +30,7 @@ export async function middleware(request: NextRequest) {
     if (!ADMIN_ROLES.includes(role)) {
       const response = NextResponse.redirect(new URL('/login', request.url));
       response.cookies.delete('admin_token');
+      response.cookies.delete('admin_permissions');
       return response;
     }
 
@@ -38,6 +39,7 @@ export async function middleware(request: NextRequest) {
     // Token inválido ou expirado
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete('admin_token');
+    response.cookies.delete('admin_permissions');
     return response;
   }
 }
