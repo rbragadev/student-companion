@@ -1307,59 +1307,118 @@ async function main() {
     skipDuplicates: true,
   });
 
-  await prisma.accommodationPricing.createMany({
-    data: [
-      {
-        id: ids.accommodationPricing.downtownFall,
-        accommodationId: ids.accommodations.downtownShared,
-        periodOption: 'Fall 2026',
-        basePrice: 290,
+  const accommodationPricingSeed: Array<{
+    id?: string;
+    accommodationId: string;
+    periodOption: string;
+    basePrice: number;
+    currency: string;
+    isActive: boolean;
+  }> = [
+    {
+      id: ids.accommodationPricing.downtownFall,
+      accommodationId: ids.accommodations.downtownShared,
+      periodOption: 'Fall 2026',
+      basePrice: 290,
+      currency: 'CAD',
+      isActive: true,
+    },
+    {
+      id: ids.accommodationPricing.burnabyWinter,
+      accommodationId: ids.accommodations.burnabyStudio,
+      periodOption: 'Winter 2027',
+      basePrice: 320,
+      currency: 'CAD',
+      isActive: true,
+    },
+    {
+      id: ids.accommodationPricing.richmondSpring,
+      accommodationId: ids.accommodations.richmondApartment,
+      periodOption: 'Spring 2026',
+      basePrice: 430,
+      currency: 'CAD',
+      isActive: true,
+    },
+    {
+      id: ids.accommodationPricing.kitsFall,
+      accommodationId: ids.accommodations.kitsHomestay,
+      periodOption: 'Fall 2026',
+      basePrice: 360,
+      currency: 'CAD',
+      isActive: true,
+    },
+    {
+      id: ids.accommodationPricing.gastownFall,
+      accommodationId: ids.accommodations.gastownStudio,
+      periodOption: 'Fall 2026',
+      basePrice: 520,
+      currency: 'CAD',
+      isActive: true,
+    },
+    {
+      id: ids.accommodationPricing.commercialWinter,
+      accommodationId: ids.accommodations.commercialShared,
+      periodOption: 'Winter 2027',
+      basePrice: 335,
+      currency: 'CAD',
+      isActive: true,
+    },
+  ];
+
+  // Garante cobertura de pricing para todos os períodos acadêmicos usados no fluxo (sem lacunas).
+  const periodMultipliers = [
+    { name: 'Spring 2026', factor: 0.96 },
+    { name: 'Fall 2026', factor: 1 },
+    { name: 'Winter 2027', factor: 1.05 },
+  ] as const;
+  const baseAccommodationWeeklyPrice: Record<string, number> = {
+    [ids.accommodations.kitsHomestay]: 360,
+    [ids.accommodations.downtownShared]: 290,
+    [ids.accommodations.burnabyStudio]: 320,
+    [ids.accommodations.richmondApartment]: 430,
+    [ids.accommodations.commercialShared]: 335,
+    [ids.accommodations.gastownStudio]: 520,
+  };
+
+  for (const [accommodationId, basePrice] of Object.entries(baseAccommodationWeeklyPrice)) {
+    for (const period of periodMultipliers) {
+      const alreadySeeded = accommodationPricingSeed.some(
+        (item) => item.accommodationId === accommodationId && item.periodOption === period.name,
+      );
+      if (alreadySeeded) continue;
+      accommodationPricingSeed.push({
+        accommodationId,
+        periodOption: period.name,
+        basePrice: Number((basePrice * period.factor).toFixed(2)),
         currency: 'CAD',
         isActive: true,
+      });
+    }
+  }
+
+  for (const item of accommodationPricingSeed) {
+    await prisma.accommodationPricing.upsert({
+      where: {
+        accommodationId_periodOption: {
+          accommodationId: item.accommodationId,
+          periodOption: item.periodOption,
+        },
       },
-      {
-        id: ids.accommodationPricing.burnabyWinter,
-        accommodationId: ids.accommodations.burnabyStudio,
-        periodOption: 'Winter 2027',
-        basePrice: 320,
-        currency: 'CAD',
-        isActive: true,
+      create: {
+        ...(item.id ? { id: item.id } : {}),
+        accommodationId: item.accommodationId,
+        periodOption: item.periodOption,
+        basePrice: item.basePrice,
+        currency: item.currency,
+        isActive: item.isActive,
       },
-      {
-        id: ids.accommodationPricing.richmondSpring,
-        accommodationId: ids.accommodations.richmondApartment,
-        periodOption: 'Spring 2026',
-        basePrice: 430,
-        currency: 'CAD',
-        isActive: true,
+      update: {
+        basePrice: item.basePrice,
+        currency: item.currency,
+        isActive: item.isActive,
       },
-      {
-        id: ids.accommodationPricing.kitsFall,
-        accommodationId: ids.accommodations.kitsHomestay,
-        periodOption: 'Fall 2026',
-        basePrice: 360,
-        currency: 'CAD',
-        isActive: true,
-      },
-      {
-        id: ids.accommodationPricing.gastownFall,
-        accommodationId: ids.accommodations.gastownStudio,
-        periodOption: 'Fall 2026',
-        basePrice: 520,
-        currency: 'CAD',
-        isActive: true,
-      },
-      {
-        id: ids.accommodationPricing.commercialWinter,
-        accommodationId: ids.accommodations.commercialShared,
-        periodOption: 'Winter 2027',
-        basePrice: 335,
-        currency: 'CAD',
-        isActive: true,
-      },
-    ],
-    skipDuplicates: true,
-  });
+    });
+  }
 
   await prisma.enrollmentIntent.updateMany({
     where: { id: ids.enrollmentIntents.raphaelPending },

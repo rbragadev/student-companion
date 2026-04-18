@@ -136,6 +136,7 @@ Usuários de teste (senha: `senha123`):
 | `superadmin@studentcompanion.dev` | SUPER_ADMIN | — |
 
 1 instituição + 3 escolas + 3 unidades + 6 cursos + 3 turmas + 3 períodos da turma + intenções pendentes/editáveis + intenção convertida e matrícula ativa · 6 acomodações · 6 lugares · 6 reviews (Vancouver/Toronto).
+Seed de pricing de acomodação é idempotente por `upsert` na chave `accommodationId + periodOption`, garantindo consistência mesmo sem reset total do banco.
 
 ---
 
@@ -294,6 +295,9 @@ Fluxo no SaaS:
 - Aprovação manual:
   - checkout fica bloqueado enquanto proposta aguarda operação (`blocked_waiting_approval`);
   - ao aprovar/rejeitar, backend gera notificação e atualiza timeline/estado.
+- Pricing e resumo financeiro no fluxo matrícula/checkout:
+  - `GET /accommodation-pricing/resolve` exige pricing ativa real (sem fallback para `accommodation.priceInCents`);
+  - `GET /enrollments/:id/package-summary` não usa fallback implícito de valor base da acomodação quando não existe quote/pricing válido.
 
 ### Componentes genéricos prontos
 

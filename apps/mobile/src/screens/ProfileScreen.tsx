@@ -71,8 +71,8 @@ export default function ProfileScreen() {
     );
   }
 
-  // Fonte de verdade no Profile: status global do aluno.
-  const effectiveStudentStatus = user.studentStatus || activeEnrollment?.status || 'lead';
+  // Prioridade de exibição: matrícula ativa (estado operacional atual) > status global do aluno.
+  const effectiveStudentStatus = activeEnrollment?.status || user.studentStatus || 'lead';
   const effectiveStudentStatusLabel =
     studentStatusLabel[effectiveStudentStatus] ??
     (activeEnrollment ? `Enrollment: ${activeEnrollment.status}` : effectiveStudentStatus);

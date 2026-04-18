@@ -259,6 +259,8 @@ Status da integração mobile (escopo acadêmico já coberto):
   - financeiro consolidado do pacote é exposto por `GET /enrollments/:id/package-summary` e refletido no SaaS/mobile.
   - quote consolidada é gerada por `POST /quotes` e consultada por `GET /quotes/by-intent/:intentId`.
   - pricing de curso/acomodação pode ser resolvido com datas (`startDate`/`endDate`) para cálculo dinâmico durante seleção no app.
+  - resolução de pricing de acomodação (`GET /accommodation-pricing/resolve`) é estrita por pricing ativa (sem fallback para preço base da acomodação).
+  - resumo financeiro da matrícula (`GET /enrollments/:id/package-summary`) não aplica fallback implícito de valor de acomodação quando não houver quote/pricing válido.
   - quote exibe tipo do pacote (`course_only`, `course_with_accommodation`), total, entrada, saldo e comissão.
   - quote aceita montagem por itens (`course` e `accommodation`) com datas por item; suporta `accommodation_only` (standalone) no backend.
   - no mobile, o fechamento de pacote é em 4 etapas:

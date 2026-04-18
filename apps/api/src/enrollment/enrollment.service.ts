@@ -957,9 +957,6 @@ export class EnrollmentService {
       enrollment.enrollmentIntent.id,
     );
     const pricing = enrollment.pricing;
-    const fallbackAccommodationAmount = enrollment.accommodation
-      ? this.toNumber(enrollment.accommodation.priceInCents) / 100
-      : 0;
 
     const hasStalePricing =
       !!pricing &&
@@ -997,8 +994,8 @@ export class EnrollmentService {
           : {
               currency: 'CAD',
               enrollmentAmount: 0,
-              accommodationAmount: fallbackAccommodationAmount,
-              packageTotalAmount: fallbackAccommodationAmount,
+              accommodationAmount: 0,
+              packageTotalAmount: 0,
               enrollmentCommissionAmount: 0,
               accommodationCommissionAmount: 0,
               totalCommissionAmount: 0,
