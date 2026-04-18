@@ -23,7 +23,7 @@ export async function updateEnrollmentIntentAction(formData: FormData) {
   await assertActionPermission('users.write');
   const intentId = getText(formData, 'intentId');
 
-  await apiFetch(`/enrollment-intents/${intentId}`, {
+  const updatedIntent = await apiFetch<{ id: string }>(`/enrollment-intents/${intentId}`, {
     method: 'PATCH',
     body: JSON.stringify({
       courseId: getText(formData, 'courseId'),
@@ -32,6 +32,13 @@ export async function updateEnrollmentIntentAction(formData: FormData) {
       accommodationId: getOptionalText(formData, 'accommodationId'),
     }),
   });
+
+  await apiFetch('/quotes', {
+    method: 'POST',
+    body: JSON.stringify({
+      enrollmentIntentId: updatedIntent.id,
+    }),
+  }).catch(() => null);
 
   redirect(`/enrollment-intents/${intentId}`);
 }
@@ -96,12 +103,19 @@ export async function updateEnrollmentIntentAccommodationAction(formData: FormDa
       ? accommodationValue.trim()
       : null;
 
-  await apiFetch(`/enrollment-intents/${intentId}/accommodation`, {
+  const updatedIntent = await apiFetch<{ id: string }>(`/enrollment-intents/${intentId}/accommodation`, {
     method: 'PATCH',
     body: JSON.stringify({
       accommodationId,
     }),
   });
+
+  await apiFetch('/quotes', {
+    method: 'POST',
+    body: JSON.stringify({
+      enrollmentIntentId: updatedIntent.id,
+    }),
+  }).catch(() => null);
 
   redirect(`/enrollment-intents/${intentId}`);
 }

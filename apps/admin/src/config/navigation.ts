@@ -80,6 +80,13 @@ export const navigationGroups: NavGroup[] = [
         dependsOn: ['classes'],
       },
       {
+        label: 'Preço Curso/Período',
+        href: '/course-pricing',
+        icon: 'CircleDollarSign',
+        permission: 'structure.read',
+        dependsOn: ['periods'],
+      },
+      {
         label: 'Estrutura Acadêmica',
         href: '/academic-structure',
         icon: 'Network',
@@ -91,6 +98,7 @@ export const navigationGroups: NavGroup[] = [
     title: 'Estrutura Física',
     items: [
       { label: 'Acomodações', href: '/accommodations', icon: 'Home', permission: 'structure.read' },
+      { label: 'Preço Acomodação', href: '/accommodation-pricing', icon: 'CircleDollarSign', permission: 'structure.read' },
       { label: 'Lugares', href: '/places', icon: 'MapPin', permission: 'structure.read' },
     ],
   },

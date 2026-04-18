@@ -7,7 +7,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Screen, Text } from '../components';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 import { enrollmentIntentApi } from '../services/api/enrollmentIntentApi';
-import type { AcademicPeriodOption, ClassGroupOption, EnrollmentIntent } from '../types/enrollment.types';
+import type {
+  AcademicPeriodOption,
+  ClassGroupOption,
+  CoursePricing,
+  AccommodationPricing,
+  EnrollmentIntent,
+  EnrollmentQuote,
+} from '../types/enrollment.types';
 import { colorValues } from '../utils/design-tokens';
 import { useAuth } from '../contexts/AuthContext';
 import { userQueryKeys } from '../hooks/api/useUserProfile';
@@ -36,6 +43,10 @@ export default function EnrollmentIntentScreen() {
   const [hasActiveEnrollment, setHasActiveEnrollment] = React.useState(false);
   const [recommendedAccommodations, setRecommendedAccommodations] = React.useState<Accommodation[]>([]);
   const [selectedAccommodationId, setSelectedAccommodationId] = React.useState<string>('');
+  const [coursePricing, setCoursePricing] = React.useState<CoursePricing | null>(null);
+  const [accommodationPricing, setAccommodationPricing] = React.useState<AccommodationPricing | null>(null);
+  const [quotePreview, setQuotePreview] = React.useState<EnrollmentQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const toastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -66,6 +77,10 @@ export default function EnrollmentIntentScreen() {
         setHasActiveEnrollment(!!activeEnrollment);
         setRecommendedAccommodations(accommodations);
         setSelectedAccommodationId(pendingIntent?.accommodation?.id ?? '');
+        if (pendingIntent?.id) {
+          const intentQuote = await enrollmentIntentApi.getQuoteByIntent(pendingIntent.id);
+          setQuotePreview(intentQuote);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar turmas');
       } finally {
@@ -86,12 +101,81 @@ export default function EnrollmentIntentScreen() {
       try {
         const values = await enrollmentIntentApi.getAcademicPeriodsByClassGroup(selectedClassGroupId);
         setPeriods(values.filter((item) => item.status === 'ACTIVE'));
+        setCoursePricing(null);
+        setAccommodationPricing(null);
+        setQuotePreview(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar períodos');
       }
     };
     void run();
   }, [selectedClassGroupId]);
+
+  React.useEffect(() => {
+    const run = async () => {
+      if (!selectedPeriodId) {
+        setCoursePricing(null);
+        return;
+      }
+      try {
+        const pricing = await enrollmentIntentApi.getCoursePricing(courseId, selectedPeriodId);
+        setCoursePricing(pricing);
+      } catch (err) {
+        setCoursePricing(null);
+        setError(err instanceof Error ? err.message : 'Preço do curso indisponível para o período');
+      }
+    };
+    void run();
+  }, [courseId, selectedPeriodId]);
+
+  React.useEffect(() => {
+    const run = async () => {
+      if (!selectedAccommodationId) {
+        setAccommodationPricing(null);
+        return;
+      }
+      const selectedPeriodName = periods.find((item) => item.id === selectedPeriodId)?.name;
+      try {
+        const pricing = await enrollmentIntentApi.getAccommodationPricing(
+          selectedAccommodationId,
+          selectedPeriodName,
+        );
+        setAccommodationPricing(pricing);
+      } catch (err) {
+        setAccommodationPricing(null);
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Preço da acomodação indisponível para o período informado',
+        );
+      }
+    };
+    void run();
+  }, [selectedAccommodationId, selectedPeriodId, periods]);
+
+  React.useEffect(() => {
+    const run = async () => {
+      if (!coursePricing) {
+        setQuotePreview(null);
+        return;
+      }
+      try {
+        setQuoteLoading(true);
+        const quote = await enrollmentIntentApi.createQuote({
+          coursePricingId: coursePricing.id,
+          accommodationPricingId: accommodationPricing?.id,
+          downPaymentPercentage: 30,
+        });
+        setQuotePreview(quote);
+      } catch (err) {
+        setQuotePreview(null);
+        setError(err instanceof Error ? err.message : 'Falha ao montar quote');
+      } finally {
+        setQuoteLoading(false);
+      }
+    };
+    void run();
+  }, [coursePricing?.id, accommodationPricing?.id]);
 
   const submitIntent = async () => {
     if (!userId || !selectedClassGroupId || !selectedPeriodId || openIntent) return;
@@ -100,13 +184,22 @@ export default function EnrollmentIntentScreen() {
       setError(null);
       setMessage(null);
 
-      await enrollmentIntentApi.createEnrollmentIntent({
+      const createdIntent = await enrollmentIntentApi.createEnrollmentIntent({
         studentId: userId,
         courseId,
         classGroupId: selectedClassGroupId,
         academicPeriodId: selectedPeriodId,
         accommodationId: selectedAccommodationId || undefined,
       });
+
+      await enrollmentIntentApi
+        .createQuote({
+          enrollmentIntentId: createdIntent.id,
+          coursePricingId: coursePricing?.id,
+          accommodationPricingId: accommodationPricing?.id,
+          downPaymentPercentage: 30,
+        })
+        .catch(() => null);
 
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId) });
       setMessage(null);
@@ -130,8 +223,12 @@ export default function EnrollmentIntentScreen() {
         openIntent.id,
         accommodationId ?? null,
       );
+      const refreshedQuote = await enrollmentIntentApi.createQuote({
+        enrollmentIntentId: updated.id,
+      });
       setOpenIntent(updated);
       setSelectedAccommodationId(updated.accommodation?.id ?? '');
+      setQuotePreview(refreshedQuote);
       setToastMessage(
         accommodationId ? 'Acomodação atualizada na intenção' : 'Acomodação removida da intenção',
       );
@@ -262,6 +359,19 @@ export default function EnrollmentIntentScreen() {
                 </Button>
               </View>
             </Card>
+            {quotePreview && (
+              <Card>
+                <Text variant="h3" className="font-semibold">Quote atual da intenção</Text>
+                <View className="mt-2 gap-1">
+                  <Text variant="caption">Tipo: {quotePreview.type}</Text>
+                  <Text variant="caption">Total: {Number(quotePreview.totalAmount).toFixed(2)} {quotePreview.currency}</Text>
+                  <Text variant="caption">
+                    Entrada ({Number(quotePreview.downPaymentPercentage).toFixed(2)}%): {Number(quotePreview.downPaymentAmount).toFixed(2)} {quotePreview.currency}
+                  </Text>
+                  <Text variant="caption">Saldo: {Number(quotePreview.remainingAmount).toFixed(2)} {quotePreview.currency}</Text>
+                </View>
+              </Card>
+            )}
             <Button
               variant="outline"
               onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
@@ -366,25 +476,24 @@ export default function EnrollmentIntentScreen() {
             <Card>
               <Text variant="h3" className="font-semibold">Resumo do pacote</Text>
               <View className="mt-2 gap-1">
-                <Text variant="caption">Matrícula: ao confirmar intenção no SaaS</Text>
-                {selectedAccommodationId ? (
-                  (() => {
-                    const selectedAccommodation = recommendedAccommodations.find(
-                      (item) => item.id === selectedAccommodationId,
-                    );
-                    return (
-                      <>
-                        <Text variant="caption">
-                          Acomodação: {selectedAccommodation?.title ?? '-'}
-                        </Text>
-                        <Text variant="caption">
-                          Valor acomodação: CAD {((selectedAccommodation?.priceInCents ?? 0) / 100).toFixed(2)}
-                        </Text>
-                      </>
-                    );
-                  })()
+                {quoteLoading ? (
+                  <Text variant="caption">Calculando quote...</Text>
+                ) : quotePreview ? (
+                  <>
+                    <Text variant="caption">Tipo: {quotePreview.type}</Text>
+                    <Text variant="caption">Curso: {Number(quotePreview.courseAmount).toFixed(2)} {quotePreview.currency}</Text>
+                    <Text variant="caption">Acomodação: {Number(quotePreview.accommodationAmount).toFixed(2)} {quotePreview.currency}</Text>
+                    <Text variant="caption">Total: {Number(quotePreview.totalAmount).toFixed(2)} {quotePreview.currency}</Text>
+                    <Text variant="caption">
+                      Entrada ({Number(quotePreview.downPaymentPercentage).toFixed(2)}%): {Number(quotePreview.downPaymentAmount).toFixed(2)} {quotePreview.currency}
+                    </Text>
+                    <Text variant="caption">Saldo: {Number(quotePreview.remainingAmount).toFixed(2)} {quotePreview.currency}</Text>
+                    <Text variant="caption">
+                      Comissão total: {Number(quotePreview.commissionAmount).toFixed(2)} ({Number(quotePreview.commissionPercentage).toFixed(2)}%)
+                    </Text>
+                  </>
                 ) : (
-                  <Text variant="caption">Acomodação: não selecionada</Text>
+                  <Text variant="caption">Selecione turma e período com preço ativo para gerar quote.</Text>
                 )}
               </View>
             </Card>
@@ -403,7 +512,7 @@ export default function EnrollmentIntentScreen() {
 
             <Button
               onPress={submitIntent}
-              disabled={!selectedClassGroupId || !selectedPeriodId || saving}
+              disabled={!selectedClassGroupId || !selectedPeriodId || !coursePricing || saving}
             >
               {saving
                 ? 'Processando...'

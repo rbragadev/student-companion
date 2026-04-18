@@ -289,3 +289,60 @@ export interface CommissionConfigAdmin {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface CoursePricingAdmin {
+  id: string;
+  courseId: string;
+  academicPeriodId: string;
+  duration?: string | null;
+  basePrice: number;
+  currency: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  course?: { id: string; program_name: string };
+  academicPeriod?: { id: string; name: string; startDate: string; endDate: string };
+}
+
+export interface AccommodationPricingAdmin {
+  id: string;
+  accommodationId: string;
+  periodOption: string;
+  basePrice: number;
+  currency: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  accommodation?: { id: string; title: string; accommodationType: string };
+}
+
+export interface EnrollmentQuoteAdmin {
+  id: string;
+  enrollmentIntentId?: string | null;
+  coursePricingId?: string | null;
+  accommodationPricingId?: string | null;
+  courseAmount: number;
+  accommodationAmount: number;
+  fees: number;
+  discounts: number;
+  totalAmount: number;
+  currency: string;
+  downPaymentPercentage: number;
+  downPaymentAmount: number;
+  remainingAmount: number;
+  commissionPercentage: number;
+  commissionAmount: number;
+  commissionCourseAmount: number;
+  commissionAccommodationAmount: number;
+  type: 'course_only' | 'course_with_accommodation' | 'accommodation_only';
+  createdAt: string;
+  coursePricing?: {
+    id: string;
+    course?: { id: string; program_name: string };
+    academicPeriod?: { id: string; name: string };
+  } | null;
+  accommodationPricing?: {
+    id: string;
+    accommodation?: { id: string; title: string; accommodationType: string };
+  } | null;
+}

@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import type { EnrollmentIntentAdmin } from '@/types/catalog.types';
+import type { EnrollmentIntentAdmin, EnrollmentQuoteAdmin } from '@/types/catalog.types';
 import { updateEnrollmentIntentAccommodationAction, updateEnrollmentIntentStatusAction } from '../actions';
 
 const STATUS_LABEL: Record<EnrollmentIntentAdmin['student']['studentStatus'], string> = {
@@ -28,7 +28,7 @@ export default async function EnrollmentIntentDetailPage({
   await requirePermission('users.read');
   const { id } = await params;
 
-  const [intent, recommendedAccommodations] = await Promise.all([
+  const [intent, recommendedAccommodations, quote] = await Promise.all([
     apiFetch<EnrollmentIntentAdmin>(`/enrollment-intents/${id}`).catch(() => null),
     apiFetch<Array<{
       id: string;
@@ -40,6 +40,7 @@ export default async function EnrollmentIntentDetailPage({
       score?: number | null;
       recommendationBadge?: string | null;
     }>>(`/enrollment-intents/recommended-accommodations?intentId=${id}`).catch(() => []),
+    apiFetch<EnrollmentQuoteAdmin>(`/quotes/by-intent/${id}`).catch(() => null),
   ]);
   if (!intent) notFound();
 
@@ -145,6 +146,29 @@ export default async function EnrollmentIntentDetailPage({
             <p className="mt-2 text-xs text-slate-500">
               Atual: {intent.accommodation.title} • {(intent.accommodation.priceInCents / 100).toFixed(2)} {intent.accommodation.priceUnit}
             </p>
+          )}
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
+          <h2 className="text-sm font-semibold text-slate-900">Quote do pacote</h2>
+          {!quote ? (
+            <p className="mt-2 text-xs text-slate-500">
+              Ainda não há quote gerada para esta intenção.
+            </p>
+          ) : (
+            <div className="mt-2 grid gap-1 text-xs text-slate-600 md:grid-cols-2">
+              <p>Tipo: <strong>{quote.type}</strong></p>
+              <p>Curso: {Number(quote.courseAmount).toFixed(2)} {quote.currency}</p>
+              <p>Acomodação: {Number(quote.accommodationAmount).toFixed(2)} {quote.currency}</p>
+              <p>Taxas: {Number(quote.fees).toFixed(2)} {quote.currency}</p>
+              <p>Desconto: {Number(quote.discounts).toFixed(2)} {quote.currency}</p>
+              <p>Total: <strong>{Number(quote.totalAmount).toFixed(2)} {quote.currency}</strong></p>
+              <p>Entrada ({Number(quote.downPaymentPercentage).toFixed(2)}%): {Number(quote.downPaymentAmount).toFixed(2)} {quote.currency}</p>
+              <p>Saldo: {Number(quote.remainingAmount).toFixed(2)} {quote.currency}</p>
+              <p>Comissão curso: {Number(quote.commissionCourseAmount).toFixed(2)} {quote.currency}</p>
+              <p>Comissão acomodação: {Number(quote.commissionAccommodationAmount).toFixed(2)} {quote.currency}</p>
+              <p>Comissão total: {Number(quote.commissionAmount).toFixed(2)} {quote.currency} ({Number(quote.commissionPercentage).toFixed(2)}%)</p>
+            </div>
           )}
         </article>
       </section>

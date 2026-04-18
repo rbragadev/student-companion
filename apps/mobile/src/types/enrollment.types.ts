@@ -15,6 +15,26 @@ export interface AcademicPeriodOption {
   status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 }
 
+export interface CoursePricing {
+  id: string;
+  courseId: string;
+  academicPeriodId: string;
+  duration?: string | null;
+  basePrice: number;
+  currency: string;
+  isActive: boolean;
+  academicPeriod?: { id: string; name: string };
+}
+
+export interface AccommodationPricing {
+  id: string;
+  accommodationId: string;
+  periodOption: string;
+  basePrice: number;
+  currency: string;
+  isActive: boolean;
+}
+
 export interface EnrollmentIntent {
   id: string;
   status: 'pending' | 'converted' | 'cancelled' | 'denied';
@@ -190,6 +210,13 @@ export interface EnrollmentPackageSummary {
     totalCommissionAmount: number;
     commissionPercentage: number;
   } | null;
+  quote?: {
+    id: string;
+    type: 'course_only' | 'course_with_accommodation' | 'accommodation_only';
+    downPaymentPercentage: number;
+    downPaymentAmount: number;
+    remainingAmount: number;
+  } | null;
 }
 
 export interface EnrollmentTimelineEvent {
@@ -199,4 +226,34 @@ export interface EnrollmentTimelineEvent {
   title: string;
   description?: string | null;
   channel?: 'enrollment' | 'accommodation';
+}
+
+export interface EnrollmentQuote {
+  id: string;
+  enrollmentIntentId?: string | null;
+  coursePricingId?: string | null;
+  accommodationPricingId?: string | null;
+  courseAmount: number;
+  accommodationAmount: number;
+  fees: number;
+  discounts: number;
+  totalAmount: number;
+  currency: string;
+  downPaymentPercentage: number;
+  downPaymentAmount: number;
+  remainingAmount: number;
+  commissionPercentage: number;
+  commissionAmount: number;
+  commissionCourseAmount: number;
+  commissionAccommodationAmount: number;
+  type: 'course_only' | 'course_with_accommodation' | 'accommodation_only';
+  coursePricing?: {
+    id: string;
+    course?: { id: string; program_name: string };
+    academicPeriod?: { id: string; name: string };
+  } | null;
+  accommodationPricing?: {
+    id: string;
+    accommodation?: { id: string; title: string; accommodationType: string };
+  } | null;
 }

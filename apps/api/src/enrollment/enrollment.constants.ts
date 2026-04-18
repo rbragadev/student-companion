@@ -50,3 +50,11 @@ export const COMMISSION_SCOPE_TYPES = [
 ] as const;
 
 export type CommissionScopeType = (typeof COMMISSION_SCOPE_TYPES)[number];
+
+export const ENROLLMENT_QUOTE_TYPES = [
+  'course_only',
+  'course_with_accommodation',
+  'accommodation_only',
+] as const;
+
+export type EnrollmentQuoteType = (typeof ENROLLMENT_QUOTE_TYPES)[number];

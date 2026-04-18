@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import type {
   EnrollmentAdmin,
+  EnrollmentQuoteAdmin,
   EnrollmentTimelineEventAdmin,
 } from '@/types/catalog.types';
 import {
@@ -53,6 +54,9 @@ export default async function EnrollmentDetailPage({
     apiFetch<EnrollmentTimelineEventAdmin[]>(`/enrollments/${id}/timeline`).catch(() => []),
   ]);
   if (!enrollment) notFound();
+  const quote = await apiFetch<EnrollmentQuoteAdmin>(
+    `/quotes/by-intent/${enrollment.enrollmentIntent.id}`,
+  ).catch(() => null);
 
   const recommendedAccommodations = await apiFetch<Array<{
     id: string;
@@ -257,6 +261,25 @@ export default async function EnrollmentDetailPage({
               </Button>
             </div>
           </form>
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Quote do pacote</h2>
+          {!quote ? (
+            <p className="mt-2 text-xs text-slate-500">Nenhuma quote associada à intenção de origem.</p>
+          ) : (
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+              <p>Tipo: <strong>{quote.type}</strong></p>
+              <p>Total: <strong>{Number(quote.totalAmount).toFixed(2)} {quote.currency}</strong></p>
+              <p>Curso: {Number(quote.courseAmount).toFixed(2)} {quote.currency}</p>
+              <p>Acomodação: {Number(quote.accommodationAmount).toFixed(2)} {quote.currency}</p>
+              <p>Entrada ({Number(quote.downPaymentPercentage).toFixed(2)}%): {Number(quote.downPaymentAmount).toFixed(2)} {quote.currency}</p>
+              <p>Saldo: {Number(quote.remainingAmount).toFixed(2)} {quote.currency}</p>
+              <p>Comissão curso: {Number(quote.commissionCourseAmount).toFixed(2)} {quote.currency}</p>
+              <p>Comissão acomodação: {Number(quote.commissionAccommodationAmount).toFixed(2)} {quote.currency}</p>
+              <p>Comissão total: {Number(quote.commissionAmount).toFixed(2)} {quote.currency}</p>
+            </div>
+          )}
         </article>
       </section>
 

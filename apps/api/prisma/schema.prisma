@@ -67,6 +67,7 @@ model EnrollmentIntent {
   academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
   accommodation    Accommodation? @relation(fields: [accommodationId], references: [id], onDelete: SetNull)
   enrollment       Enrollment?
+  quotes           EnrollmentQuote[]
 
   @@index([studentId])
   @@index([studentId, status])
@@ -163,6 +164,7 @@ model AcademicPeriod {
   classGroup        ClassGroup         @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
   enrollmentIntents EnrollmentIntent[]
   enrollments       Enrollment[]
+  coursePricings    CoursePricing[]
 
   @@index([classGroupId])
   @@index([startDate, endDate])
@@ -286,6 +288,7 @@ model Course {
   classes           ClassGroup[]
   enrollmentIntents EnrollmentIntent[]
   enrollments       Enrollment[]
+  coursePricings    CoursePricing[]
 
   @@index([unitId])
   @@map("course")
@@ -364,6 +367,7 @@ model Accommodation {
   schoolRecommendations SchoolAccommodationRecommendation[]
   enrollmentIntents     EnrollmentIntent[]
   enrollments           Enrollment[]
+  accommodationPricings AccommodationPricing[]
 
   @@map("accommodation")
 }
@@ -480,6 +484,74 @@ model EnrollmentPricing {
   enrollment                        Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
   @@map("enrollment_pricing")
+}
+
+model CoursePricing {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId         String         @map("course_id") @db.Uuid
+  academicPeriodId String         @map("academic_period_id") @db.Uuid
+  duration         String?        @db.VarChar(80)
+  basePrice        Decimal        @map("base_price") @db.Decimal(12, 2)
+  currency         String         @default("CAD") @db.VarChar(10)
+  isActive         Boolean        @default(true) @map("is_active")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  course           Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
+  quotes           EnrollmentQuote[]
+
+  @@unique([courseId, academicPeriodId])
+  @@index([academicPeriodId])
+  @@index([isActive])
+  @@map("course_pricing")
+}
+
+model AccommodationPricing {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accommodationId String         @map("accommodation_id") @db.Uuid
+  periodOption    String         @map("period_option") @db.VarChar(120)
+  basePrice       Decimal        @map("base_price") @db.Decimal(12, 2)
+  currency        String         @default("CAD") @db.VarChar(10)
+  isActive        Boolean        @default(true) @map("is_active")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  accommodation   Accommodation  @relation(fields: [accommodationId], references: [id], onDelete: Cascade)
+  quotes          EnrollmentQuote[]
+
+  @@unique([accommodationId, periodOption])
+  @@index([isActive])
+  @@map("accommodation_pricing")
+}
+
+model EnrollmentQuote {
+  id                          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentIntentId          String?              @map("enrollment_intent_id") @db.Uuid
+  coursePricingId             String?              @map("course_pricing_id") @db.Uuid
+  accommodationPricingId      String?              @map("accommodation_pricing_id") @db.Uuid
+  courseAmount                Decimal              @default(0) @map("course_amount") @db.Decimal(12, 2)
+  accommodationAmount         Decimal              @default(0) @map("accommodation_amount") @db.Decimal(12, 2)
+  fees                        Decimal              @default(0) @db.Decimal(12, 2)
+  discounts                   Decimal              @default(0) @db.Decimal(12, 2)
+  totalAmount                 Decimal              @map("total_amount") @db.Decimal(12, 2)
+  currency                    String               @default("CAD") @db.VarChar(10)
+  downPaymentPercentage       Decimal              @default(30) @map("down_payment_percentage") @db.Decimal(7, 4)
+  downPaymentAmount           Decimal              @map("down_payment_amount") @db.Decimal(12, 2)
+  remainingAmount             Decimal              @map("remaining_amount") @db.Decimal(12, 2)
+  commissionPercentage        Decimal              @default(0) @map("commission_percentage") @db.Decimal(7, 4)
+  commissionAmount            Decimal              @default(0) @map("commission_amount") @db.Decimal(12, 2)
+  commissionCourseAmount      Decimal              @default(0) @map("commission_course_amount") @db.Decimal(12, 2)
+  commissionAccommodationAmount Decimal            @default(0) @map("commission_accommodation_amount") @db.Decimal(12, 2)
+  type                        String               @db.VarChar(40)
+  createdAt                   DateTime             @default(now()) @map("created_at")
+  enrollmentIntent            EnrollmentIntent?    @relation(fields: [enrollmentIntentId], references: [id], onDelete: SetNull)
+  coursePricing               CoursePricing?       @relation(fields: [coursePricingId], references: [id], onDelete: SetNull)
+  accommodationPricing        AccommodationPricing? @relation(fields: [accommodationPricingId], references: [id], onDelete: SetNull)
+
+  @@index([enrollmentIntentId, createdAt])
+  @@index([coursePricingId])
+  @@index([accommodationPricingId])
+  @@index([type])
+  @@map("enrollment_quote")
 }
 
 model EnrollmentStatusHistory {

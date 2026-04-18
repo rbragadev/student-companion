@@ -11,6 +11,7 @@ import {
 } from './enrollment.constants';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { CommissionConfigService } from './commission-config.service';
+import { EnrollmentQuoteService } from './enrollment-quote.service';
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -20,6 +21,7 @@ export class EnrollmentService {
     private readonly prisma: PrismaService,
     private readonly enrollmentIntentService: EnrollmentIntentService,
     private readonly commissionConfigService: CommissionConfigService,
+    private readonly enrollmentQuoteService: EnrollmentQuoteService,
   ) {}
 
   private readonly includeListGraph = {
@@ -337,6 +339,50 @@ export class EnrollmentService {
       });
 
       await this.recalculateStudentStatus(tx, intent.studentId);
+
+      const latestQuote = await this.enrollmentQuoteService.findLatestByIntent(intent.id);
+      if (latestQuote) {
+        await tx.enrollmentPricing.upsert({
+          where: { enrollmentId: enrollment.id },
+          create: {
+            enrollmentId: enrollment.id,
+            basePrice: this.toNumber(latestQuote.courseAmount),
+            fees: this.toNumber(latestQuote.fees),
+            discounts: this.toNumber(latestQuote.discounts),
+            totalAmount: this.toNumber(latestQuote.totalAmount),
+            enrollmentAmount: this.toNumber(latestQuote.courseAmount),
+            accommodationAmount: this.toNumber(latestQuote.accommodationAmount),
+            packageTotalAmount: this.toNumber(latestQuote.totalAmount),
+            currency: latestQuote.currency,
+            commissionAmount: this.toNumber(latestQuote.commissionAmount),
+            commissionPercentage: this.toNumber(latestQuote.commissionPercentage),
+            enrollmentCommissionAmount: this.toNumber(latestQuote.commissionCourseAmount),
+            enrollmentCommissionPercentage: this.toNumber(latestQuote.commissionPercentage),
+            accommodationCommissionAmount: this.toNumber(
+              latestQuote.commissionAccommodationAmount,
+            ),
+            accommodationCommissionPercentage: 0,
+            totalCommissionAmount: this.toNumber(latestQuote.commissionAmount),
+          },
+          update: {
+            basePrice: this.toNumber(latestQuote.courseAmount),
+            fees: this.toNumber(latestQuote.fees),
+            discounts: this.toNumber(latestQuote.discounts),
+            totalAmount: this.toNumber(latestQuote.totalAmount),
+            enrollmentAmount: this.toNumber(latestQuote.courseAmount),
+            accommodationAmount: this.toNumber(latestQuote.accommodationAmount),
+            packageTotalAmount: this.toNumber(latestQuote.totalAmount),
+            currency: latestQuote.currency,
+            commissionAmount: this.toNumber(latestQuote.commissionAmount),
+            commissionPercentage: this.toNumber(latestQuote.commissionPercentage),
+            enrollmentCommissionAmount: this.toNumber(latestQuote.commissionCourseAmount),
+            accommodationCommissionAmount: this.toNumber(
+              latestQuote.commissionAccommodationAmount,
+            ),
+            totalCommissionAmount: this.toNumber(latestQuote.commissionAmount),
+          },
+        });
+      }
 
       return tx.enrollment.findUnique({
         where: { id: enrollment.id },
@@ -804,6 +850,9 @@ export class EnrollmentService {
 
   async getPackageSummary(id: string) {
     const enrollment = await this.findOne(id);
+    const latestQuote = await this.enrollmentQuoteService.findLatestByIntent(
+      enrollment.enrollmentIntent.id,
+    );
     const pricing = enrollment.pricing;
     const fallbackAccommodationAmount = enrollment.accommodation
       ? this.toNumber(enrollment.accommodation.priceInCents) / 100
@@ -843,6 +892,15 @@ export class EnrollmentService {
       accommodationStatus: enrollment.accommodationStatus,
       accommodationClosedAt: enrollment.accommodationClosedAt,
       pricing: pricingSummary,
+      quote: latestQuote
+        ? {
+            id: latestQuote.id,
+            type: latestQuote.type,
+            downPaymentPercentage: this.toNumber(latestQuote.downPaymentPercentage),
+            downPaymentAmount: this.toNumber(latestQuote.downPaymentAmount),
+            remainingAmount: this.toNumber(latestQuote.remainingAmount),
+          }
+        : null,
     };
   }
 }

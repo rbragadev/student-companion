@@ -222,6 +222,17 @@ Regras:
 | `GET` | `/commission-config` | Lista regras de comissão (`?scopeType=&scopeId=`) |
 | `POST` | `/commission-config` | Cria regra de comissão |
 | `PATCH` | `/commission-config/:id` | Atualiza regra de comissão |
+| `GET` | `/course-pricing` | Lista preços de curso por período (`?courseId=&academicPeriodId=&isActive=`) |
+| `POST` | `/course-pricing` | Cria/atualiza preço por curso+período (upsert) |
+| `PATCH` | `/course-pricing/:id` | Atualiza preço de curso |
+| `GET` | `/course-pricing/resolve?courseId=...&academicPeriodId=...` | Resolve preço ativo para seleção no fluxo do aluno |
+| `GET` | `/accommodation-pricing` | Lista preços de acomodação (`?accommodationId=&periodOption=&isActive=`) |
+| `POST` | `/accommodation-pricing` | Cria/atualiza preço por acomodação+período (upsert) |
+| `PATCH` | `/accommodation-pricing/:id` | Atualiza preço de acomodação |
+| `GET` | `/accommodation-pricing/resolve?accommodationId=...&periodOption=...` | Resolve preço ativo para upsell |
+| `POST` | `/quotes` | Gera quote consolidada do pacote (curso, acomodação opcional, entrada, saldo, comissão) |
+| `GET` | `/quotes/:id` | Retorna detalhe da quote |
+| `GET` | `/quotes/by-intent/:intentId` | Retorna a quote mais recente associada à intenção |
 
 Regras:
 - intenção pode ser editada apenas enquanto `status = pending`
@@ -232,6 +243,7 @@ Regras:
 - acomodação possui workflow operacional no contexto da matrícula: `not_selected -> selected -> approved|denied -> closed`
 - após `accommodationStatus = closed`, troca/remoção de acomodação é bloqueada
 - confirmação marca intenção como `converted` (`converted_at` preenchido)
+- intenção pendente só pode ser criada/alterada com preço ativo de curso para `course + academicPeriod`
 - pricing de pacote é calculado no backend:
   - `enrollmentAmount = basePrice + fees - discounts`
   - `accommodationAmount` vem do preço da acomodação vinculada (quando existir)
@@ -239,6 +251,14 @@ Regras:
 - comissão usa precedência: `course` override `institution`
 - se existir configuração de comissão em `scopeType=accommodation`, ela também entra no cálculo do pacote
 - comissão consolidada é salva em `enrollment_pricing` (`totalCommissionAmount`, `commissionAmount`, `commissionPercentage`)
+- quote (`enrollment_quote`) é snapshot financeiro da escolha do momento, com tipos:
+  - `course_only`
+  - `course_with_accommodation`
+  - `accommodation_only` (preparação futura)
+- quote calcula:
+  - `totalAmount = courseAmount + accommodationAmount + fees - discounts`
+  - `downPaymentAmount = totalAmount * downPaymentPercentage`
+  - `remainingAmount = totalAmount - downPaymentAmount`
 - `student_status` global do aluno prioriza matrícula ativa (qualquer estágio ativo do workflow)
 - mudanças de status em intenção/matrícula recalculam `users.student_status` automaticamente:
   - matrícula com status final (`enrolled`/`active`) -> `enrolled`

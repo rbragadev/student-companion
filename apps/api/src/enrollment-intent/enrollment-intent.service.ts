@@ -179,6 +179,18 @@ export class EnrollmentIntentService {
     return accommodationId;
   }
 
+  private async validateCoursePricing(courseId: string, academicPeriodId: string) {
+    const pricing = await this.prisma.coursePricing.findFirst({
+      where: { courseId, academicPeriodId, isActive: true },
+      select: { id: true },
+    });
+    if (!pricing) {
+      throw new BadRequestException(
+        'Não existe preço ativo para o curso no período selecionado',
+      );
+    }
+  }
+
   async create(dto: CreateEnrollmentIntentDto) {
     const [student, existingIntent, chain] = await Promise.all([
       this.prisma.user.findUnique({
@@ -204,6 +216,7 @@ export class EnrollmentIntentService {
       chain.schoolId,
       dto.accommodationId,
     );
+    await this.validateCoursePricing(chain.courseId, chain.academicPeriodId);
     const nextStatus = this.nextStudentStatus(student.studentStatus);
 
     return this.prisma.$transaction(async (tx) => {
@@ -279,6 +292,7 @@ export class EnrollmentIntentService {
     const classGroupId = dto.classGroupId ?? intent.classGroup.id;
     const academicPeriodId = dto.academicPeriodId ?? intent.academicPeriod.id;
     const chain = await this.validateChain(courseId, classGroupId, academicPeriodId);
+    await this.validateCoursePricing(chain.courseId, chain.academicPeriodId);
     const accommodationId =
       dto.accommodationId !== undefined
         ? await this.validateAccommodationForSchool(chain.schoolId, dto.accommodationId)

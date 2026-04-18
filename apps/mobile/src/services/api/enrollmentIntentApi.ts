@@ -1,7 +1,10 @@
 import type {
   AcademicPeriodOption,
+  AccommodationPricing,
   ClassGroupOption,
+  CoursePricing,
   CreateEnrollmentIntentPayload,
+  EnrollmentQuote,
   EnrollmentIntent,
 } from '../../types/enrollment.types';
 import type { Accommodation } from '../../types/accommodation.types';
@@ -51,5 +54,51 @@ export const enrollmentIntentApi = {
       accommodationId: accommodationId ?? null,
     });
     return data as EnrollmentIntent;
+  },
+
+  getCoursePricing: async (
+    courseId: string,
+    academicPeriodId: string,
+  ): Promise<CoursePricing> => {
+    const { data } = await apiClient.get(
+      `/course-pricing/resolve?courseId=${courseId}&academicPeriodId=${academicPeriodId}`,
+    );
+    return data as CoursePricing;
+  },
+
+  getAccommodationPricing: async (
+    accommodationId: string,
+    periodOption?: string,
+  ): Promise<AccommodationPricing> => {
+    const query = periodOption
+      ? `accommodationId=${accommodationId}&periodOption=${encodeURIComponent(periodOption)}`
+      : `accommodationId=${accommodationId}`;
+    const { data } = await apiClient.get(`/accommodation-pricing/resolve?${query}`);
+    return data as AccommodationPricing;
+  },
+
+  createQuote: async (payload: {
+    enrollmentIntentId?: string;
+    coursePricingId?: string;
+    accommodationPricingId?: string;
+    courseId?: string;
+    academicPeriodId?: string;
+    accommodationId?: string;
+    periodOption?: string;
+    fees?: number;
+    discounts?: number;
+    downPaymentPercentage?: number;
+  }): Promise<EnrollmentQuote> => {
+    const { data } = await apiClient.post('/quotes', payload);
+    return data as EnrollmentQuote;
+  },
+
+  getQuoteByIntent: async (intentId: string): Promise<EnrollmentQuote | null> => {
+    try {
+      const { data } = await apiClient.get(`/quotes/by-intent/${intentId}`);
+      return data as EnrollmentQuote;
+    } catch {
+      return null;
+    }
   },
 };

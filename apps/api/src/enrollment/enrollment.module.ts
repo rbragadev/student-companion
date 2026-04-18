@@ -9,6 +9,12 @@ import { EnrollmentMessageController } from './enrollment-message.controller';
 import { EnrollmentMessageService } from './enrollment-message.service';
 import { CommissionConfigController } from './commission-config.controller';
 import { CommissionConfigService } from './commission-config.service';
+import { CoursePricingController } from './course-pricing.controller';
+import { CoursePricingService } from './course-pricing.service';
+import { AccommodationPricingController } from './accommodation-pricing.controller';
+import { AccommodationPricingService } from './accommodation-pricing.service';
+import { EnrollmentQuoteController } from './enrollment-quote.controller';
+import { EnrollmentQuoteService } from './enrollment-quote.service';
 
 @Module({
   imports: [PrismaModule, EnrollmentIntentModule],
@@ -17,13 +23,19 @@ import { CommissionConfigService } from './commission-config.service';
     EnrollmentDocumentController,
     EnrollmentMessageController,
     CommissionConfigController,
+    CoursePricingController,
+    AccommodationPricingController,
+    EnrollmentQuoteController,
   ],
   providers: [
     EnrollmentService,
     EnrollmentDocumentService,
     EnrollmentMessageService,
     CommissionConfigService,
+    CoursePricingService,
+    AccommodationPricingService,
+    EnrollmentQuoteService,
   ],
-  exports: [CommissionConfigService],
+  exports: [CommissionConfigService, EnrollmentQuoteService],
 })
 export class EnrollmentModule {}

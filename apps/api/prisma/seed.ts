@@ -86,6 +86,24 @@ const ids = {
     emilyActive: 'eeeeeee1-eeee-4eee-8eee-eeeeeeeeeee1',
     lucasReview: 'eeeeeee2-eeee-4eee-8eee-eeeeeeeeeee2',
   },
+  coursePricing: {
+    ilscFallGeneral: 'eeeeeea1-eeee-4eee-8eee-eeeeeeeeeea1',
+    ilscFallBusiness: 'eeeeeea2-eeee-4eee-8eee-eeeeeeeeeea2',
+    vgcWinterIelts: 'eeeeeea3-eeee-4eee-8eee-eeeeeeeeeea3',
+    cornerstoneSpringDigital: 'eeeeeea4-eeee-4eee-8eee-eeeeeeeeeea4',
+  },
+  accommodationPricing: {
+    downtownFall: 'eeeeeeb1-eeee-4eee-8eee-eeeeeeeeeeb1',
+    burnabyWinter: 'eeeeeeb2-eeee-4eee-8eee-eeeeeeeeeeb2',
+    richmondSpring: 'eeeeeeb3-eeee-4eee-8eee-eeeeeeeeeeb3',
+    kitsFall: 'eeeeeeb4-eeee-4eee-8eee-eeeeeeeeeeb4',
+    gastownFall: 'eeeeeeb5-eeee-4eee-8eee-eeeeeeeeeeb5',
+  },
+  enrollmentQuotes: {
+    raphaelPendingCourseOnly: 'eeeeeec1-eeee-4eee-8eee-eeeeeeeeeec1',
+    emilyIntentWithAccommodation: 'eeeeeec2-eeee-4eee-8eee-eeeeeeeeeec2',
+    lucasConvertedWithAccommodation: 'eeeeeec3-eeee-4eee-8eee-eeeeeeeeeec3',
+  },
   enrollmentStatusHistory: {
     emilyStarted: 'fffffff1-ffff-4fff-8fff-fffffffffff1',
     emilyApproved: 'fffffff2-ffff-4fff-8fff-fffffffffff2',
@@ -563,6 +581,48 @@ async function main() {
         startDate: new Date('2027-01-05T00:00:00.000Z'),
         endDate: new Date('2027-03-20T00:00:00.000Z'),
         status: RecordStatus.ACTIVE,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  await prisma.coursePricing.createMany({
+    data: [
+      {
+        id: ids.coursePricing.ilscFallGeneral,
+        courseId: ids.courses.generalEnglishIlsc,
+        academicPeriodId: ids.academicPeriods.fall2026,
+        duration: '4-24 weeks',
+        basePrice: 5550,
+        currency: 'CAD',
+        isActive: true,
+      },
+      {
+        id: ids.coursePricing.ilscFallBusiness,
+        courseId: ids.courses.businessEnglishIlsc,
+        academicPeriodId: ids.academicPeriods.fall2026,
+        duration: '8-24 weeks',
+        basePrice: 6200,
+        currency: 'CAD',
+        isActive: true,
+      },
+      {
+        id: ids.coursePricing.vgcWinterIelts,
+        courseId: ids.courses.ieltsVgc,
+        academicPeriodId: ids.academicPeriods.winter2027,
+        duration: '12 weeks',
+        basePrice: 5550,
+        currency: 'CAD',
+        isActive: true,
+      },
+      {
+        id: ids.coursePricing.cornerstoneSpringDigital,
+        courseId: ids.courses.digitalMarketingCornerstone,
+        academicPeriodId: ids.academicPeriods.spring2026,
+        duration: '16 weeks',
+        basePrice: 4350,
+        currency: 'CAD',
+        isActive: true,
       },
     ],
     skipDuplicates: true,
@@ -1215,6 +1275,52 @@ async function main() {
     skipDuplicates: true,
   });
 
+  await prisma.accommodationPricing.createMany({
+    data: [
+      {
+        id: ids.accommodationPricing.downtownFall,
+        accommodationId: ids.accommodations.downtownShared,
+        periodOption: 'Fall 2026',
+        basePrice: 950,
+        currency: 'CAD',
+        isActive: true,
+      },
+      {
+        id: ids.accommodationPricing.burnabyWinter,
+        accommodationId: ids.accommodations.burnabyStudio,
+        periodOption: 'Winter 2027',
+        basePrice: 950,
+        currency: 'CAD',
+        isActive: true,
+      },
+      {
+        id: ids.accommodationPricing.richmondSpring,
+        accommodationId: ids.accommodations.richmondApartment,
+        periodOption: 'Spring 2026',
+        basePrice: 1750,
+        currency: 'CAD',
+        isActive: true,
+      },
+      {
+        id: ids.accommodationPricing.kitsFall,
+        accommodationId: ids.accommodations.kitsHomestay,
+        periodOption: 'Fall 2026',
+        basePrice: 1200,
+        currency: 'CAD',
+        isActive: true,
+      },
+      {
+        id: ids.accommodationPricing.gastownFall,
+        accommodationId: ids.accommodations.gastownStudio,
+        periodOption: 'Fall 2026',
+        basePrice: 2100,
+        currency: 'CAD',
+        isActive: true,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
   await prisma.enrollmentIntent.updateMany({
     where: { id: ids.enrollmentIntents.raphaelPending },
     data: { accommodationId: ids.accommodations.downtownShared },
@@ -1240,6 +1346,80 @@ async function main() {
     where: { id: ids.enrollments.lucasReview },
     data: { accommodationId: ids.accommodations.richmondApartment },
   });
+
+  const quotes = [
+    {
+      id: ids.enrollmentQuotes.raphaelPendingCourseOnly,
+      enrollmentIntentId: ids.enrollmentIntents.raphaelPending,
+      coursePricingId: ids.coursePricing.ilscFallGeneral,
+      accommodationPricingId: null,
+      courseAmount: 5550,
+      accommodationAmount: 0,
+      fees: 150,
+      discounts: 0,
+      totalAmount: 5700,
+      currency: 'CAD',
+      downPaymentPercentage: 30,
+      downPaymentAmount: 1710,
+      remainingAmount: 3990,
+      commissionPercentage: 8.5,
+      commissionAmount: 471.75,
+      commissionCourseAmount: 471.75,
+      commissionAccommodationAmount: 0,
+      type: 'course_only',
+      createdAt: new Date('2026-04-15T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentQuotes.emilyIntentWithAccommodation,
+      enrollmentIntentId: ids.enrollmentIntents.emilyActive,
+      coursePricingId: ids.coursePricing.vgcWinterIelts,
+      accommodationPricingId: ids.accommodationPricing.burnabyWinter,
+      courseAmount: 5550,
+      accommodationAmount: 950,
+      fees: 450,
+      discounts: 300,
+      totalAmount: 6650,
+      currency: 'CAD',
+      downPaymentPercentage: 30,
+      downPaymentAmount: 1995,
+      remainingAmount: 4655,
+      commissionPercentage: 7.0947,
+      commissionAmount: 471.75,
+      commissionCourseAmount: 471.75,
+      commissionAccommodationAmount: 0,
+      type: 'course_with_accommodation',
+      createdAt: new Date('2026-04-10T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
+      enrollmentIntentId: ids.enrollmentIntents.lucasConverted,
+      coursePricingId: ids.coursePricing.cornerstoneSpringDigital,
+      accommodationPricingId: ids.accommodationPricing.richmondSpring,
+      courseAmount: 4350,
+      accommodationAmount: 1750,
+      fees: 350,
+      discounts: 200,
+      totalAmount: 6250,
+      currency: 'CAD',
+      downPaymentPercentage: 30,
+      downPaymentAmount: 1875,
+      remainingAmount: 4375,
+      commissionPercentage: 5.0461,
+      commissionAmount: 315.38,
+      commissionCourseAmount: 315.38,
+      commissionAccommodationAmount: 0,
+      type: 'course_with_accommodation',
+      createdAt: new Date('2026-03-02T00:00:00.000Z'),
+    },
+  ] as const;
+
+  for (const item of quotes) {
+    await prisma.enrollmentQuote.upsert({
+      where: { id: item.id },
+      create: item,
+      update: item,
+    });
+  }
 
   await prisma.schoolAccommodationRecommendation.createMany({
     data: [

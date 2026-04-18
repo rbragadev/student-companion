@@ -280,6 +280,19 @@ export default function EnrollmentDetailScreen() {
                   <Text variant="caption">
                     Comissão total: {packageSummaryQuery.data.pricing.totalCommissionAmount.toFixed(2)} ({packageSummaryQuery.data.pricing.commissionPercentage.toFixed(2)}%)
                   </Text>
+                  {packageSummaryQuery.data.quote && (
+                    <>
+                      <Text variant="caption">
+                        Tipo do pacote: {packageSummaryQuery.data.quote.type}
+                      </Text>
+                      <Text variant="caption">
+                        Entrada ({packageSummaryQuery.data.quote.downPaymentPercentage.toFixed(2)}%): {packageSummaryQuery.data.quote.downPaymentAmount.toFixed(2)} {packageSummaryQuery.data.pricing.currency}
+                      </Text>
+                      <Text variant="caption">
+                        Saldo restante: {packageSummaryQuery.data.quote.remainingAmount.toFixed(2)} {packageSummaryQuery.data.pricing.currency}
+                      </Text>
+                    </>
+                  )}
                 </View>
               ) : (
                 <Text variant="caption" className="mt-2">Pricing ainda não definido para esta matrícula.</Text>

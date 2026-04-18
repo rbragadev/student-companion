@@ -119,6 +119,7 @@ apps/admin/
     │       ├── courses/        # CRUD de cursos (catálogo mobile)
     │       ├── class-groups/   # CRUD de turmas (por curso)
     │       ├── academic-periods/ # CRUD de períodos da turma
+    │       ├── course-pricing/ # Preço de curso por período
     │       ├── academic-structure/ # Consulta relacional com filtros encadeados
     │       ├── enrollment-intents/ # Lista e detalhe de intenções de matrícula
     │       ├── enrollments/    # Lista e detalhe operacional/financeiro das matrículas
@@ -126,6 +127,7 @@ apps/admin/
     │       ├── commission-config/ # Configuração de comissão por instituição/curso
     │       ├── financial-overview/ # Visão financeira inicial das comissões geradas
     │       ├── accommodations/ # Lista integrada com dados reais
+    │       ├── accommodation-pricing/ # Preço de acomodação por período/opção
     │       ├── places/         # Lista integrada com dados reais
     │       ├── students/       # Lista de usuários STUDENT
     │       ├── profiles/       # Lista, criação e edição de perfis
@@ -199,6 +201,8 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   CRUD real em `/class-group` (com vínculo obrigatório de curso).
 - `/academic-periods`, `/academic-periods/new`, `/academic-periods/[id]`
   CRUD real em `/academic-period` (cada período pertence a uma turma).
+- `/course-pricing`
+  Configuração de preço por curso e período real consumido no fluxo de intenção.
 - `/academic-structure`
   Consulta operacional da cadeia acadêmica com filtros dependentes:
   instituição -> escola -> unidade -> curso -> turma.
@@ -221,6 +225,8 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Visão financeira operacional com matrícula, aluno, instituição, escola, curso, valor de matrícula e comissão.
 - `/accommodations`, `/places`, `/students`
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
+- `/accommodation-pricing`
+  Configuração de preço por acomodação e opção de período (texto legível).
 - `/accommodations` (evolução de upsell contextual)
   Catálogo independente + configuração de recomendação por escola (recomendada, prioridade e badge), com visualização de uso em intenções e matrículas.
 
@@ -247,6 +253,8 @@ Status da integração mobile (escopo acadêmico já coberto):
   - intenção aceita seleção/troca/remoção de acomodação via `PATCH /enrollment-intents/:id/accommodation`;
   - matrícula aceita seleção/troca/remoção de acomodação via `PATCH /enrollments/:id/accommodation`;
   - financeiro consolidado do pacote é exposto por `GET /enrollments/:id/package-summary` e refletido no SaaS/mobile.
+  - quote consolidada é gerada por `POST /quotes` e consultada por `GET /quotes/by-intent/:intentId`.
+  - quote exibe tipo do pacote (`course_only`, `course_with_accommodation`), total, entrada, saldo e comissão.
   - workflow de acomodação no contexto da matrícula é atualizado por `PATCH /enrollments/:id/accommodation-workflow`;
   - após status `closed`, a acomodação não pode mais ser trocada/removida;
   - chat da acomodação usa o mesmo endpoint de mensagens com canal dedicado (`channel=accommodation`), mantendo fonte única no backend.
