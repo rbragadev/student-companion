@@ -15,6 +15,12 @@ const intentStatusLabel = {
 } as const;
 
 const enrollmentStatusLabel = {
+  application_started: 'Application Started',
+  documents_pending: 'Documents Pending',
+  under_review: 'Under Review',
+  approved: 'Approved',
+  enrolled: 'Enrolled',
+  rejected: 'Rejected',
   active: 'Ativa',
   completed: 'Concluída',
   cancelled: 'Cancelada',

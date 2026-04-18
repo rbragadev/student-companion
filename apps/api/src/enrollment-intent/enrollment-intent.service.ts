@@ -3,6 +3,7 @@ import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEnrollmentIntentDto } from './dto/create-enrollment-intent.dto';
 import { UpdateEnrollmentIntentDto } from './dto/update-enrollment-intent.dto';
+import { ACTIVE_ENROLLMENT_STATUSES } from '../enrollment/enrollment.constants';
 
 @Injectable()
 export class EnrollmentIntentService {
@@ -65,9 +66,9 @@ export class EnrollmentIntentService {
     tx: Prisma.TransactionClient,
     studentId: string,
   ) {
-    const [activeEnrollment, pendingIntent, anyJourney] = await Promise.all([
+    const [ongoingEnrollment, pendingIntent, anyJourney] = await Promise.all([
       tx.enrollment.findFirst({
-        where: { studentId, status: 'active' },
+        where: { studentId, status: { in: ACTIVE_ENROLLMENT_STATUSES } },
         select: { id: true },
       }),
       tx.enrollmentIntent.findFirst({
@@ -80,7 +81,7 @@ export class EnrollmentIntentService {
       }),
     ]);
 
-    const nextStatus = activeEnrollment
+    const nextStatus = ongoingEnrollment
       ? 'enrolled'
       : pendingIntent
         ? 'pending_enrollment'

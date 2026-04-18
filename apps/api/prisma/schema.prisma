@@ -42,6 +42,9 @@ model User {
   adminProfiles UserAdminProfile[]
   enrollmentIntent EnrollmentIntent[]
   enrollments   Enrollment[]
+  enrollmentMessages EnrollmentMessage[]
+  enrollmentStatusChanges EnrollmentStatusHistory[]
+  enrollmentMessageReads EnrollmentMessageRead[]
 
   @@map("users")
 }
@@ -90,6 +93,11 @@ model Enrollment {
   classGroup         ClassGroup       @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
   academicPeriod     AcademicPeriod   @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
   enrollmentIntent   EnrollmentIntent @relation(fields: [enrollmentIntentId], references: [id], onDelete: Cascade)
+  documents          EnrollmentDocument[]
+  messages           EnrollmentMessage[]
+  pricing            EnrollmentPricing?
+  statusHistory      EnrollmentStatusHistory[]
+  messageReads       EnrollmentMessageRead[]
 
   @@index([studentId, status])
   @@index([institutionId])
@@ -372,4 +380,91 @@ model Place {
   badges            String[]
 
   @@map("place")
+}
+
+model EnrollmentDocument {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId String    @map("enrollment_id") @db.Uuid
+  type        String     @db.VarChar(100)
+  fileUrl     String     @map("file_url")
+  status      String     @default("pending")
+  adminNote   String?    @map("admin_note")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  enrollment  Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId, status])
+  @@map("enrollment_document")
+}
+
+model EnrollmentMessage {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId String     @map("enrollment_id") @db.Uuid
+  senderId     String     @map("sender_id") @db.Uuid
+  message      String
+  createdAt    DateTime   @default(now()) @map("created_at")
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  sender       User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId, createdAt])
+  @@index([senderId])
+  @@map("enrollment_message")
+}
+
+model EnrollmentMessageRead {
+  enrollmentId String     @map("enrollment_id") @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  lastReadAt   DateTime   @default(now()) @map("last_read_at")
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([enrollmentId, userId])
+  @@index([userId, lastReadAt])
+  @@map("enrollment_message_read")
+}
+
+model EnrollmentPricing {
+  id                   String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId         String     @unique @map("enrollment_id") @db.Uuid
+  basePrice            Decimal    @map("base_price") @db.Decimal(12, 2)
+  fees                 Decimal    @default(0) @db.Decimal(12, 2)
+  discounts            Decimal    @default(0) @db.Decimal(12, 2)
+  totalAmount          Decimal    @map("total_amount") @db.Decimal(12, 2)
+  currency             String     @default("CAD") @db.VarChar(10)
+  commissionAmount     Decimal    @default(0) @map("commission_amount") @db.Decimal(12, 2)
+  commissionPercentage Decimal    @default(0) @map("commission_percentage") @db.Decimal(7, 4)
+  createdAt            DateTime   @default(now()) @map("created_at")
+  updatedAt            DateTime   @updatedAt @map("updated_at")
+  enrollment           Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@map("enrollment_pricing")
+}
+
+model EnrollmentStatusHistory {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId String     @map("enrollment_id") @db.Uuid
+  fromStatus   String?    @map("from_status")
+  toStatus     String     @map("to_status")
+  reason       String?
+  changedById  String?    @map("changed_by_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at")
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  changedBy    User?      @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([enrollmentId, createdAt])
+  @@map("enrollment_status_history")
+}
+
+model CommissionConfig {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scopeType   String      @map("scope_type") @db.VarChar(50)
+  scopeId     String      @map("scope_id") @db.Uuid
+  percentage  Decimal     @default(0) @db.Decimal(7, 4)
+  fixedAmount Decimal?    @map("fixed_amount") @db.Decimal(12, 2)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@unique([scopeType, scopeId])
+  @@index([scopeType])
+  @@map("commission_config")
 }

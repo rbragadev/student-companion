@@ -1,6 +1,7 @@
 import { IsIn } from 'class-validator';
+import { ENROLLMENT_STATUSES } from '../enrollment.constants';
 
 export class UpdateEnrollmentStatusDto {
-  @IsIn(['active', 'completed', 'cancelled', 'denied'])
-  status!: 'active' | 'completed' | 'cancelled' | 'denied';
+  @IsIn(ENROLLMENT_STATUSES)
+  status!: (typeof ENROLLMENT_STATUSES)[number];
 }

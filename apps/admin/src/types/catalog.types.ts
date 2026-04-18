@@ -1,3 +1,11 @@
+export interface InstitutionAdmin {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SchoolAdmin {
   id: string;
   institutionId: string;
@@ -115,7 +123,17 @@ export interface EnrollmentIntentAdmin {
 
 export interface EnrollmentAdmin {
   id: string;
-  status: 'active' | 'completed' | 'cancelled' | 'denied';
+  status:
+    | 'application_started'
+    | 'documents_pending'
+    | 'under_review'
+    | 'approved'
+    | 'enrolled'
+    | 'rejected'
+    | 'cancelled'
+    | 'active'
+    | 'completed'
+    | 'denied';
   createdAt: string;
   student: {
     id: string;
@@ -131,6 +149,10 @@ export interface EnrollmentAdmin {
   classGroup: { id: string; name: string; code: string };
   academicPeriod: { id: string; name: string; startDate: string; endDate: string };
   enrollmentIntent: { id: string; status: string; convertedAt: string | null };
+  pricing?: EnrollmentPricingAdmin | null;
+  documents?: EnrollmentDocumentAdmin[];
+  messages?: EnrollmentMessageAdmin[];
+  statusHistory?: EnrollmentStatusHistoryAdmin[];
 }
 
 export interface StudentAcademicJourneyAdmin {
@@ -138,4 +160,91 @@ export interface StudentAcademicJourneyAdmin {
   activeEnrollment: EnrollmentAdmin | null;
   intentHistory: EnrollmentIntentAdmin[];
   enrollmentHistory: EnrollmentAdmin[];
+}
+
+export interface EnrollmentDocumentAdmin {
+  id: string;
+  enrollmentId: string;
+  type: string;
+  fileUrl: string;
+  status: 'pending' | 'approved' | 'rejected';
+  adminNote?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EnrollmentMessageAdmin {
+  id: string;
+  enrollmentId: string;
+  senderId: string;
+  message: string;
+  createdAt: string;
+  sender?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: 'STUDENT' | 'ADMIN' | 'SUPER_ADMIN';
+  };
+}
+
+export interface EnrollmentStatusHistoryAdmin {
+  id: string;
+  enrollmentId: string;
+  fromStatus?: string | null;
+  toStatus: string;
+  reason?: string | null;
+  changedById?: string | null;
+  createdAt: string;
+  changedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: 'STUDENT' | 'ADMIN' | 'SUPER_ADMIN';
+  } | null;
+}
+
+export interface EnrollmentTimelineEventAdmin {
+  id: string;
+  type: 'enrollment_created' | 'status_changed' | 'document' | 'message';
+  occurredAt: string;
+  title: string;
+  description?: string | null;
+  fromStatus?: string | null;
+  toStatus?: string | null;
+  sender?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: 'STUDENT' | 'ADMIN' | 'SUPER_ADMIN';
+  };
+  changedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: 'STUDENT' | 'ADMIN' | 'SUPER_ADMIN';
+  };
+}
+
+export interface EnrollmentPricingAdmin {
+  id: string;
+  enrollmentId: string;
+  basePrice: number;
+  fees: number;
+  discounts: number;
+  totalAmount: number;
+  currency: string;
+  commissionAmount: number;
+  commissionPercentage: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommissionConfigAdmin {
+  id: string;
+  scopeType: 'institution' | 'course' | 'accommodation' | 'service' | 'coupon';
+  scopeId: string;
+  percentage: number;
+  fixedAmount?: number | null;
+  createdAt: string;
+  updatedAt: string;
 }

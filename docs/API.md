@@ -192,7 +192,7 @@ Regras:
 - atualiza `users.student_status` no fluxo: `lead -> application_started -> pending_enrollment`
 - histórico de intenções é preservado (`pending`, `converted`, `cancelled`, `denied`)
 
-### Matrícula Confirmada (Step B)
+### Matrícula Confirmada + Operação Financeira (Step B+)
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
@@ -200,21 +200,48 @@ Regras:
 | `GET` | `/enrollments` | Lista matrículas (`?studentId=&status=&institutionId=&schoolId=`) |
 | `GET` | `/enrollments/active?studentId=...` | Retorna matrícula ativa do aluno (ou `null`) |
 | `GET` | `/enrollments/journey/:studentId` | Retorna visão consolidada: intenção pendente, matrícula ativa e históricos |
+| `GET` | `/enrollments/:id/timeline` | Timeline consolidada da matrícula (status, docs, mensagens) |
 | `GET` | `/enrollments/:id` | Detalhe de matrícula |
-| `PATCH` | `/enrollments/:id/status` | Atualiza status (`active`, `completed`, `cancelled`, `denied`) |
+| `PATCH` | `/enrollments/:id` | Atualiza status e/ou pricing (`basePrice`, `fees`, `discounts`, `currency`) |
+| `PATCH` | `/enrollments/:id/status` | Atualização legada apenas de status |
+| `GET` | `/enrollment-documents` | Lista documentos (`?enrollmentId=`) |
+| `POST` | `/enrollment-documents` | Adiciona documento da matrícula |
+| `PATCH` | `/enrollment-documents/:id` | Aprova/rejeita/atualiza documento |
+| `GET` | `/enrollment-messages` | Lista mensagens (`?enrollmentId=` ou `?studentId=`) |
+| `POST` | `/enrollment-messages` | Envia mensagem vinculada à matrícula |
+| `GET` | `/enrollment-messages/unread-count?studentId=...` | Contador de mensagens não lidas para o aluno |
+| `PATCH` | `/enrollment-messages/read?enrollmentId=...&userId=...` | Marca chat da matrícula como lido |
+| `GET` | `/commission-config` | Lista regras de comissão (`?scopeType=&scopeId=`) |
+| `POST` | `/commission-config` | Cria regra de comissão |
+| `PATCH` | `/commission-config/:id` | Atualiza regra de comissão |
 
 Regras:
 - intenção pode ser editada apenas enquanto `status = pending`
 - uma intenção pode ser confirmada no máximo uma vez
 - confirmação valida novamente a cadeia acadêmica completa
-- confirmação atualiza `users.student_status` para `enrolled`
+- confirmação cria matrícula com status inicial `application_started`
 - confirmação marca intenção como `converted` (`converted_at` preenchido)
-- bloqueia matrícula ativa incompatível para o mesmo aluno (`status = active`)
+- pricing é calculado no backend com `totalAmount = basePrice + fees - discounts`
+- comissão usa precedência: `course` override `institution`
+- comissão calculada em `enrollment_pricing` (`commissionAmount`, `commissionPercentage`)
+- `student_status` global do aluno prioriza matrícula ativa (qualquer estágio ativo do workflow)
 - mudanças de status em intenção/matrícula recalculam `users.student_status` automaticamente:
-  - matrícula ativa -> `enrolled`
-  - sem matrícula ativa e com intenção pendente -> `pending_enrollment`
+  - matrícula com status final (`enrolled`/`active`) -> `enrolled`
+  - matrícula operacional em andamento ou intenção pendente -> `pending_enrollment`
   - histórico sem pendência ativa -> `application_started`
   - sem histórico -> `lead`
+
+Status operacionais de matrícula:
+- `application_started`
+- `documents_pending`
+- `under_review`
+- `approved`
+- `enrolled`
+- `rejected`
+- `cancelled`
+
+Status legados ainda aceitos para compatibilidade:
+- `active`, `completed`, `denied`
 
 Distinção conceitual:
 - `institution`: escopo administrativo do cliente no SaaS.

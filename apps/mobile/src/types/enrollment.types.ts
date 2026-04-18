@@ -58,7 +58,17 @@ export interface CreateEnrollmentIntentPayload {
 
 export interface Enrollment {
   id: string;
-  status: 'active' | 'completed' | 'cancelled' | 'denied';
+  status:
+    | 'application_started'
+    | 'documents_pending'
+    | 'under_review'
+    | 'approved'
+    | 'enrolled'
+    | 'rejected'
+    | 'cancelled'
+    | 'active'
+    | 'completed'
+    | 'denied';
   createdAt: string;
   institution: { id: string; name: string };
   school: { id: string; name: string };
@@ -67,6 +77,9 @@ export interface Enrollment {
   classGroup: { id: string; name: string; code: string };
   academicPeriod: { id: string; name: string; startDate: string; endDate: string };
   enrollmentIntent?: { id: string; status: string; convertedAt?: string | null };
+  pricing?: EnrollmentPricing | null;
+  documents?: EnrollmentDocument[];
+  messages?: EnrollmentMessage[];
 }
 
 export interface StudentAcademicJourney {
@@ -74,4 +87,50 @@ export interface StudentAcademicJourney {
   activeEnrollment: Enrollment | null;
   intentHistory: EnrollmentIntent[];
   enrollmentHistory: Enrollment[];
+}
+
+export interface EnrollmentDocument {
+  id: string;
+  enrollmentId: string;
+  type: string;
+  fileUrl: string;
+  status: 'pending' | 'approved' | 'rejected';
+  adminNote?: string | null;
+  createdAt: string;
+}
+
+export interface EnrollmentMessage {
+  id: string;
+  enrollmentId: string;
+  senderId: string;
+  message: string;
+  createdAt: string;
+  sender?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: 'STUDENT' | 'ADMIN' | 'SUPER_ADMIN';
+  };
+}
+
+export interface EnrollmentPricing {
+  id: string;
+  enrollmentId: string;
+  basePrice: number;
+  fees: number;
+  discounts: number;
+  totalAmount: number;
+  currency: string;
+  commissionAmount: number;
+  commissionPercentage: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EnrollmentTimelineEvent {
+  id: string;
+  type: 'enrollment_created' | 'status_changed' | 'document' | 'message';
+  occurredAt: string;
+  title: string;
+  description?: string | null;
 }

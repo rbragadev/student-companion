@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { EnrollmentService } from './enrollment.service';
 import { UpdateEnrollmentStatusDto } from './dto/update-enrollment-status.dto';
+import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 
 @Controller('enrollments')
 export class EnrollmentController {
@@ -34,6 +35,16 @@ export class EnrollmentController {
   @Get('journey/:studentId')
   getStudentJourney(@Param('studentId') studentId: string) {
     return this.enrollmentService.getStudentJourney(studentId);
+  }
+
+  @Get(':id/timeline')
+  getTimeline(@Param('id') id: string) {
+    return this.enrollmentService.getTimeline(id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateEnrollmentDto) {
+    return this.enrollmentService.update(id, dto);
   }
 
   @Patch(':id/status')

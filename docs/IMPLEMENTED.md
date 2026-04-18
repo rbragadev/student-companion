@@ -40,8 +40,20 @@ JWT payload: `{ sub, email, role }`. Campo `passwordHash` no model `User` (bcryp
 | `GET /enrollments` | Listar matrículas (`studentId/status/institutionId/schoolId`) |
 | `GET /enrollments/active?studentId=...` | Buscar matrícula ativa do aluno |
 | `GET /enrollments/journey/:studentId` | Consulta consolidada da jornada acadêmica |
+| `GET /enrollments/:id/timeline` | Timeline da matrícula (status + docs + mensagens) |
 | `GET /enrollments/:id` | Detalhe de matrícula |
-| `PATCH /enrollments/:id/status` | Operar status da matrícula (`active/completed/cancelled/denied`) |
+| `PATCH /enrollments/:id` | Operar status e pricing da matrícula |
+| `PATCH /enrollments/:id/status` | Operação legada de status da matrícula |
+| `GET /enrollment-documents` | Listar documentos da matrícula |
+| `POST /enrollment-documents` | Anexar documento à matrícula |
+| `PATCH /enrollment-documents/:id` | Aprovar/rejeitar documento |
+| `GET /enrollment-messages` | Listar mensagens da matrícula |
+| `POST /enrollment-messages` | Enviar mensagem na matrícula |
+| `GET /enrollment-messages/unread-count?studentId=...` | Contador de não lidas para o aluno |
+| `PATCH /enrollment-messages/read?enrollmentId=...&userId=...` | Marcar mensagens como lidas |
+| `GET /commission-config` | Listar configurações de comissão |
+| `POST /commission-config` | Criar configuração de comissão |
+| `PATCH /commission-config/:id` | Atualizar configuração de comissão |
 
 ---
 
@@ -101,6 +113,12 @@ PostgreSQL 16 · Prisma 7 · adapter `@prisma/adapter-pg`
 | `academic_period` | classGroupId, name, startDate, endDate, status |
 | `enrollment_intent` | studentId, courseId, classGroupId, academicPeriodId, status, createdAt |
 | `enrollment` | studentId, institutionId, schoolId, unitId, courseId, classGroupId, academicPeriodId, enrollmentIntentId, status |
+| `enrollment_document` | enrollmentId, type, fileUrl, status, adminNote |
+| `enrollment_message` | enrollmentId, senderId, message, createdAt |
+| `enrollment_pricing` | enrollmentId, basePrice, fees, discounts, totalAmount, currency, commissionAmount |
+| `commission_config` | scopeType, scopeId, percentage, fixedAmount |
+| `enrollment_status_history` | enrollmentId, fromStatus, toStatus, reason, changedById |
+| `enrollment_message_read` | enrollmentId, userId, lastReadAt |
 | `accommodation` | title, accommodationType, price, coords, ratings detalhados, isPartner, isTopTrip |
 | `place` | name, category, coords, isStudentFavorite, hasDeal, hours (JSON) |
 | `review` | userId, reviewableType, reviewableId, rating, comment |
@@ -177,7 +195,7 @@ Ajustes aplicados para fechar compatibilidade mobile:
 - `studentStatus` foi adicionado ao perfil do usuário e refletido no mobile após criação da intenção.
 - Criação/edição de intenção no mobile migrou para tela dedicada (`EnrollmentIntentScreen`) sem alerts no fluxo principal.
 - Perfil do mobile passou a exibir matrícula ativa real (`GET /enrollments/active?studentId=...`).
-- Mobile ganhou tela dedicada de jornada acadêmica (`GET /enrollments/journey/:studentId`) com intenção pendente, matrícula ativa e históricos.
+- Mobile ganhou tela de jornada acadêmica como índice (`GET /enrollments/journey/:studentId`) e tela dedicada de contexto da matrícula (`/enrollments/:id`) com dados acadêmicos, financeiro, chat, documentos e timeline.
 
 ---
 

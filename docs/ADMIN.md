@@ -121,7 +121,9 @@ apps/admin/
     │       ├── academic-periods/ # CRUD de períodos da turma
     │       ├── academic-structure/ # Consulta relacional com filtros encadeados
     │       ├── enrollment-intents/ # Lista e detalhe de intenções de matrícula
-    │       ├── enrollments/    # Lista e detalhe de matrículas confirmadas
+    │       ├── enrollments/    # Lista e detalhe operacional/financeiro das matrículas
+    │       ├── commission-config/ # Configuração de comissão por instituição/curso
+    │       ├── financial-overview/ # Visão financeira inicial das comissões geradas
     │       ├── accommodations/ # Lista integrada com dados reais
     │       ├── places/         # Lista integrada com dados reais
     │       ├── students/       # Lista de usuários STUDENT
@@ -209,7 +211,11 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
 - `/students/[id]`
   Jornada acadêmica do aluno com intenção pendente, matrícula ativa e histórico completo.
 - `/enrollments`, `/enrollments/[id]`
-  Lista e detalhe de matrículas com operação de status (`active`, `completed`, `cancelled`, `denied`).
+  Lista e detalhe de matrículas com workflow operacional (`application_started`, `documents_pending`, `under_review`, `approved`, `enrolled`, `rejected`, `cancelled`), pricing, comissão, documentos, mensagens e timeline.
+- `/commission-config`
+  Configuração de comissão por instituição (global) e por curso (override), com nomes legíveis de domínio (instituição/escola/curso).
+- `/financial-overview`
+  Visão financeira operacional com matrícula, aluno, instituição, escola, curso, valor de matrícula e comissão.
 - `/accommodations`, `/places`, `/students`
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
 
@@ -223,10 +229,13 @@ Status da integração mobile (escopo acadêmico já coberto):
 - `course`: mobile consome `GET /course` e `GET /course/:id` reais.
 - Normalização de contrato (`snake_case` -> `camelCase`) ocorre no mobile em `services/api/mappers/catalogMappers.ts`, sem duplicar domínio no backend.
 - Step A monetização: mobile cria intenção real em `POST /enrollment-intents` com seleção de curso/turma/período e o `studentStatus` volta atualizado pela API.
-- Step B monetização: confirmação via SaaS usa `POST /enrollments/from-intent/:intentId`, converte intenção para matrícula real e atualiza aluno para `enrolled`.
+- Step B monetização: confirmação via SaaS usa `POST /enrollments/from-intent/:intentId`, converte intenção para matrícula real e inicia workflow operacional.
 - O mobile reflete matrícula ativa via `GET /enrollments/active?studentId=...`.
-- O mobile usa `GET /enrollments/journey/:studentId` para tela de Jornada Acadêmica (pendência + ativa + histórico).
+- O mobile usa `GET /enrollments/journey/:studentId` como índice da jornada e abre contexto completo por matrícula em tela dedicada (`GET /enrollments/:id`, `/enrollments/:id/timeline`, `/enrollment-documents`, `/enrollment-messages`).
 - Ao iniciar nova intenção, o mobile verifica e exibe em tela se já existe intenção pendente ou matrícula ativa, sem uso de alert nesse fluxo.
+- O mobile exibe na jornada: timeline (`GET /enrollments/:id/timeline`), documentos (`GET/POST /enrollment-documents`) e mensagens (`GET/POST /enrollment-messages`) com dados reais do backend.
+- O mobile exibe indicador de mensagens não lidas via `GET /enrollment-messages/unread-count?studentId=...` e sincroniza leitura com `PATCH /enrollment-messages/read`.
+- Upload de documentos no mobile fica visível apenas em status compatível com etapa documental (`documents_pending`, `under_review`).
 
 ## Sidebar (Ordem de Operação)
 
@@ -236,7 +245,7 @@ Status da integração mobile (escopo acadêmico já coberto):
 - Estrutura Física
   Acomodações → Lugares
 - Pessoas e Acesso
-  Alunos → Intenções de Matrícula → Matrículas → Usuários Admin → Perfis → Permissões
+  Alunos → Intenções de Matrícula → Matrículas → Comissões → Financeiro → Usuários Admin → Perfis → Permissões
 
 Regras de exposição no menu:
 - Itens dependentes só aparecem quando pré-requisitos existem (ex.: Turmas exige Curso; Períodos exige Turma).

@@ -17,6 +17,7 @@ export enum StackRoutes {
   COURSE_DETAIL = 'CourseDetail',
   ENROLLMENT_INTENT = 'EnrollmentIntent',
   ACADEMIC_JOURNEY = 'AcademicJourney',
+  ENROLLMENT_DETAIL = 'EnrollmentDetail',
   PLACE_DETAIL = 'PlaceDetail',
   PROFILE = 'Profile',
 }
@@ -37,6 +38,7 @@ export type RootStackParamList = {
   [StackRoutes.COURSE_DETAIL]: { courseId: string };
   [StackRoutes.ENROLLMENT_INTENT]: { courseId: string };
   [StackRoutes.ACADEMIC_JOURNEY]: undefined;
+  [StackRoutes.ENROLLMENT_DETAIL]: { enrollmentId: string };
   [StackRoutes.PLACE_DETAIL]: { placeId: string };
   [StackRoutes.PROFILE]: undefined;
 };

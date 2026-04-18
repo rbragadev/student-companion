@@ -25,7 +25,16 @@ export default function ProfileScreen() {
     queryKey: ['enrollment', 'active', userId],
     queryFn: () => enrollmentApi.getActiveEnrollmentByStudent(userId ?? ''),
     enabled: !!userId,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
+
+  const studentStatusLabel: Record<string, string> = {
+    lead: 'Lead',
+    application_started: 'Application Started',
+    pending_enrollment: 'Pending Enrollment',
+    enrolled: 'Enrolled',
+  };
 
   const handleEditProfile = () => {
     console.log('Edit profile');
@@ -61,6 +70,12 @@ export default function ProfileScreen() {
       </Screen>
     );
   }
+
+  // Fonte de verdade no Profile: status global do aluno.
+  const effectiveStudentStatus = user.studentStatus || activeEnrollment?.status || 'lead';
+  const effectiveStudentStatusLabel =
+    studentStatusLabel[effectiveStudentStatus] ??
+    (activeEnrollment ? `Enrollment: ${activeEnrollment.status}` : effectiveStudentStatus);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -203,7 +218,7 @@ export default function ProfileScreen() {
                   Student Status
                 </Text>
                 <Text variant="body" className="font-medium">
-                  {user.studentStatus}
+                  {effectiveStudentStatusLabel}
                 </Text>
               </View>
             </View>

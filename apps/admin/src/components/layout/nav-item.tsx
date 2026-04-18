@@ -19,6 +19,8 @@ import {
   KeyRound,
   FileBadge2,
   BadgeCheck,
+  CircleDollarSign,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import type { NavIconName } from '@/config/navigation';
@@ -40,6 +42,8 @@ const ICONS: Record<NavIconName, React.ElementType> = {
   KeyRound,
   FileBadge2,
   BadgeCheck,
+  CircleDollarSign,
+  Wallet,
 };
 
 interface NavItemProps {

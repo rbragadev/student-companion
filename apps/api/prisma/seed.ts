@@ -63,10 +63,38 @@ const ids = {
     emilyActive: 'aaaaaaa3-aaaa-4aaa-8aaa-aaaaaaaaaaa3',
     emilyCancelled: 'aaaaaaa4-aaaa-4aaa-8aaa-aaaaaaaaaaa4',
     lucasDenied: 'aaaaaaa5-aaaa-4aaa-8aaa-aaaaaaaaaaa5',
+    lucasConverted: 'aaaaaaa6-aaaa-4aaa-8aaa-aaaaaaaaaaa6',
   },
   enrollments: {
     emilyActive: 'bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
     emilyCancelled: 'bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
+    lucasReview: 'bbbbbbb3-bbbb-4bbb-8bbb-bbbbbbbbbbb3',
+  },
+  enrollmentDocuments: {
+    emilyPassport: 'ccccccc1-cccc-4ccc-8ccc-ccccccccccc1',
+    emilyDiploma: 'ccccccc2-cccc-4ccc-8ccc-ccccccccccc2',
+    lucasTranscript: 'ccccccc3-cccc-4ccc-8ccc-ccccccccccc3',
+  },
+  enrollmentMessages: {
+    emilyStudent: 'ddddddd1-dddd-4ddd-8ddd-ddddddddddd1',
+    emilyAdmin: 'ddddddd2-dddd-4ddd-8ddd-ddddddddddd2',
+    lucasAdmin: 'ddddddd3-dddd-4ddd-8ddd-ddddddddddd3',
+  },
+  enrollmentPricing: {
+    emilyActive: 'eeeeeee1-eeee-4eee-8eee-eeeeeeeeeee1',
+    lucasReview: 'eeeeeee2-eeee-4eee-8eee-eeeeeeeeeee2',
+  },
+  enrollmentStatusHistory: {
+    emilyStarted: 'fffffff1-ffff-4fff-8fff-fffffffffff1',
+    emilyApproved: 'fffffff2-ffff-4fff-8fff-fffffffffff2',
+    emilyEnrolled: 'fffffff3-ffff-4fff-8fff-fffffffffff3',
+    lucasStarted: 'fffffff4-ffff-4fff-8fff-fffffffffff4',
+    lucasDocsPending: 'fffffff5-ffff-4fff-8fff-fffffffffff5',
+  },
+  commissionConfig: {
+    institutionGlobal: '99999991-9999-4999-8999-999999999991',
+    courseBusiness: '99999992-9999-4999-8999-999999999992',
+    institutionExchange: '99999993-9999-4999-8999-999999999993',
   },
   courses: {
     generalEnglishIlsc: 'd0efb89f-3d37-4607-9eaa-032832ec2b8e',
@@ -134,7 +162,7 @@ async function main() {
         email: 'lucas@studentcompanion.dev',
         phone: '+55 21 98888-4400',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Lucas',
-        studentStatus: 'application_started',
+        studentStatus: 'pending_enrollment',
         passwordHash,
       },
       {
@@ -579,6 +607,17 @@ async function main() {
       convertedAt: null,
       createdAt: new Date('2026-02-08T00:00:00.000Z'),
     },
+    {
+      id: ids.enrollmentIntents.lucasConverted,
+      studentId: ids.users.lucas,
+      courseId: ids.courses.digitalMarketingCornerstone,
+      classGroupId: ids.classGroups.businessAfternoon,
+      academicPeriodId: ids.academicPeriods.spring2026,
+      status: 'converted',
+      deniedReason: null,
+      convertedAt: new Date('2026-03-02T00:00:00.000Z'),
+      createdAt: new Date('2026-03-01T00:00:00.000Z'),
+    },
   ] as const;
 
   for (const intent of enrollmentIntents) {
@@ -600,7 +639,7 @@ async function main() {
       classGroupId: ids.classGroups.engB2Evening,
       academicPeriodId: ids.academicPeriods.winter2027,
       enrollmentIntentId: ids.enrollmentIntents.emilyActive,
-      status: 'active',
+      status: 'enrolled',
       createdAt: new Date('2026-04-10T00:00:00.000Z'),
     },
     {
@@ -616,6 +655,19 @@ async function main() {
       status: 'cancelled',
       createdAt: new Date('2025-12-20T00:00:00.000Z'),
     },
+    {
+      id: ids.enrollments.lucasReview,
+      studentId: ids.users.lucas,
+      institutionId: ids.institutions.exchange,
+      schoolId: ids.schools.cornerstone,
+      unitId: ids.units.toronto,
+      courseId: ids.courses.digitalMarketingCornerstone,
+      classGroupId: ids.classGroups.businessAfternoon,
+      academicPeriodId: ids.academicPeriods.spring2026,
+      enrollmentIntentId: ids.enrollmentIntents.lucasConverted,
+      status: 'documents_pending',
+      createdAt: new Date('2026-03-02T00:00:00.000Z'),
+    },
   ] as const;
 
   for (const enrollment of enrollments) {
@@ -623,6 +675,230 @@ async function main() {
       where: { id: enrollment.id },
       create: enrollment,
       update: enrollment,
+    });
+  }
+
+  const statusHistory = [
+    {
+      id: ids.enrollmentStatusHistory.emilyStarted,
+      enrollmentId: ids.enrollments.emilyActive,
+      fromStatus: null,
+      toStatus: 'application_started',
+      reason: 'Matrícula criada a partir da intenção.',
+      changedById: ids.users.admin,
+      createdAt: new Date('2026-04-10T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentStatusHistory.emilyApproved,
+      enrollmentId: ids.enrollments.emilyActive,
+      fromStatus: 'application_started',
+      toStatus: 'approved',
+      reason: 'Documentação revisada e aprovada.',
+      changedById: ids.users.admin,
+      createdAt: new Date('2026-04-12T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentStatusHistory.emilyEnrolled,
+      enrollmentId: ids.enrollments.emilyActive,
+      fromStatus: 'approved',
+      toStatus: 'enrolled',
+      reason: 'Matrícula finalizada.',
+      changedById: ids.users.superAdmin,
+      createdAt: new Date('2026-04-14T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentStatusHistory.lucasStarted,
+      enrollmentId: ids.enrollments.lucasReview,
+      fromStatus: null,
+      toStatus: 'application_started',
+      reason: 'Matrícula iniciada após ajuste da intenção.',
+      changedById: ids.users.operador,
+      createdAt: new Date('2026-03-02T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentStatusHistory.lucasDocsPending,
+      enrollmentId: ids.enrollments.lucasReview,
+      fromStatus: 'application_started',
+      toStatus: 'documents_pending',
+      reason: 'Aguardando histórico escolar apostilado.',
+      changedById: ids.users.admin,
+      createdAt: new Date('2026-03-04T00:00:00.000Z'),
+    },
+  ] as const;
+
+  for (const item of statusHistory) {
+    await prisma.enrollmentStatusHistory.upsert({
+      where: { id: item.id },
+      create: item,
+      update: item,
+    });
+  }
+
+  const documents = [
+    {
+      id: ids.enrollmentDocuments.emilyPassport,
+      enrollmentId: ids.enrollments.emilyActive,
+      type: 'passport',
+      fileUrl: 'https://studentcompanion.dev/docs/emily/passport.pdf',
+      status: 'approved',
+      adminNote: 'Documento válido.',
+      createdAt: new Date('2026-04-11T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-11T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentDocuments.emilyDiploma,
+      enrollmentId: ids.enrollments.emilyActive,
+      type: 'high_school_diploma',
+      fileUrl: 'https://studentcompanion.dev/docs/emily/diploma.pdf',
+      status: 'approved',
+      adminNote: null,
+      createdAt: new Date('2026-04-11T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-12T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentDocuments.lucasTranscript,
+      enrollmentId: ids.enrollments.lucasReview,
+      type: 'transcript',
+      fileUrl: 'https://studentcompanion.dev/docs/lucas/transcript.pdf',
+      status: 'pending',
+      adminNote: 'Solicitado arquivo mais legível.',
+      createdAt: new Date('2026-03-03T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-04T00:00:00.000Z'),
+    },
+  ] as const;
+
+  for (const item of documents) {
+    await prisma.enrollmentDocument.upsert({
+      where: { id: item.id },
+      create: item,
+      update: item,
+    });
+  }
+
+  const messages = [
+    {
+      id: ids.enrollmentMessages.emilyStudent,
+      enrollmentId: ids.enrollments.emilyActive,
+      senderId: ids.users.emily,
+      message: 'Enviei os documentos solicitados. Podem validar, por favor?',
+      createdAt: new Date('2026-04-11T02:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentMessages.emilyAdmin,
+      enrollmentId: ids.enrollments.emilyActive,
+      senderId: ids.users.admin,
+      message: 'Tudo certo, Emily. Sua matrícula foi aprovada.',
+      createdAt: new Date('2026-04-12T10:30:00.000Z'),
+    },
+    {
+      id: ids.enrollmentMessages.lucasAdmin,
+      enrollmentId: ids.enrollments.lucasReview,
+      senderId: ids.users.operador,
+      message: 'Lucas, precisamos do histórico escolar completo para seguir.',
+      createdAt: new Date('2026-03-04T09:00:00.000Z'),
+    },
+  ] as const;
+
+  for (const item of messages) {
+    await prisma.enrollmentMessage.upsert({
+      where: { id: item.id },
+      create: item,
+      update: item,
+    });
+  }
+
+  const messageReads = [
+    {
+      enrollmentId: ids.enrollments.emilyActive,
+      userId: ids.users.emily,
+      lastReadAt: new Date('2026-04-12T10:35:00.000Z'),
+    },
+    {
+      enrollmentId: ids.enrollments.lucasReview,
+      userId: ids.users.lucas,
+      lastReadAt: new Date('2026-03-04T08:50:00.000Z'),
+    },
+  ] as const;
+
+  for (const item of messageReads) {
+    await prisma.enrollmentMessageRead.upsert({
+      where: {
+        enrollmentId_userId: {
+          enrollmentId: item.enrollmentId,
+          userId: item.userId,
+        },
+      },
+      create: item,
+      update: item,
+    });
+  }
+
+  const pricing = [
+    {
+      id: ids.enrollmentPricing.emilyActive,
+      enrollmentId: ids.enrollments.emilyActive,
+      basePrice: 5400,
+      fees: 450,
+      discounts: 300,
+      totalAmount: 5550,
+      currency: 'CAD',
+      commissionAmount: 531,
+      commissionPercentage: 9.5,
+      createdAt: new Date('2026-04-12T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-12T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentPricing.lucasReview,
+      enrollmentId: ids.enrollments.lucasReview,
+      basePrice: 4200,
+      fees: 350,
+      discounts: 200,
+      totalAmount: 4350,
+      currency: 'CAD',
+      commissionAmount: 435,
+      commissionPercentage: 10,
+      createdAt: new Date('2026-03-04T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-04T00:00:00.000Z'),
+    },
+  ] as const;
+
+  for (const item of pricing) {
+    await prisma.enrollmentPricing.upsert({
+      where: { id: item.id },
+      create: item,
+      update: item,
+    });
+  }
+
+  const commissionConfigs = [
+    {
+      id: ids.commissionConfig.institutionGlobal,
+      scopeType: 'institution',
+      scopeId: ids.institutions.global,
+      percentage: 8.5,
+      fixedAmount: 0,
+    },
+    {
+      id: ids.commissionConfig.courseBusiness,
+      scopeType: 'course',
+      scopeId: ids.courses.businessEnglishIlsc,
+      percentage: 10,
+      fixedAmount: 75,
+    },
+    {
+      id: ids.commissionConfig.institutionExchange,
+      scopeType: 'institution',
+      scopeId: ids.institutions.exchange,
+      percentage: 7.25,
+      fixedAmount: 0,
+    },
+  ] as const;
+
+  for (const item of commissionConfigs) {
+    await prisma.commissionConfig.upsert({
+      where: { id: item.id },
+      create: item,
+      update: item,
     });
   }
 
