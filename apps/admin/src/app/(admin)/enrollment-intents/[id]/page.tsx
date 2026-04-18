@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import type { EnrollmentIntentAdmin } from '@/types/catalog.types';
+import { updateEnrollmentIntentStatusAction } from '../actions';
 
 const STATUS_LABEL: Record<EnrollmentIntentAdmin['student']['studentStatus'], string> = {
   lead: 'Lead',
@@ -17,6 +18,8 @@ const STATUS_LABEL: Record<EnrollmentIntentAdmin['student']['studentStatus'], st
 const INTENT_LABEL: Record<EnrollmentIntentAdmin['status'], string> = {
   pending: 'Pendente',
   converted: 'Convertida',
+  cancelled: 'Cancelada',
+  denied: 'Negada',
 };
 
 export default async function EnrollmentIntentDetailPage({
@@ -43,6 +46,22 @@ export default async function EnrollmentIntentDetailPage({
                 <Link href={`/enrollment-intents/${intent.id}/confirm`}>
                   <Button size="sm"><CheckCircle2 size={14} />Confirmar matrícula</Button>
                 </Link>
+                <form action={updateEnrollmentIntentStatusAction}>
+                  <input type="hidden" name="intentId" value={intent.id} />
+                  <input type="hidden" name="status" value="cancelled" />
+                  <Button type="submit" size="sm" variant="outline">Cancelar</Button>
+                </form>
+                <form action={updateEnrollmentIntentStatusAction} className="flex items-center gap-2">
+                  <input type="hidden" name="intentId" value={intent.id} />
+                  <input type="hidden" name="status" value="denied" />
+                  <input
+                    name="reason"
+                    required
+                    placeholder="Motivo da negativa"
+                    className="h-9 rounded-lg border border-slate-300 px-3 text-xs"
+                  />
+                  <Button type="submit" size="sm" variant="outline">Negar</Button>
+                </form>
               </>
             )}
             <Link href="/enrollment-intents">
@@ -59,6 +78,9 @@ export default async function EnrollmentIntentDetailPage({
           <p className="text-xs text-slate-500">{intent.student.email}</p>
           <p className="mt-2 text-xs text-slate-500">Status: {STATUS_LABEL[intent.student.studentStatus]}</p>
           <p className="mt-1 text-xs text-slate-500">Intenção: {INTENT_LABEL[intent.status]}</p>
+          {intent.deniedReason && (
+            <p className="mt-1 text-xs text-rose-600">Motivo da negativa: {intent.deniedReason}</p>
+          )}
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">

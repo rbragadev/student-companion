@@ -40,7 +40,7 @@ model User {
   reviews       Review[]
   preferences   UserPreferences?
   adminProfiles UserAdminProfile[]
-  enrollmentIntent EnrollmentIntent?
+  enrollmentIntent EnrollmentIntent[]
   enrollments   Enrollment[]
 
   @@map("users")
@@ -48,11 +48,12 @@ model User {
 
 model EnrollmentIntent {
   id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  studentId        String         @unique @map("student_id") @db.Uuid
+  studentId        String         @map("student_id") @db.Uuid
   courseId         String         @map("course_id") @db.Uuid
   classGroupId     String         @map("class_group_id") @db.Uuid
   academicPeriodId String         @map("academic_period_id") @db.Uuid
   status           String         @default("pending")
+  deniedReason     String?        @map("denied_reason")
   convertedAt      DateTime?      @map("converted_at")
   createdAt        DateTime       @default(now()) @map("created_at")
   student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -61,6 +62,8 @@ model EnrollmentIntent {
   academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
   enrollment       Enrollment?
 
+  @@index([studentId])
+  @@index([studentId, status])
   @@index([courseId])
   @@index([classGroupId])
   @@index([academicPeriodId])

@@ -27,19 +27,10 @@ export class RecommendationService {
       throw new NotFoundException('User preferences not found');
     }
 
-    const activeIntent = await this.prisma.enrollmentIntent.findUnique({
-      where: { studentId: userId },
+    const activeIntent = await this.prisma.enrollmentIntent.findFirst({
+      where: { studentId: userId, status: 'pending' },
       select: { courseId: true },
     });
-    const activeEnrollment = await this.prisma.enrollment.findFirst({
-      where: { studentId: userId, status: 'active' },
-      select: { id: true },
-    });
-
-    if (type === RecommendationType.COURSE && (user.studentStatus === 'enrolled' || !!activeEnrollment)) {
-      return [];
-    }
-
     // 2. Obter strategy apropriada
     const strategy = this.strategyFactory.getStrategy(type);
 

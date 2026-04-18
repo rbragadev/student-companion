@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEnrollmentIntentDto } from './dto/create-enrollment-intent.dto';
 import { UpdateEnrollmentIntentDto } from './dto/update-enrollment-intent.dto';
@@ -61,6 +61,39 @@ export class EnrollmentIntentService {
     return currentStatus;
   }
 
+  private async recalculateStudentStatus(
+    tx: Prisma.TransactionClient,
+    studentId: string,
+  ) {
+    const [activeEnrollment, pendingIntent, anyJourney] = await Promise.all([
+      tx.enrollment.findFirst({
+        where: { studentId, status: 'active' },
+        select: { id: true },
+      }),
+      tx.enrollmentIntent.findFirst({
+        where: { studentId, status: 'pending' },
+        select: { id: true },
+      }),
+      tx.enrollmentIntent.findFirst({
+        where: { studentId },
+        select: { id: true },
+      }),
+    ]);
+
+    const nextStatus = activeEnrollment
+      ? 'enrolled'
+      : pendingIntent
+        ? 'pending_enrollment'
+        : anyJourney
+          ? 'application_started'
+          : 'lead';
+
+    await tx.user.update({
+      where: { id: studentId },
+      data: { studentStatus: nextStatus },
+    });
+  }
+
   private async validateChain(courseId: string, classGroupId: string, academicPeriodId: string) {
     const [course, classGroup, academicPeriod] = await Promise.all([
       this.prisma.course.findUnique({
@@ -102,17 +135,13 @@ export class EnrollmentIntentService {
   }
 
   async create(dto: CreateEnrollmentIntentDto) {
-    const [student, existingIntent, activeEnrollment, chain] = await Promise.all([
+    const [student, existingIntent, chain] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: dto.studentId },
         select: { id: true, role: true, studentStatus: true },
       }),
-      this.prisma.enrollmentIntent.findUnique({
-        where: { studentId: dto.studentId },
-        select: { id: true },
-      }),
-      this.prisma.enrollment.findFirst({
-        where: { studentId: dto.studentId, status: 'active' },
+      this.prisma.enrollmentIntent.findFirst({
+        where: { studentId: dto.studentId, status: 'pending' },
         select: { id: true },
       }),
       this.validateChain(dto.courseId, dto.classGroupId, dto.academicPeriodId),
@@ -124,9 +153,6 @@ export class EnrollmentIntentService {
     }
     if (existingIntent) {
       throw new BadRequestException('O aluno já possui uma intenção de matrícula ativa');
-    }
-    if (activeEnrollment) {
-      throw new BadRequestException('O aluno já possui matrícula ativa e não pode abrir nova intenção');
     }
 
     const nextStatus = this.nextStudentStatus(student.studentStatus);
@@ -212,6 +238,44 @@ export class EnrollmentIntentService {
         academicPeriodId: chain.academicPeriodId,
       },
       include: this.includeGraph,
+    });
+  }
+
+  async updateStatus(id: string, status: 'pending' | 'cancelled' | 'denied', reason?: string) {
+    const intent = await this.findOne(id);
+
+    if (intent.status === 'converted') {
+      throw new BadRequestException('Intenção convertida não pode alterar status');
+    }
+    if (intent.enrollment) {
+      throw new BadRequestException('Intenção vinculada a matrícula não pode alterar status');
+    }
+
+    if (status === 'pending') {
+      const otherPending = await this.prisma.enrollmentIntent.findFirst({
+        where: { studentId: intent.student.id, status: 'pending', id: { not: id } },
+        select: { id: true },
+      });
+      if (otherPending) {
+        throw new BadRequestException('O aluno já possui outra intenção pendente');
+      }
+    }
+    if (status === 'denied' && !reason?.trim()) {
+      throw new BadRequestException('Motivo da negativa é obrigatório');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.enrollmentIntent.update({
+        where: { id },
+        data: {
+          status,
+          deniedReason: status === 'denied' ? reason?.trim() : null,
+        },
+        include: this.includeGraph,
+      });
+
+      await this.recalculateStudentStatus(tx, intent.student.id);
+      return updated;
     });
   }
 

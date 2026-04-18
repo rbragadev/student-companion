@@ -11,6 +11,7 @@ import type { AcademicPeriodOption, ClassGroupOption, EnrollmentIntent } from '.
 import { colorValues } from '../utils/design-tokens';
 import { useAuth } from '../contexts/AuthContext';
 import { userQueryKeys } from '../hooks/api/useUserProfile';
+import { enrollmentApi } from '../services/api/enrollmentApi';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, typeof StackRoutes.ENROLLMENT_INTENT>;
@@ -31,6 +32,15 @@ export default function EnrollmentIntentScreen() {
   const [message, setMessage] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [openIntent, setOpenIntent] = React.useState<EnrollmentIntent | null>(null);
+  const [hasActiveEnrollment, setHasActiveEnrollment] = React.useState(false);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const toastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   React.useEffect(() => {
     const run = async () => {
@@ -41,13 +51,15 @@ export default function EnrollmentIntentScreen() {
       try {
         setLoading(true);
         setError(null);
-        const [groups, pendingIntent] = await Promise.all([
+        const [groups, pendingIntent, activeEnrollment] = await Promise.all([
           enrollmentIntentApi.getClassGroupsByCourse(courseId),
           enrollmentIntentApi.getOpenIntentByStudent(userId),
+          enrollmentApi.getActiveEnrollmentByStudent(userId),
         ]);
         const active = groups.filter((group) => group.status === 'ACTIVE');
         setClassGroups(active);
         setOpenIntent(pendingIntent);
+        setHasActiveEnrollment(!!activeEnrollment);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar turmas');
       } finally {
@@ -90,8 +102,11 @@ export default function EnrollmentIntentScreen() {
       });
 
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId) });
-      setOpenIntent(await enrollmentIntentApi.getOpenIntentByStudent(userId));
-      setMessage('Intenção registrada com sucesso. Você pode acompanhar o status no perfil.');
+      setMessage(null);
+      setToastMessage('Intenção enviada com sucesso');
+      toastTimerRef.current = setTimeout(() => {
+        navigation.replace(StackRoutes.ACADEMIC_JOURNEY);
+      }, 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao registrar intenção');
     } finally {
@@ -101,6 +116,13 @@ export default function EnrollmentIntentScreen() {
 
   return (
     <Screen safeArea={true} scrollable={true}>
+      {toastMessage && (
+        <View className="absolute top-6 left-4 right-4 z-50">
+          <Card className="border-green-200 bg-green-50">
+            <Text variant="body" className="text-green-700">{toastMessage}</Text>
+          </Card>
+        </View>
+      )}
       <View className="px-4 py-4 gap-4">
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -114,7 +136,9 @@ export default function EnrollmentIntentScreen() {
         <View>
           <Text variant="h2" className="font-semibold">Iniciar matrícula</Text>
           <Text variant="bodySecondary" className="mt-1">
-            Selecione turma e período para registrar sua intenção.
+            {openIntent
+              ? 'Você já possui uma intenção pendente. Revise ou ajuste essa intenção antes de iniciar outra.'
+              : 'Selecione turma e período para registrar sua intenção.'}
           </Text>
         </View>
 
@@ -138,8 +162,34 @@ export default function EnrollmentIntentScreen() {
           </Card>
         )}
 
+        {hasActiveEnrollment && (
+          <Card className="border-blue-200 bg-blue-50">
+            <Text variant="h3" className="font-semibold text-blue-900">
+              Você já possui matrícula ativa
+            </Text>
+            <Text variant="caption" className="mt-2 text-blue-800">
+              Você pode iniciar nova intenção desde que não exista intenção pendente.
+            </Text>
+            <Button
+              className="mt-3"
+              onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
+            >
+              Ver jornada acadêmica
+            </Button>
+          </Card>
+        )}
+
         {loading ? (
           <Text variant="body">Carregando turmas...</Text>
+        ) : openIntent ? (
+          <>
+            <Button
+              variant="outline"
+              onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
+            >
+              Ir para jornada acadêmica
+            </Button>
+          </>
         ) : (
           <>
             <Card>
@@ -203,10 +253,20 @@ export default function EnrollmentIntentScreen() {
 
             <Button
               onPress={submitIntent}
-              disabled={!selectedClassGroupId || !selectedPeriodId || saving || !!openIntent}
+              disabled={!selectedClassGroupId || !selectedPeriodId || saving}
             >
-              {saving ? 'Processando...' : openIntent ? 'Intenção já em aberto' : 'Confirmar intenção'}
+              {saving
+                ? 'Processando...'
+                : 'Confirmar intenção'}
             </Button>
+            {hasActiveEnrollment && (
+              <Button
+                variant="outline"
+                onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
+              >
+                Ir para jornada acadêmica
+              </Button>
+            )}
           </>
         )}
       </View>

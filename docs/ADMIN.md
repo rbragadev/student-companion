@@ -206,8 +206,10 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Página dedicada para alterar curso/turma/período da intenção pendente.
 - `/enrollment-intents/[id]/confirm`
   Página dedicada para confirmar matrícula (conversão da intenção).
+- `/students/[id]`
+  Jornada acadêmica do aluno com intenção pendente, matrícula ativa e histórico completo.
 - `/enrollments`, `/enrollments/[id]`
-  Lista e detalhe de matrículas confirmadas com cadeia completa.
+  Lista e detalhe de matrículas com operação de status (`active`, `completed`, `cancelled`, `denied`).
 - `/accommodations`, `/places`, `/students`
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
 
@@ -222,7 +224,9 @@ Status da integração mobile (escopo acadêmico já coberto):
 - Normalização de contrato (`snake_case` -> `camelCase`) ocorre no mobile em `services/api/mappers/catalogMappers.ts`, sem duplicar domínio no backend.
 - Step A monetização: mobile cria intenção real em `POST /enrollment-intents` com seleção de curso/turma/período e o `studentStatus` volta atualizado pela API.
 - Step B monetização: confirmação via SaaS usa `POST /enrollments/from-intent/:intentId`, converte intenção para matrícula real e atualiza aluno para `enrolled`.
-- O mobile reflete matrícula ativa via `GET /enrollments?studentId=...&status=active`.
+- O mobile reflete matrícula ativa via `GET /enrollments/active?studentId=...`.
+- O mobile usa `GET /enrollments/journey/:studentId` para tela de Jornada Acadêmica (pendência + ativa + histórico).
+- Ao iniciar nova intenção, o mobile verifica e exibe em tela se já existe intenção pendente ou matrícula ativa, sem uso de alert nesse fluxo.
 
 ## Sidebar (Ordem de Operação)
 

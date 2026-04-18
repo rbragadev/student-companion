@@ -38,3 +38,31 @@ export async function confirmEnrollmentFromIntentAction(formData: FormData) {
 
   redirect(`/enrollments/${enrollment.id}`);
 }
+
+export async function updateEnrollmentIntentStatusAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const intentId = getText(formData, 'intentId');
+  const status = getText(formData, 'status');
+  const reasonValue = formData.get('reason');
+  const reason = typeof reasonValue === 'string' ? reasonValue.trim() : '';
+
+  await apiFetch(`/enrollment-intents/${intentId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, reason: reason || undefined }),
+  });
+
+  redirect(`/enrollment-intents/${intentId}`);
+}
+
+export async function updateEnrollmentStatusAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const enrollmentId = getText(formData, 'enrollmentId');
+  const status = getText(formData, 'status');
+
+  await apiFetch(`/enrollments/${enrollmentId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}

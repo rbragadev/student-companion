@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import type { EnrollmentAdmin } from '@/types/catalog.types';
+import { updateEnrollmentStatusAction } from '../../enrollment-intents/actions';
 
 export default async function EnrollmentDetailPage({
   params,
@@ -22,9 +23,30 @@ export default async function EnrollmentDetailPage({
         title="Detalhe da Matrícula"
         description="Vínculo acadêmico completo originado da intenção."
         actions={(
-          <Link href="/enrollments">
-            <Button size="sm" variant="outline"><ArrowLeft size={14} />Voltar</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {enrollment.status === 'active' && (
+              <>
+                <form action={updateEnrollmentStatusAction}>
+                  <input type="hidden" name="enrollmentId" value={enrollment.id} />
+                  <input type="hidden" name="status" value="completed" />
+                  <Button type="submit" size="sm" variant="outline">Concluir</Button>
+                </form>
+                <form action={updateEnrollmentStatusAction}>
+                  <input type="hidden" name="enrollmentId" value={enrollment.id} />
+                  <input type="hidden" name="status" value="cancelled" />
+                  <Button type="submit" size="sm" variant="outline">Cancelar</Button>
+                </form>
+                <form action={updateEnrollmentStatusAction}>
+                  <input type="hidden" name="enrollmentId" value={enrollment.id} />
+                  <input type="hidden" name="status" value="denied" />
+                  <Button type="submit" size="sm" variant="outline">Negar</Button>
+                </form>
+              </>
+            )}
+            <Link href="/enrollments">
+              <Button size="sm" variant="outline"><ArrowLeft size={14} />Voltar</Button>
+            </Link>
+          </div>
         )}
       />
 

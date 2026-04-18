@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen, Text, Card, Button } from '../components';
 import { useUserInterests } from '../services/mockData';
 import { colorValues } from '../utils/design-tokens';
-import { RootStackParamList } from '../types/navigation';
+import { RootStackParamList, StackRoutes } from '../types/navigation';
 import { useUserProfile } from '../hooks/api/useUserProfile';
 import { useReviewsByUser } from '../hooks/api/useReviews';
 import { useAuth } from '../contexts/AuthContext';
@@ -284,6 +284,18 @@ export default function ProfileScreen() {
             </View>
           </Card>
         )}
+
+        <Button
+          variant="outline"
+          onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
+        >
+          <View className="flex-row items-center gap-2">
+            <Ionicons name="book-outline" size={20} color={colorValues.primary[500]} />
+            <Text variant="body" className="text-primary-500 font-semibold">
+              Ver Jornada Acadêmica
+            </Text>
+          </View>
+        </Button>
       </View>
 
       {/* My Interests/Leads */}

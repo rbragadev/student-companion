@@ -32,12 +32,16 @@ JWT payload: `{ sub, email, role }`. Campo `passwordHash` no model `User` (bcryp
 | `GET /users/:id` | Buscar usuário com preferências |
 | `POST /users/:id/preferences` | Criar/atualizar preferências |
 | `POST /enrollment-intents` | Criar intenção de matrícula (aluno + curso + turma + período) |
-| `GET /enrollment-intents` | Listar intenções de matrícula (filtros: status/instituição/escola) |
+| `GET /enrollment-intents` | Listar intenções de matrícula (filtros: studentId/status/studentStatus/instituição/escola) |
 | `GET /enrollment-intents/:id` | Detalhe de intenção de matrícula |
 | `PATCH /enrollment-intents/:id` | Editar intenção pendente antes da confirmação |
+| `PATCH /enrollment-intents/:id/status` | Operar status da intenção (`pending/cancelled/denied`) |
 | `POST /enrollments/from-intent/:intentId` | Confirmar intenção e gerar matrícula real |
 | `GET /enrollments` | Listar matrículas (`studentId/status/institutionId/schoolId`) |
+| `GET /enrollments/active?studentId=...` | Buscar matrícula ativa do aluno |
+| `GET /enrollments/journey/:studentId` | Consulta consolidada da jornada acadêmica |
 | `GET /enrollments/:id` | Detalhe de matrícula |
+| `PATCH /enrollments/:id/status` | Operar status da matrícula (`active/completed/cancelled/denied`) |
 
 ---
 
@@ -95,7 +99,7 @@ PostgreSQL 16 · Prisma 7 · adapter `@prisma/adapter-pg`
 | `course` | unitId, school_id, program_name, weekly_hours, price_in_cents, target_audience |
 | `class_group` | courseId, name, code, shift, status, capacity |
 | `academic_period` | classGroupId, name, startDate, endDate, status |
-| `enrollment_intent` | studentId (único), courseId, classGroupId, academicPeriodId, createdAt |
+| `enrollment_intent` | studentId, courseId, classGroupId, academicPeriodId, status, createdAt |
 | `enrollment` | studentId, institutionId, schoolId, unitId, courseId, classGroupId, academicPeriodId, enrollmentIntentId, status |
 | `accommodation` | title, accommodationType, price, coords, ratings detalhados, isPartner, isTopTrip |
 | `place` | name, category, coords, isStudentFavorite, hasDeal, hours (JSON) |
@@ -172,7 +176,8 @@ Ajustes aplicados para fechar compatibilidade mobile:
   `GET /class-group?courseId=...`, `GET /academic-period?classGroupId=...`, `POST /enrollment-intents`.
 - `studentStatus` foi adicionado ao perfil do usuário e refletido no mobile após criação da intenção.
 - Criação/edição de intenção no mobile migrou para tela dedicada (`EnrollmentIntentScreen`) sem alerts no fluxo principal.
-- Perfil do mobile passou a exibir matrícula ativa real (`GET /enrollments?studentId=...&status=active`).
+- Perfil do mobile passou a exibir matrícula ativa real (`GET /enrollments/active?studentId=...`).
+- Mobile ganhou tela dedicada de jornada acadêmica (`GET /enrollments/journey/:studentId`) com intenção pendente, matrícula ativa e históricos.
 
 ---
 
@@ -253,6 +258,7 @@ Fluxo no SaaS:
 - `/enrollment-intents/:id/edit` para alteração da intenção pendente
 - `/enrollment-intents/:id/confirm` para confirmação dedicada (sem alert)
 - `/enrollments` e `/enrollments/:id` para consulta da matrícula real confirmada
+- operação de status em intenção e matrícula no SaaS sem recriar domínio (`PATCH /enrollment-intents/:id/status`, `PATCH /enrollments/:id/status`)
 
 ### Componentes genéricos prontos
 

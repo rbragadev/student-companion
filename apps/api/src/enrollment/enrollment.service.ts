@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { EnrollmentIntentService } from '../enrollment-intent/enrollment-intent.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -42,17 +43,41 @@ export class EnrollmentService {
     },
   } as const;
 
+  private async recalculateStudentStatus(
+    tx: Prisma.TransactionClient,
+    studentId: string,
+  ) {
+    const [activeEnrollment, pendingIntent, anyJourney] = await Promise.all([
+      tx.enrollment.findFirst({
+        where: { studentId, status: 'active' },
+        select: { id: true },
+      }),
+      tx.enrollmentIntent.findFirst({
+        where: { studentId, status: 'pending' },
+        select: { id: true },
+      }),
+      tx.enrollmentIntent.findFirst({
+        where: { studentId },
+        select: { id: true },
+      }),
+    ]);
+
+    const nextStatus = activeEnrollment
+      ? 'enrolled'
+      : pendingIntent
+        ? 'pending_enrollment'
+        : anyJourney
+          ? 'application_started'
+          : 'lead';
+
+    await tx.user.update({
+      where: { id: studentId },
+      data: { studentStatus: nextStatus },
+    });
+  }
+
   async createFromIntent(intentId: string) {
     const { intent, chain } = await this.enrollmentIntentService.resolveIntentForEnrollment(intentId);
-
-    const activeEnrollment = await this.prisma.enrollment.findFirst({
-      where: { studentId: intent.studentId, status: 'active' },
-      select: { id: true },
-    });
-
-    if (activeEnrollment) {
-      throw new BadRequestException('O aluno já possui matrícula ativa incompatível');
-    }
 
     return this.prisma.$transaction(async (tx) => {
       const enrollment = await tx.enrollment.create({
@@ -114,5 +139,86 @@ export class EnrollmentService {
     });
     if (!enrollment) throw new NotFoundException(`Matrícula ${id} não encontrada`);
     return enrollment;
+  }
+
+  async findActiveByStudent(studentId: string) {
+    if (!studentId) {
+      throw new BadRequestException('studentId é obrigatório');
+    }
+    return this.prisma.enrollment.findFirst({
+      where: { studentId, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+      include: this.includeGraph,
+    });
+  }
+
+  async getStudentJourney(studentId: string) {
+    if (!studentId) {
+      throw new BadRequestException('studentId é obrigatório');
+    }
+
+    const [activeIntent, activeEnrollment, intentHistory, enrollmentHistory] = await Promise.all([
+      this.prisma.enrollmentIntent.findFirst({
+        where: { studentId, status: 'pending' },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          course: {
+            select: {
+              id: true,
+              program_name: true,
+              school: { select: { id: true, name: true } },
+              unit: { select: { id: true, name: true, code: true } },
+            },
+          },
+          classGroup: { select: { id: true, name: true, code: true } },
+          academicPeriod: { select: { id: true, name: true, startDate: true, endDate: true } },
+        },
+      }),
+      this.findActiveByStudent(studentId),
+      this.prisma.enrollmentIntent.findMany({
+        where: { studentId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          course: {
+            select: {
+              id: true,
+              program_name: true,
+              school: { select: { id: true, name: true } },
+              unit: { select: { id: true, name: true, code: true } },
+            },
+          },
+          classGroup: { select: { id: true, name: true, code: true } },
+          academicPeriod: { select: { id: true, name: true, startDate: true, endDate: true } },
+          enrollment: { select: { id: true, status: true, createdAt: true } },
+        },
+      }),
+      this.prisma.enrollment.findMany({
+        where: { studentId },
+        orderBy: { createdAt: 'desc' },
+        include: this.includeGraph,
+      }),
+    ]);
+
+    return {
+      activeIntent,
+      activeEnrollment,
+      intentHistory,
+      enrollmentHistory,
+    };
+  }
+
+  async updateStatus(id: string, status: 'active' | 'completed' | 'cancelled' | 'denied') {
+    const enrollment = await this.findOne(id);
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.enrollment.update({
+        where: { id },
+        data: { status },
+        include: this.includeGraph,
+      });
+
+      await this.recalculateStudentStatus(tx, enrollment.student.id);
+      return updated;
+    });
   }
 }

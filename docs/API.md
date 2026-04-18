@@ -170,9 +170,10 @@ Compatibilidade mobile:
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | `POST` | `/enrollment-intents` | Cria intenção de matrícula para aluno |
-| `GET` | `/enrollment-intents` | Lista intenções (`?studentStatus=&institutionId=&schoolId=`) |
+| `GET` | `/enrollment-intents` | Lista intenções (`?studentId=&status=&studentStatus=&institutionId=&schoolId=`) |
 | `GET` | `/enrollment-intents/:id` | Detalhe da intenção |
 | `PATCH` | `/enrollment-intents/:id` | Edita curso/turma/período da intenção pendente |
+| `PATCH` | `/enrollment-intents/:id/status` | Atualiza status operacional (`pending`, `cancelled`, `denied`) |
 
 Payload de criação:
 
@@ -187,8 +188,9 @@ Payload de criação:
 
 Regras:
 - valida a cadeia `course -> class_group -> academic_period`
-- permite apenas 1 intenção ativa por aluno (`studentId` único em `enrollment_intent`)
+- permite apenas 1 intenção **pendente** por aluno (validação de serviço)
 - atualiza `users.student_status` no fluxo: `lead -> application_started -> pending_enrollment`
+- histórico de intenções é preservado (`pending`, `converted`, `cancelled`, `denied`)
 
 ### Matrícula Confirmada (Step B)
 
@@ -196,7 +198,10 @@ Regras:
 |--------|------|-----------|
 | `POST` | `/enrollments/from-intent/:intentId` | Converte intenção pendente em matrícula real |
 | `GET` | `/enrollments` | Lista matrículas (`?studentId=&status=&institutionId=&schoolId=`) |
+| `GET` | `/enrollments/active?studentId=...` | Retorna matrícula ativa do aluno (ou `null`) |
+| `GET` | `/enrollments/journey/:studentId` | Retorna visão consolidada: intenção pendente, matrícula ativa e históricos |
 | `GET` | `/enrollments/:id` | Detalhe de matrícula |
+| `PATCH` | `/enrollments/:id/status` | Atualiza status (`active`, `completed`, `cancelled`, `denied`) |
 
 Regras:
 - intenção pode ser editada apenas enquanto `status = pending`
@@ -205,6 +210,11 @@ Regras:
 - confirmação atualiza `users.student_status` para `enrolled`
 - confirmação marca intenção como `converted` (`converted_at` preenchido)
 - bloqueia matrícula ativa incompatível para o mesmo aluno (`status = active`)
+- mudanças de status em intenção/matrícula recalculam `users.student_status` automaticamente:
+  - matrícula ativa -> `enrolled`
+  - sem matrícula ativa e com intenção pendente -> `pending_enrollment`
+  - histórico sem pendência ativa -> `application_started`
+  - sem histórico -> `lead`
 
 Distinção conceitual:
 - `institution`: escopo administrativo do cliente no SaaS.

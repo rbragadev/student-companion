@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common
 import { EnrollmentIntentService } from './enrollment-intent.service';
 import { CreateEnrollmentIntentDto } from './dto/create-enrollment-intent.dto';
 import { UpdateEnrollmentIntentDto } from './dto/update-enrollment-intent.dto';
+import { UpdateEnrollmentIntentStatusDto } from './dto/update-enrollment-intent-status.dto';
 
 @Controller('enrollment-intents')
 export class EnrollmentIntentController {
@@ -37,5 +38,10 @@ export class EnrollmentIntentController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateEnrollmentIntentDto) {
     return this.enrollmentIntentService.update(id, dto);
+  }
+
+  @Patch(':id/status')
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateEnrollmentIntentStatusDto) {
+    return this.enrollmentIntentService.updateStatus(id, dto.status, dto.reason);
   }
 }

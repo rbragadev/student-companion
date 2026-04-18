@@ -58,12 +58,15 @@ const ids = {
     businessAfternoon: '88888888-8888-4888-8888-888888888883',
   },
   enrollmentIntents: {
-    raphael: 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
-    emily: 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
-    lucas: 'aaaaaaa3-aaaa-4aaa-8aaa-aaaaaaaaaaa3',
+    raphaelCancelledOld: 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    raphaelPending: 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+    emilyActive: 'aaaaaaa3-aaaa-4aaa-8aaa-aaaaaaaaaaa3',
+    emilyCancelled: 'aaaaaaa4-aaaa-4aaa-8aaa-aaaaaaaaaaa4',
+    lucasDenied: 'aaaaaaa5-aaaa-4aaa-8aaa-aaaaaaaaaaa5',
   },
   enrollments: {
-    emily: 'bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+    emilyActive: 'bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+    emilyCancelled: 'bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
   },
   courses: {
     generalEnglishIlsc: 'd0efb89f-3d37-4607-9eaa-032832ec2b8e',
@@ -111,7 +114,7 @@ async function main() {
         email: 'raphael@studentcompanion.dev',
         phone: '+55 11 99999-0001',
         avatar: 'https://api.dicebear.com/9.x/adventurer/png?seed=Raphael',
-        studentStatus: 'lead',
+        studentStatus: 'pending_enrollment',
         passwordHash,
       },
       {
@@ -520,54 +523,108 @@ async function main() {
     skipDuplicates: true,
   });
 
-  await prisma.enrollmentIntent.createMany({
-    data: [
-      {
-        id: ids.enrollmentIntents.raphael,
-        studentId: ids.users.raphael,
-        courseId: ids.courses.generalEnglishIlsc,
-        classGroupId: ids.classGroups.engA1Morning,
-        academicPeriodId: ids.academicPeriods.fall2026,
-        status: 'pending',
-      },
-      {
-        id: ids.enrollmentIntents.emily,
-        studentId: ids.users.emily,
-        courseId: ids.courses.ieltsVgc,
-        classGroupId: ids.classGroups.engB2Evening,
-        academicPeriodId: ids.academicPeriods.winter2027,
-        status: 'converted',
-        convertedAt: new Date('2026-04-10T00:00:00.000Z'),
-      },
-      {
-        id: ids.enrollmentIntents.lucas,
-        studentId: ids.users.lucas,
-        courseId: ids.courses.digitalMarketingCornerstone,
-        classGroupId: ids.classGroups.businessAfternoon,
-        academicPeriodId: ids.academicPeriods.spring2026,
-        status: 'pending',
-      },
-    ],
-    skipDuplicates: true,
-  });
+  const enrollmentIntents = [
+    {
+      id: ids.enrollmentIntents.raphaelCancelledOld,
+      studentId: ids.users.raphael,
+      courseId: ids.courses.generalEnglishIlsc,
+      classGroupId: ids.classGroups.engA1Morning,
+      academicPeriodId: ids.academicPeriods.fall2026,
+      status: 'cancelled',
+      deniedReason: null,
+      convertedAt: null,
+      createdAt: new Date('2026-03-05T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentIntents.raphaelPending,
+      studentId: ids.users.raphael,
+      courseId: ids.courses.generalEnglishIlsc,
+      classGroupId: ids.classGroups.engA1Morning,
+      academicPeriodId: ids.academicPeriods.fall2026,
+      status: 'pending',
+      deniedReason: null,
+      convertedAt: null,
+      createdAt: new Date('2026-04-15T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentIntents.emilyActive,
+      studentId: ids.users.emily,
+      courseId: ids.courses.ieltsVgc,
+      classGroupId: ids.classGroups.engB2Evening,
+      academicPeriodId: ids.academicPeriods.winter2027,
+      status: 'converted',
+      deniedReason: null,
+      convertedAt: new Date('2026-04-10T00:00:00.000Z'),
+      createdAt: new Date('2026-04-02T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentIntents.emilyCancelled,
+      studentId: ids.users.emily,
+      courseId: ids.courses.generalEnglishIlsc,
+      classGroupId: ids.classGroups.engA1Morning,
+      academicPeriodId: ids.academicPeriods.fall2026,
+      status: 'converted',
+      deniedReason: null,
+      convertedAt: new Date('2025-12-20T00:00:00.000Z'),
+      createdAt: new Date('2025-12-10T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollmentIntents.lucasDenied,
+      studentId: ids.users.lucas,
+      courseId: ids.courses.digitalMarketingCornerstone,
+      classGroupId: ids.classGroups.businessAfternoon,
+      academicPeriodId: ids.academicPeriods.spring2026,
+      status: 'denied',
+      deniedReason: 'Documentação acadêmica incompleta para o período selecionado.',
+      convertedAt: null,
+      createdAt: new Date('2026-02-08T00:00:00.000Z'),
+    },
+  ] as const;
 
-  await prisma.enrollment.createMany({
-    data: [
-      {
-        id: ids.enrollments.emily,
-        studentId: ids.users.emily,
-        institutionId: ids.institutions.global,
-        schoolId: ids.schools.vgc,
-        unitId: ids.units.burnaby,
-        courseId: ids.courses.ieltsVgc,
-        classGroupId: ids.classGroups.engB2Evening,
-        academicPeriodId: ids.academicPeriods.winter2027,
-        enrollmentIntentId: ids.enrollmentIntents.emily,
-        status: 'active',
-      },
-    ],
-    skipDuplicates: true,
-  });
+  for (const intent of enrollmentIntents) {
+    await prisma.enrollmentIntent.upsert({
+      where: { id: intent.id },
+      create: intent,
+      update: intent,
+    });
+  }
+
+  const enrollments = [
+    {
+      id: ids.enrollments.emilyActive,
+      studentId: ids.users.emily,
+      institutionId: ids.institutions.global,
+      schoolId: ids.schools.vgc,
+      unitId: ids.units.burnaby,
+      courseId: ids.courses.ieltsVgc,
+      classGroupId: ids.classGroups.engB2Evening,
+      academicPeriodId: ids.academicPeriods.winter2027,
+      enrollmentIntentId: ids.enrollmentIntents.emilyActive,
+      status: 'active',
+      createdAt: new Date('2026-04-10T00:00:00.000Z'),
+    },
+    {
+      id: ids.enrollments.emilyCancelled,
+      studentId: ids.users.emily,
+      institutionId: ids.institutions.global,
+      schoolId: ids.schools.ilsc,
+      unitId: ids.units.downtown,
+      courseId: ids.courses.generalEnglishIlsc,
+      classGroupId: ids.classGroups.engA1Morning,
+      academicPeriodId: ids.academicPeriods.fall2026,
+      enrollmentIntentId: ids.enrollmentIntents.emilyCancelled,
+      status: 'cancelled',
+      createdAt: new Date('2025-12-20T00:00:00.000Z'),
+    },
+  ] as const;
+
+  for (const enrollment of enrollments) {
+    await prisma.enrollment.upsert({
+      where: { id: enrollment.id },
+      create: enrollment,
+      update: enrollment,
+    });
+  }
 
   await prisma.accommodation.createMany({
     data: [

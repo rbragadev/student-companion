@@ -51,6 +51,7 @@ export default async function StudentsPage() {
         columns={columns}
         data={students}
         keyExtractor={(item) => item.id}
+        getRowHref={(item) => `/students/${item.id}`}
         emptyTitle="Nenhum aluno encontrado"
         emptyDescription="Cadastre usuários STUDENT para popular este módulo."
       />

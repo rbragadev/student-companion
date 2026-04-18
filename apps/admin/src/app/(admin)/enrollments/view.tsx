@@ -73,7 +73,12 @@ export function EnrollmentView({
             label: 'Status',
             value: statusFilter,
             onChange: setStatusFilter,
-            options: [{ label: 'active', value: 'active' }],
+            options: [
+              { label: 'active', value: 'active' },
+              { label: 'completed', value: 'completed' },
+              { label: 'cancelled', value: 'cancelled' },
+              { label: 'denied', value: 'denied' },
+            ],
           },
           {
             key: 'institution',

@@ -29,4 +29,9 @@ export const enrollmentIntentApi = {
     if (!Array.isArray(data) || data.length === 0) return null;
     return data[0] as EnrollmentIntent;
   },
+
+  getIntentsByStudent: async (studentId: string): Promise<EnrollmentIntent[]> => {
+    const { data } = await apiClient.get(`/enrollment-intents?studentId=${studentId}`);
+    return Array.isArray(data) ? (data as EnrollmentIntent[]) : [];
+  },
 };

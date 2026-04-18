@@ -9,7 +9,7 @@ import { useReviewsByReviewable } from '../hooks/api/useReviews';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { enrollmentIntentApi } from '../services/api/enrollmentIntentApi';
+import { enrollmentApi } from '../services/api/enrollmentApi';
 
 const { width } = Dimensions.get('window');
 
@@ -26,6 +26,7 @@ export default function CourseDetailScreen() {
   const { userId } = useAuth();
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
   const [hasOpenIntent, setHasOpenIntent] = React.useState(false);
+  const [hasActiveEnrollment, setHasActiveEnrollment] = React.useState(false);
 
   const loading = courseLoading || reviewsLoading;
   const courseBadge = course?.badges.length ? course.badges[0] : undefined;
@@ -35,13 +36,16 @@ export default function CourseDetailScreen() {
     const run = async () => {
       if (!userId) {
         setHasOpenIntent(false);
+        setHasActiveEnrollment(false);
         return;
       }
       try {
-        const intent = await enrollmentIntentApi.getOpenIntentByStudent(userId);
-        setHasOpenIntent(!!intent);
+        const journey = await enrollmentApi.getStudentJourney(userId);
+        setHasOpenIntent(!!journey.activeIntent);
+        setHasActiveEnrollment(!!journey.activeEnrollment);
       } catch {
         setHasOpenIntent(false);
+        setHasActiveEnrollment(false);
       }
     };
     void run();
@@ -59,6 +63,10 @@ export default function CourseDetailScreen() {
 
   const handleEnroll = () => {
     if (!userId) return;
+    if (hasOpenIntent) {
+      navigation.navigate(StackRoutes.ACADEMIC_JOURNEY);
+      return;
+    }
     navigation.navigate(StackRoutes.ENROLLMENT_INTENT, { courseId });
   };
 
@@ -288,9 +296,11 @@ export default function CourseDetailScreen() {
 
       {/* Fixed CTA */}
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-border px-4 py-4">
-        {hasOpenIntent && (
+        {(hasOpenIntent || hasActiveEnrollment) && (
           <Text variant="caption" className="mb-2 text-amber-700">
-            Você já possui uma intenção em aberto. Toque para visualizar antes de criar outra.
+            {hasActiveEnrollment
+              ? 'Você já possui matrícula ativa. Ainda assim, pode iniciar nova intenção se não houver pendente.'
+              : 'Você já possui uma intenção em aberto. Veja sua jornada antes de criar outra.'}
           </Text>
         )}
         <View className="flex-row items-center justify-between gap-4">

@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { EnrollmentService } from './enrollment.service';
+import { UpdateEnrollmentStatusDto } from './dto/update-enrollment-status.dto';
 
 @Controller('enrollments')
 export class EnrollmentController {
@@ -23,6 +24,21 @@ export class EnrollmentController {
       institutionId,
       schoolId,
     });
+  }
+
+  @Get('active')
+  findActive(@Query('studentId') studentId: string) {
+    return this.enrollmentService.findActiveByStudent(studentId);
+  }
+
+  @Get('journey/:studentId')
+  getStudentJourney(@Param('studentId') studentId: string) {
+    return this.enrollmentService.getStudentJourney(studentId);
+  }
+
+  @Patch(':id/status')
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateEnrollmentStatusDto) {
+    return this.enrollmentService.updateStatus(id, dto.status);
   }
 
   @Get(':id')

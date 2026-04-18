@@ -75,7 +75,8 @@ export interface StudentAdmin {
 
 export interface EnrollmentIntentAdmin {
   id: string;
-  status: 'pending' | 'converted';
+  status: 'pending' | 'converted' | 'cancelled' | 'denied';
+  deniedReason?: string | null;
   convertedAt: string | null;
   createdAt: string;
   student: {
@@ -114,7 +115,7 @@ export interface EnrollmentIntentAdmin {
 
 export interface EnrollmentAdmin {
   id: string;
-  status: string;
+  status: 'active' | 'completed' | 'cancelled' | 'denied';
   createdAt: string;
   student: {
     id: string;
@@ -130,4 +131,11 @@ export interface EnrollmentAdmin {
   classGroup: { id: string; name: string; code: string };
   academicPeriod: { id: string; name: string; startDate: string; endDate: string };
   enrollmentIntent: { id: string; status: string; convertedAt: string | null };
+}
+
+export interface StudentAcademicJourneyAdmin {
+  activeIntent: EnrollmentIntentAdmin | null;
+  activeEnrollment: EnrollmentAdmin | null;
+  intentHistory: EnrollmentIntentAdmin[];
+  enrollmentHistory: EnrollmentAdmin[];
 }
