@@ -94,6 +94,11 @@ export class CreateAccommodationDto {
   @Min(0)
   ratingValue?: number;
 
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  score?: number;
+
   @IsString()
   @IsOptional()
   goodFor?: string;

@@ -199,7 +199,7 @@ export default function AccommodationScreen() {
             rating={acc.rating ? Number(acc.rating) : 0}
             ratingCount={acc.ratingCount || 0}
             isPartner={acc.isPartner}
-            badge={acc.goodFor}
+            badge={acc.recommendationBadge || acc.badges?.[0] || acc.goodFor}
             onPress={() => handleAccommodationPress(acc.id)}
           />
         ))}

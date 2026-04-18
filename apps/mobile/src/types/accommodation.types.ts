@@ -20,7 +20,11 @@ export interface Accommodation {
   ratingLocation?: number;
   ratingCommunication?: number;
   ratingValue?: number;
+  score?: number;
   goodFor?: string;
+  recommendationBadge?: string | null;
+  recommendationPriority?: number;
+  isRecommendedBySchool?: boolean;
   isPartner: boolean;
   isTopTrip: boolean;
   hostName?: string;

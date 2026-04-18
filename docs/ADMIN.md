@@ -218,6 +218,8 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Visão financeira operacional com matrícula, aluno, instituição, escola, curso, valor de matrícula e comissão.
 - `/accommodations`, `/places`, `/students`
   Telas conectadas ao backend real para evitar módulos “soltos” no menu.
+- `/accommodations` (evolução de upsell contextual)
+  Catálogo independente + configuração de recomendação por escola (recomendada, prioridade e badge).
 
 Fluxo único de dados:
 - Admin atualiza dados reais.
@@ -236,6 +238,7 @@ Status da integração mobile (escopo acadêmico já coberto):
 - O mobile exibe na jornada: timeline (`GET /enrollments/:id/timeline`), documentos (`GET/POST /enrollment-documents`) e mensagens (`GET/POST /enrollment-messages`) com dados reais do backend.
 - O mobile exibe indicador de mensagens não lidas via `GET /enrollment-messages/unread-count?studentId=...` e sincroniza leitura com `PATCH /enrollment-messages/read`.
 - Upload de documentos no mobile fica visível apenas em status compatível com etapa documental (`documents_pending`, `under_review`).
+- Upsell de acomodação da matrícula usa dados reais com contexto da escola (`GET /accommodation/upsell/enrollment/:enrollmentId`), mostrando apenas acomodações recomendadas para a escola da matrícula com badge configurado no SaaS.
 
 ## Sidebar (Ordem de Operação)
 

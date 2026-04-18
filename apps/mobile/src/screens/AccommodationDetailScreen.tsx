@@ -115,14 +115,22 @@ export default function AccommodationDetailScreen() {
                 {accommodation.accommodationType}
               </Text>
             </View>
-
-            {accommodation.isPartner && (
-              <View className="bg-primary-50 px-3 py-1.5 rounded-lg">
-                <Text variant="caption" className="text-primary-500 font-semibold">
-                  Parceiro
-                </Text>
-              </View>
-            )}
+            <View className="items-end gap-2">
+              {accommodation.isPartner && (
+                <View className="bg-primary-50 px-3 py-1.5 rounded-lg">
+                  <Text variant="caption" className="text-primary-500 font-semibold">
+                    Parceiro
+                  </Text>
+                </View>
+              )}
+              {!!accommodation.recommendationBadge && (
+                <View className="bg-success/10 px-3 py-1.5 rounded-lg">
+                  <Text variant="caption" className="text-success font-semibold">
+                    {accommodation.recommendationBadge}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Localização */}
@@ -142,6 +150,11 @@ export default function AccommodationDetailScreen() {
               /{accommodation.priceUnit}
             </Text>
           </View>
+          {accommodation.score != null && (
+            <Text variant="caption" className="text-textSecondary">
+              Score desta acomodação: {Number(accommodation.score).toFixed(1)}
+            </Text>
+          )}
         </View>
 
         {/* Descrição */}

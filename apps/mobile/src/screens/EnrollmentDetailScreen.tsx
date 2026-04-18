@@ -10,6 +10,7 @@ import { colorValues } from '../utils/design-tokens';
 import { useAuth } from '../contexts/AuthContext';
 import { enrollmentApi } from '../services/api/enrollmentApi';
 import type { Enrollment, EnrollmentTimelineEvent } from '../types/enrollment.types';
+import { useUpsellAccommodationsByEnrollment } from '../hooks/api/useAccommodations';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, typeof StackRoutes.ENROLLMENT_DETAIL>;
@@ -147,6 +148,8 @@ export default function EnrollmentDetailScreen() {
   const messages = messagesQuery.data ?? [];
   const unreadCount = unreadQuery.data ?? 0;
   const chatEvents: EnrollmentTimelineEvent[] = timeline.filter((item) => item.type !== 'enrollment_created');
+  const upsellAccommodationsQuery = useUpsellAccommodationsByEnrollment(enrollmentId);
+  const upsellAccommodations = upsellAccommodationsQuery.data ?? [];
 
   return (
     <Screen safeArea={true} scrollable={true}>
@@ -211,6 +214,63 @@ export default function EnrollmentDetailScreen() {
                 </View>
               ) : (
                 <Text variant="caption" className="mt-2">Pricing ainda não definido para esta matrícula.</Text>
+              )}
+            </Card>
+
+            <Card>
+              <Text variant="h3" className="font-semibold">Upsell de acomodações da escola</Text>
+              <Text variant="caption" className="mt-1 text-textSecondary">
+                Mostra somente acomodações recomendadas para {enrollment.school.name}.
+              </Text>
+
+              {upsellAccommodationsQuery.isLoading && (
+                <Text variant="caption" className="mt-3">Carregando acomodações recomendadas...</Text>
+              )}
+
+              {upsellAccommodationsQuery.isError && (
+                <Text variant="caption" className="mt-3 text-red-700">
+                  Não foi possível carregar o upsell de acomodações.
+                </Text>
+              )}
+
+              {!upsellAccommodationsQuery.isLoading && !upsellAccommodationsQuery.isError && (
+                <View className="mt-3 gap-2">
+                  {upsellAccommodations.length === 0 && (
+                    <Text variant="caption" className="text-textSecondary">
+                      Nenhuma acomodação recomendada para esta escola no momento.
+                    </Text>
+                  )}
+
+                  {upsellAccommodations.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        navigation.navigate(StackRoutes.ACCOMMODATION_DETAIL, {
+                          accommodationId: item.id,
+                        })
+                      }
+                      className="rounded-lg border border-border px-3 py-2"
+                    >
+                      <View className="flex-row items-start justify-between gap-2">
+                        <View className="flex-1">
+                          <Text variant="body" className="font-medium">{item.title}</Text>
+                          <Text variant="caption">{item.accommodationType} • {item.location}</Text>
+                          <Text variant="caption">
+                            CAD {(item.priceInCents / 100).toLocaleString()}/{item.priceUnit}
+                          </Text>
+                        </View>
+                        {!!item.recommendationBadge && (
+                          <View className="rounded-full bg-primary-50 px-2 py-1">
+                            <Text variant="caption" className="text-primary-700">
+                              {item.recommendationBadge}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               )}
             </Card>
 

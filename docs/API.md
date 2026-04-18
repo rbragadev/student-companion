@@ -256,8 +256,14 @@ Distinção conceitual:
 |---------|-----------|
 | Escolas | `GET/POST /school`, `GET/PATCH/DELETE /school/:id` |
 | Cursos | `GET/POST /course`, `GET/PATCH/DELETE /course/:id` |
-| Acomodações | `GET/POST /accommodation`, `GET/PATCH /accommodation/:id` |
+| Acomodações | `GET/POST /accommodation`, `GET/PATCH /accommodation/:id`, `GET /accommodation/recommended/school/:schoolId`, `GET /accommodation/upsell/enrollment/:enrollmentId`, `GET /accommodation/recommendations/school/:schoolId`, `PATCH /accommodation/recommendations/school/:schoolId/:accommodationId` |
 | Lugares | `GET/POST /place`, `GET/PATCH/DELETE /place/:id`, `?category=X` |
+
+Regras de acomodação (upsell):
+- `accommodation` é catálogo independente (sem vínculo obrigatório direto com escola).
+- cada acomodação possui `score` próprio.
+- recomendação contextual por escola fica na relação `school_accommodation_recommendation` (`schoolId`, `accommodationId`, `isRecommended`, `priority`, `badgeLabel`).
+- upsell da matrícula usa a escola da matrícula como contexto e retorna apenas acomodações marcadas como recomendadas para aquela escola.
 | Avaliações | `GET/POST /review`, `GET /review/:id`, `PATCH /review/:id`, `GET /review/user/:userId`, `GET /review?reviewableType=X&reviewableId=Y` |
 
 ---

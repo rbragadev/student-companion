@@ -26,25 +26,25 @@ enum Shift {
 }
 
 model User {
-  id            String             @id @default(cuid()) @db.Uuid
-  email         String             @unique
-  phone         String?
-  avatar        String?
-  passwordHash  String?            @map("password_hash")
-  role          Role               @default(STUDENT)
-  studentStatus String             @default("lead") @map("student_status")
-  createdAt     DateTime           @default(now())
-  firstName     String
-  lastName      String
-  updatedAt     DateTime           @updatedAt
-  reviews       Review[]
-  preferences   UserPreferences?
-  adminProfiles UserAdminProfile[]
-  enrollmentIntent EnrollmentIntent[]
-  enrollments   Enrollment[]
-  enrollmentMessages EnrollmentMessage[]
+  id                      String                    @id @default(cuid()) @db.Uuid
+  email                   String                    @unique
+  phone                   String?
+  avatar                  String?
+  passwordHash            String?                   @map("password_hash")
+  role                    Role                      @default(STUDENT)
+  studentStatus           String                    @default("lead") @map("student_status")
+  createdAt               DateTime                  @default(now())
+  firstName               String
+  lastName                String
+  updatedAt               DateTime                  @updatedAt
+  reviews                 Review[]
+  preferences             UserPreferences?
+  adminProfiles           UserAdminProfile[]
+  enrollmentIntent        EnrollmentIntent[]
+  enrollments             Enrollment[]
+  enrollmentMessages      EnrollmentMessage[]
   enrollmentStatusChanges EnrollmentStatusHistory[]
-  enrollmentMessageReads EnrollmentMessageRead[]
+  enrollmentMessageReads  EnrollmentMessageRead[]
 
   @@map("users")
 }
@@ -74,25 +74,25 @@ model EnrollmentIntent {
 }
 
 model Enrollment {
-  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  studentId          String           @map("student_id") @db.Uuid
-  institutionId      String           @map("institution_id") @db.Uuid
-  schoolId           String           @map("school_id") @db.Uuid
-  unitId             String           @map("unit_id") @db.Uuid
-  courseId           String           @map("course_id") @db.Uuid
-  classGroupId       String           @map("class_group_id") @db.Uuid
-  academicPeriodId   String           @map("academic_period_id") @db.Uuid
-  enrollmentIntentId String           @unique @map("enrollment_intent_id") @db.Uuid
-  status             String           @default("active")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  student            User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  institution        Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  school             School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  unit               Unit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  course             Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  classGroup         ClassGroup       @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
-  academicPeriod     AcademicPeriod   @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
-  enrollmentIntent   EnrollmentIntent @relation(fields: [enrollmentIntentId], references: [id], onDelete: Cascade)
+  id                 String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId          String                    @map("student_id") @db.Uuid
+  institutionId      String                    @map("institution_id") @db.Uuid
+  schoolId           String                    @map("school_id") @db.Uuid
+  unitId             String                    @map("unit_id") @db.Uuid
+  courseId           String                    @map("course_id") @db.Uuid
+  classGroupId       String                    @map("class_group_id") @db.Uuid
+  academicPeriodId   String                    @map("academic_period_id") @db.Uuid
+  enrollmentIntentId String                    @unique @map("enrollment_intent_id") @db.Uuid
+  status             String                    @default("active")
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  student            User                      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  institution        Institution               @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  school             School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  unit               Unit                      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  course             Course                    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  classGroup         ClassGroup                @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  academicPeriod     AcademicPeriod            @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
+  enrollmentIntent   EnrollmentIntent          @relation(fields: [enrollmentIntentId], references: [id], onDelete: Cascade)
   documents          EnrollmentDocument[]
   messages           EnrollmentMessage[]
   pricing            EnrollmentPricing?
@@ -110,11 +110,11 @@ model Enrollment {
 }
 
 model Institution {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String   @unique @db.VarChar(255)
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String       @unique @db.VarChar(255)
   description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
   schools     School[]
   enrollments Enrollment[]
 
@@ -122,18 +122,18 @@ model Institution {
 }
 
 model Unit {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  schoolId  String   @map("school_id") @db.Uuid
-  name      String   @db.VarChar(255)
-  code      String   @db.VarChar(80)
-  address   String?
-  city      String?  @db.VarChar(120)
-  state     String?  @db.VarChar(120)
-  country   String?  @db.VarChar(120)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  courses   Course[]
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  schoolId    String       @map("school_id") @db.Uuid
+  name        String       @db.VarChar(255)
+  code        String       @db.VarChar(80)
+  address     String?
+  city        String?      @db.VarChar(120)
+  state       String?      @db.VarChar(120)
+  country     String?      @db.VarChar(120)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  courses     Course[]
   enrollments Enrollment[]
 
   @@unique([schoolId, code])
@@ -142,17 +142,17 @@ model Unit {
 }
 
 model AcademicPeriod {
-  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  classGroupId String       @map("class_group_id") @db.Uuid
-  name         String       @db.VarChar(150)
-  startDate    DateTime     @map("start_date")
-  endDate      DateTime     @map("end_date")
-  status       RecordStatus @default(ACTIVE)
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
-  classGroup   ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classGroupId      String             @map("class_group_id") @db.Uuid
+  name              String             @db.VarChar(150)
+  startDate         DateTime           @map("start_date")
+  endDate           DateTime           @map("end_date")
+  status            RecordStatus       @default(ACTIVE)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  classGroup        ClassGroup         @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
   enrollmentIntents EnrollmentIntent[]
-  enrollments  Enrollment[]
+  enrollments       Enrollment[]
 
   @@index([classGroupId])
   @@index([startDate, endDate])
@@ -160,19 +160,19 @@ model AcademicPeriod {
 }
 
 model ClassGroup {
-  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  courseId   String         @map("course_id") @db.Uuid
-  name       String         @db.VarChar(255)
-  code       String         @db.VarChar(80)
-  shift      Shift
-  status     RecordStatus   @default(ACTIVE)
-  capacity   Int?
-  createdAt  DateTime       @default(now()) @map("created_at")
-  updatedAt  DateTime       @updatedAt @map("updated_at")
-  course     Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  periods    AcademicPeriod[]
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId          String             @map("course_id") @db.Uuid
+  name              String             @db.VarChar(255)
+  code              String             @db.VarChar(80)
+  shift             Shift
+  status            RecordStatus       @default(ACTIVE)
+  capacity          Int?
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  periods           AcademicPeriod[]
   enrollmentIntents EnrollmentIntent[]
-  enrollments Enrollment[]
+  enrollments       Enrollment[]
 
   @@unique([courseId, code])
   @@index([courseId])
@@ -252,30 +252,30 @@ model UserPreferences {
 }
 
 model Course {
-  id              String   @id(map: "Course_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  unitId          String   @map("unit_id") @db.Uuid
-  school_id       String   @db.Uuid
-  program_name    String   @db.VarChar(255)
-  weekly_hours    Int
-  price_in_cents  Int?
-  description     String
-  duration        String   @db.VarChar(100)
-  visa_type       String   @db.VarChar(100)
-  target_audience String
-  image           String   @db.VarChar(500)
-  images          String[] @default([])
-  badges          String[]
-  rating          Decimal? @default(0.00) @db.Decimal(3, 2)
-  rating_count    Int?     @default(0)
-  is_active       Boolean  @default(true)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @default(now())
-  price_unit      String?  @db.VarChar(20)
-  unit            Unit     @relation(fields: [unitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  school          School   @relation(fields: [school_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
-  classes         ClassGroup[]
+  id                String             @id(map: "Course_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unitId            String             @map("unit_id") @db.Uuid
+  school_id         String             @db.Uuid
+  program_name      String             @db.VarChar(255)
+  weekly_hours      Int
+  price_in_cents    Int?
+  description       String
+  duration          String             @db.VarChar(100)
+  visa_type         String             @db.VarChar(100)
+  target_audience   String
+  image             String             @db.VarChar(500)
+  images            String[]           @default([])
+  badges            String[]
+  rating            Decimal?           @default(0.00) @db.Decimal(3, 2)
+  rating_count      Int?               @default(0)
+  is_active         Boolean            @default(true)
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @default(now())
+  price_unit        String?            @db.VarChar(20)
+  unit              Unit               @relation(fields: [unitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  school            School             @relation(fields: [school_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
+  classes           ClassGroup[]
   enrollmentIntents EnrollmentIntent[]
-  enrollments     Enrollment[]
+  enrollments       Enrollment[]
 
   @@index([unitId])
   @@map("course")
@@ -296,61 +296,82 @@ model Review {
 }
 
 model School {
-  id           String   @id(map: "School_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  institutionId String  @map("institution_id") @db.Uuid
-  name         String   @db.VarChar(255)
-  location     String   @db.VarChar(255)
-  description  String?
-  website      String?  @db.VarChar(500)
-  phone        String?  @db.VarChar(50)
-  email        String?  @db.VarChar(255)
-  logo         String?  @db.VarChar(500)
-  isPartner    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @default(now())
-  rating       Decimal? @db.Decimal
-  rating_count Int?
-  badges       String[]
-  institution  Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  units        Unit[]
-  course       Course[]
-  enrollments  Enrollment[]
+  id                           String                              @id(map: "School_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institutionId                String                              @map("institution_id") @db.Uuid
+  name                         String                              @db.VarChar(255)
+  location                     String                              @db.VarChar(255)
+  description                  String?
+  website                      String?                             @db.VarChar(500)
+  phone                        String?                             @db.VarChar(50)
+  email                        String?                             @db.VarChar(255)
+  logo                         String?                             @db.VarChar(500)
+  isPartner                    Boolean                             @default(false)
+  createdAt                    DateTime                            @default(now())
+  updatedAt                    DateTime                            @default(now())
+  rating                       Decimal?                            @db.Decimal
+  rating_count                 Int?
+  badges                       String[]
+  institution                  Institution                         @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  units                        Unit[]
+  course                       Course[]
+  enrollments                  Enrollment[]
+  accommodationRecommendations SchoolAccommodationRecommendation[]
 
   @@index([institutionId])
   @@map("school")
 }
 
 model Accommodation {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title               String    @db.VarChar(255)
-  accommodationType   String    @map("accommodation_type") @db.VarChar(50)
-  priceInCents        Int       @map("price_in_cents")
-  priceUnit           String    @default("month") @map("price_unit") @db.VarChar(20)
-  location            String    @db.VarChar(255)
-  areaHint            String?   @map("area_hint") @db.VarChar(255)
-  latitude            Decimal?  @db.Decimal(10, 8)
-  longitude           Decimal?  @db.Decimal(11, 8)
-  description         String
-  rules               String[]  @default([])
-  amenities           String[]  @default([])
-  image               String    @db.VarChar(500)
-  images              String[]  @default([])
-  rating              Decimal?  @default(0.00) @db.Decimal(3, 2)
-  ratingCount         Int?      @default(0) @map("rating_count")
-  ratingCleanliness   Decimal?  @default(0.00) @map("rating_cleanliness") @db.Decimal(3, 2)
-  ratingLocation      Decimal?  @default(0.00) @map("rating_location") @db.Decimal(3, 2)
-  ratingCommunication Decimal?  @default(0.00) @map("rating_communication") @db.Decimal(3, 2)
-  ratingValue         Decimal?  @default(0.00) @map("rating_value") @db.Decimal(3, 2)
-  badges              String[]
-  isPartner           Boolean?  @default(false) @map("is_partner")
-  isTopTrip           Boolean?  @default(false) @map("is_top_trip")
-  hostName            String?   @map("host_name") @db.VarChar(255)
-  hostAvatar          String?   @map("host_avatar") @db.VarChar(500)
-  isActive            Boolean?  @default(true) @map("is_active")
-  createdAt           DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt           DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+  id                    String                              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                 String                              @db.VarChar(255)
+  accommodationType     String                              @map("accommodation_type") @db.VarChar(50)
+  priceInCents          Int                                 @map("price_in_cents")
+  priceUnit             String                              @default("month") @map("price_unit") @db.VarChar(20)
+  location              String                              @db.VarChar(255)
+  areaHint              String?                             @map("area_hint") @db.VarChar(255)
+  latitude              Decimal?                            @db.Decimal(10, 8)
+  longitude             Decimal?                            @db.Decimal(11, 8)
+  description           String
+  rules                 String[]                            @default([])
+  amenities             String[]                            @default([])
+  image                 String                              @db.VarChar(500)
+  images                String[]                            @default([])
+  rating                Decimal?                            @default(0.00) @db.Decimal(3, 2)
+  ratingCount           Int?                                @default(0) @map("rating_count")
+  ratingCleanliness     Decimal?                            @default(0.00) @map("rating_cleanliness") @db.Decimal(3, 2)
+  ratingLocation        Decimal?                            @default(0.00) @map("rating_location") @db.Decimal(3, 2)
+  ratingCommunication   Decimal?                            @default(0.00) @map("rating_communication") @db.Decimal(3, 2)
+  ratingValue           Decimal?                            @default(0.00) @map("rating_value") @db.Decimal(3, 2)
+  score                 Decimal?                            @default(0.00) @db.Decimal(5, 2)
+  badges                String[]
+  isPartner             Boolean?                            @default(false) @map("is_partner")
+  isTopTrip             Boolean?                            @default(false) @map("is_top_trip")
+  hostName              String?                             @map("host_name") @db.VarChar(255)
+  hostAvatar            String?                             @map("host_avatar") @db.VarChar(500)
+  isActive              Boolean?                            @default(true) @map("is_active")
+  createdAt             DateTime?                           @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt             DateTime?                           @default(now()) @map("updated_at") @db.Timestamp(6)
+  schoolRecommendations SchoolAccommodationRecommendation[]
 
   @@map("accommodation")
+}
+
+model SchoolAccommodationRecommendation {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  schoolId        String        @map("school_id") @db.Uuid
+  accommodationId String        @map("accommodation_id") @db.Uuid
+  isRecommended   Boolean       @default(true) @map("is_recommended")
+  priority        Int           @default(0)
+  badgeLabel      String?       @map("badge_label") @db.VarChar(80)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  school          School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  accommodation   Accommodation @relation(fields: [accommodationId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, accommodationId])
+  @@index([schoolId, isRecommended, priority])
+  @@index([accommodationId])
+  @@map("school_accommodation_recommendation")
 }
 
 model Place {
@@ -383,15 +404,15 @@ model Place {
 }
 
 model EnrollmentDocument {
-  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  enrollmentId String    @map("enrollment_id") @db.Uuid
-  type        String     @db.VarChar(100)
-  fileUrl     String     @map("file_url")
-  status      String     @default("pending")
-  adminNote   String?    @map("admin_note")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-  enrollment  Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId String     @map("enrollment_id") @db.Uuid
+  type         String     @db.VarChar(100)
+  fileUrl      String     @map("file_url")
+  status       String     @default("pending")
+  adminNote    String?    @map("admin_note")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
   @@index([enrollmentId, status])
   @@map("enrollment_document")
@@ -456,13 +477,13 @@ model EnrollmentStatusHistory {
 }
 
 model CommissionConfig {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  scopeType   String      @map("scope_type") @db.VarChar(50)
-  scopeId     String      @map("scope_id") @db.Uuid
-  percentage  Decimal     @default(0) @db.Decimal(7, 4)
-  fixedAmount Decimal?    @map("fixed_amount") @db.Decimal(12, 2)
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scopeType   String   @map("scope_type") @db.VarChar(50)
+  scopeId     String   @map("scope_id") @db.Uuid
+  percentage  Decimal  @default(0) @db.Decimal(7, 4)
+  fixedAmount Decimal? @map("fixed_amount") @db.Decimal(12, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@unique([scopeType, scopeId])
   @@index([scopeType])

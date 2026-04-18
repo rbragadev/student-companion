@@ -9,6 +9,7 @@ import {
 import { AccommodationService } from './accommodation.service';
 import { CreateAccommodationDto } from './dto/create-accommodation.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
+import { UpsertSchoolAccommodationRecommendationDto } from './dto/upsert-school-accommodation-recommendation.dto';
 
 @Controller('accommodation')
 export class AccommodationController {
@@ -24,6 +25,34 @@ export class AccommodationController {
   @Get()
   findAll() {
     return this.accommodationService.findAll();
+  }
+
+  @Get('recommended/school/:schoolId')
+  findRecommendedBySchool(@Param('schoolId') schoolId: string) {
+    return this.accommodationService.findRecommendedBySchool(schoolId);
+  }
+
+  @Get('upsell/enrollment/:enrollmentId')
+  findUpsellByEnrollment(@Param('enrollmentId') enrollmentId: string) {
+    return this.accommodationService.findUpsellByEnrollment(enrollmentId);
+  }
+
+  @Get('recommendations/school/:schoolId')
+  findSchoolRecommendations(@Param('schoolId') schoolId: string) {
+    return this.accommodationService.findSchoolRecommendations(schoolId);
+  }
+
+  @Patch('recommendations/school/:schoolId/:accommodationId')
+  upsertSchoolRecommendation(
+    @Param('schoolId') schoolId: string,
+    @Param('accommodationId') accommodationId: string,
+    @Body() dto: UpsertSchoolAccommodationRecommendationDto,
+  ) {
+    return this.accommodationService.upsertSchoolRecommendation(
+      schoolId,
+      accommodationId,
+      dto,
+    );
   }
 
   @Get(':id')

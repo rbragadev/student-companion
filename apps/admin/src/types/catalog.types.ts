@@ -54,7 +54,18 @@ export interface AccommodationAdmin {
   location: string;
   priceInCents: number;
   priceUnit: string;
+  score?: number | null;
+  badges?: string[];
+  recommendationBadge?: string | null;
+  recommendationPriority?: number;
+  isRecommendedBySchool?: boolean;
   isActive: boolean;
+}
+
+export interface SchoolAccommodationRecommendationAdmin extends AccommodationAdmin {
+  isRecommendedBySchool: boolean;
+  recommendationPriority: number;
+  recommendationBadge: string | null;
 }
 
 export interface PlaceAdmin {

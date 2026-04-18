@@ -11,4 +11,14 @@ export const accommodationApi = {
     const response = await apiClient.get<Accommodation>(`/accommodation/${accommodationId}`);
     return response.data;
   },
+
+  getRecommendedBySchool: async (schoolId: string): Promise<Accommodation[]> => {
+    const response = await apiClient.get<Accommodation[]>(`/accommodation/recommended/school/${schoolId}`);
+    return response.data;
+  },
+
+  getUpsellByEnrollment: async (enrollmentId: string): Promise<Accommodation[]> => {
+    const response = await apiClient.get<Accommodation[]>(`/accommodation/upsell/enrollment/${enrollmentId}`);
+    return response.data;
+  },
 };
