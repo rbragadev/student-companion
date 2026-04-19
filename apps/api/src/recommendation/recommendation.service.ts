@@ -48,9 +48,13 @@ export class RecommendationService {
       throw new NotFoundException('User preferences not found');
     }
 
-    const activeIntent = await this.prisma.enrollmentIntent.findFirst({
-      where: { studentId: userId, status: 'pending' },
+    const activeIntent = await this.prisma.enrollment.findFirst({
+      where: {
+        studentId: userId,
+        status: { in: ['draft', 'started', 'awaiting_school_approval', 'application_started', 'under_review'] },
+      },
       select: { courseId: true },
+      orderBy: { createdAt: 'desc' },
     });
     // 2. Obter strategy apropriada
     const strategy = this.strategyFactory.getStrategy(type);

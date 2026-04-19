@@ -44,26 +44,21 @@ export class InvoiceService {
     }
 
     if (!quote && enrollmentId) {
-      const enrollment = await this.prisma.enrollment.findUnique({
-        where: { id: enrollmentId },
-        select: {
-          enrollmentIntentId: true,
-        },
-      });
+      const enrollment = await this.prisma.enrollment.findUnique({ where: { id: enrollmentId } });
       if (!enrollment) {
         throw new NotFoundException(`Matrícula ${enrollmentId} não encontrada`);
       }
       quote = await this.prisma.enrollmentQuote.findFirst({
-        where: { enrollmentIntentId: enrollment.enrollmentIntentId },
+        where: { enrollmentId: enrollment.id },
         include: { items: true },
         orderBy: { createdAt: 'desc' },
       });
       quoteId = quote?.id ?? null;
     }
 
-    if (!enrollmentId && quote?.enrollmentIntentId) {
+    if (!enrollmentId && quote?.enrollmentId) {
       const enrollment = await this.prisma.enrollment.findFirst({
-        where: { enrollmentIntentId: quote.enrollmentIntentId },
+        where: { id: quote.enrollmentId },
         select: { id: true },
       });
       enrollmentId = enrollment?.id ?? null;

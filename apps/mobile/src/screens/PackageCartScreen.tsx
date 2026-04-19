@@ -60,6 +60,23 @@ export default function PackageCartScreen() {
     refetchOnMount: true,
   });
 
+  React.useEffect(() => {
+    if (!userId || !effectiveQuoteId) return;
+    if (quoteQuery.isLoading) return;
+    if (quoteQuery.data) return;
+
+    setQuoteIdFromRoute(undefined);
+    setStoredQuoteId(null);
+    navigation.setParams({ quoteId: undefined });
+    void clearDraftQuoteId(userId);
+  }, [
+    effectiveQuoteId,
+    navigation,
+    quoteQuery.data,
+    quoteQuery.isLoading,
+    userId,
+  ]);
+
   const openIntentQuery = useQuery({
     queryKey: ['enrollment-intent', 'open', userId],
     queryFn: () => enrollmentIntentApi.getOpenIntentByStudent(userId ?? ''),

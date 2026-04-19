@@ -150,7 +150,10 @@ export class EnrollmentQuoteService {
 
     if (enrollmentStatus) {
       const approvalReady =
-        autoApproveIntent === true || ['approved', 'enrolled', 'completed'].includes(enrollmentStatus);
+        autoApproveIntent === true ||
+        ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'enrolled', 'completed'].includes(
+          enrollmentStatus,
+        );
       if (!approvalReady) {
         return {
           packageStatus: 'awaiting_approval',
@@ -191,11 +194,11 @@ export class EnrollmentQuoteService {
     };
   }
 
-  private async enrichQuote<T extends { id: string; enrollmentIntentId?: string | null }>(quote: T) {
-    const [intent, enrollment, payments] = await Promise.all([
-      quote.enrollmentIntentId
-        ? this.prisma.enrollmentIntent.findUnique({
-            where: { id: quote.enrollmentIntentId },
+  private async enrichQuote<T extends { id: string; enrollmentId?: string | null }>(quote: T) {
+    const [enrollment, payments] = await Promise.all([
+      quote.enrollmentId
+        ? this.prisma.enrollment.findUnique({
+            where: { id: quote.enrollmentId },
             select: {
               id: true,
               status: true,
@@ -203,15 +206,6 @@ export class EnrollmentQuoteService {
               student: {
                 select: { id: true, firstName: true, lastName: true, email: true },
               },
-            },
-          })
-        : Promise.resolve(null),
-      quote.enrollmentIntentId
-        ? this.prisma.enrollment.findFirst({
-            where: { enrollmentIntentId: quote.enrollmentIntentId },
-            select: {
-              id: true,
-              status: true,
               course: {
                 select: {
                   auto_approve_intent: true,
@@ -241,7 +235,6 @@ export class EnrollmentQuoteService {
     const hasPendingPayment = payments.some((item) => item.status === 'pending');
 
     const statusContext = this.resolvePackageStatusContext({
-      intentStatus: intent?.status,
       enrollmentStatus: enrollment?.status,
       autoApproveIntent: enrollment?.course.auto_approve_intent ?? undefined,
       hasPendingPayment,
@@ -250,7 +243,6 @@ export class EnrollmentQuoteService {
 
     return {
       ...quote,
-      enrollmentIntent: intent,
       enrollment: enrollment
         ? {
             id: enrollment.id,
@@ -264,20 +256,19 @@ export class EnrollmentQuoteService {
   }
 
   async create(dto: CreateEnrollmentQuoteDto) {
-    const resolvedIntent = dto.enrollmentIntentId
-      ? await this.prisma.enrollmentIntent.findUnique({
-          where: { id: dto.enrollmentIntentId },
+    const resolvedIntent = dto.enrollmentId
+      ? await this.prisma.enrollment.findUnique({
+          where: { id: dto.enrollmentId },
           include: {
             course: { select: { id: true, school: { select: { institutionId: true } } } },
             academicPeriod: { select: { id: true, name: true, startDate: true, endDate: true } },
             accommodation: { select: { id: true } },
-            enrollment: { select: { id: true } },
           },
         })
       : null;
 
-    if (dto.enrollmentIntentId && !resolvedIntent) {
-      throw new NotFoundException(`Intenção ${dto.enrollmentIntentId} não encontrada`);
+    if (dto.enrollmentId && !resolvedIntent) {
+      throw new NotFoundException(`Matrícula ${dto.enrollmentId} não encontrada`);
     }
 
     const courseId = dto.courseId ?? resolvedIntent?.courseId;
@@ -596,7 +587,7 @@ export class EnrollmentQuoteService {
 
     const createdQuote = await this.prisma.enrollmentQuote.create({
       data: {
-        enrollmentIntentId: resolvedIntent?.id ?? dto.enrollmentIntentId ?? null,
+        enrollmentId: resolvedIntent?.id ?? dto.enrollmentId ?? null,
         coursePricingId:
           coursePricing?.id ??
           resolvedItems.find((item) => item.itemType === 'course')?.coursePricingId ??
@@ -648,8 +639,8 @@ export class EnrollmentQuoteService {
       },
     });
 
-    if (resolvedIntent?.enrollment?.id) {
-      await this.syncEnrollmentPricingFromQuote(resolvedIntent.enrollment.id, createdQuote);
+    if (resolvedIntent?.id) {
+      await this.syncEnrollmentPricingFromQuote(resolvedIntent.id, createdQuote);
     }
 
     return createdQuote;
@@ -659,7 +650,7 @@ export class EnrollmentQuoteService {
     const quote = await this.prisma.enrollmentQuote.findUnique({
       where: { id },
       include: {
-        enrollmentIntent: { select: { id: true, status: true, studentId: true } },
+        enrollment: { select: { id: true, status: true, studentId: true } },
         coursePricing: {
           include: {
             course: { select: { id: true, program_name: true } },
@@ -705,7 +696,7 @@ export class EnrollmentQuoteService {
     const hasAccommodationItem = providedItems.some((item) => item.itemType === 'accommodation');
 
     const payload: CreateEnrollmentQuoteDto = {
-      enrollmentIntentId: dto.enrollmentIntentId ?? existing.enrollmentIntentId ?? undefined,
+      enrollmentId: dto.enrollmentId ?? existing.enrollmentId ?? undefined,
       items: providedItems,
       coursePricingId: hasCourseItem
         ? dto.coursePricingId ?? existing.coursePricingId ?? undefined
@@ -778,7 +769,7 @@ export class EnrollmentQuoteService {
       throw new NotFoundException(`Quote ${id} não encontrada`);
     }
 
-    if (existing.enrollmentIntentId) {
+    if (existing.enrollmentId) {
       throw new BadRequestException(
         'Este pacote já foi fechado/enviado e não pode ser removido do carrinho',
       );
@@ -794,7 +785,7 @@ export class EnrollmentQuoteService {
 
   async findByIntent(intentId: string) {
     const quote = await this.prisma.enrollmentQuote.findFirst({
-      where: { enrollmentIntentId: intentId },
+      where: { enrollmentId: intentId },
       orderBy: { createdAt: 'desc' },
       include: {
         coursePricing: {
@@ -812,14 +803,21 @@ export class EnrollmentQuoteService {
       },
     });
     if (!quote) {
-      throw new NotFoundException(`Quote para intent ${intentId} não encontrada`);
+      throw new NotFoundException(`Quote para matrícula ${intentId} não encontrada`);
     }
     return this.enrichQuote(quote);
   }
 
   async findLatestByIntent(intentId: string): Promise<EnrollmentQuote | null> {
     return this.prisma.enrollmentQuote.findFirst({
-      where: { enrollmentIntentId: intentId },
+      where: { enrollmentId: intentId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findLatestByEnrollment(enrollmentId: string): Promise<EnrollmentQuote | null> {
+    return this.prisma.enrollmentQuote.findFirst({
+      where: { enrollmentId },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -827,12 +825,12 @@ export class EnrollmentQuoteService {
   async findByEnrollment(enrollmentId: string) {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: enrollmentId },
-      select: { id: true, enrollmentIntentId: true },
+      select: { id: true },
     });
     if (!enrollment) {
       throw new NotFoundException(`Matrícula ${enrollmentId} não encontrada`);
     }
-    return this.findByIntent(enrollment.enrollmentIntentId);
+    return this.findByIntent(enrollment.id);
   }
 
   async findCurrentByStudent(studentId: string) {
@@ -840,30 +838,35 @@ export class EnrollmentQuoteService {
       where: {
         studentId,
         status: {
-          in: ['application_started', 'documents_pending', 'under_review', 'approved', 'enrolled', 'active'],
+          in: [
+            'draft',
+            'started',
+            'awaiting_school_approval',
+            'approved',
+            'checkout_available',
+            'payment_pending',
+            'partially_paid',
+            'application_started',
+            'documents_pending',
+            'under_review',
+            'enrolled',
+            'active',
+          ],
         },
       },
       select: {
-        enrollmentIntentId: true,
+        id: true,
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    const pendingIntent = await this.prisma.enrollmentIntent.findFirst({
-      where: { studentId, status: 'pending' },
-      select: { id: true },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Fluxo consolidado: pacote atual é sempre atrelado à matrícula aberta.
+    const targetEnrollmentId = activeEnrollment?.id ?? null;
 
-    // Pacote "atual" só deve existir se houver matrícula ativa em andamento
-    // ou intenção pendente. Intenções canceladas/negadas não devem bloquear
-    // novo fluxo de matrícula/acomodação.
-    const targetIntentId = activeEnrollment?.enrollmentIntentId ?? pendingIntent?.id ?? null;
-
-    if (!targetIntentId) return null;
+    if (!targetEnrollmentId) return null;
 
     const quote = await this.prisma.enrollmentQuote.findFirst({
-      where: { enrollmentIntentId: targetIntentId },
+      where: { enrollmentId: targetEnrollmentId },
       orderBy: { createdAt: 'desc' },
       include: {
         coursePricing: {
@@ -887,14 +890,14 @@ export class EnrollmentQuoteService {
 
   async findAll(filters?: {
     type?: string;
-    enrollmentIntentId?: string;
+    enrollmentId?: string;
     accommodationId?: string;
     courseId?: string;
   }) {
     const quotes = await this.prisma.enrollmentQuote.findMany({
       where: {
         type: filters?.type as EnrollmentQuoteType | undefined,
-        enrollmentIntentId: filters?.enrollmentIntentId,
+        enrollmentId: filters?.enrollmentId,
         OR:
           filters?.accommodationId || filters?.courseId
             ? [
@@ -941,7 +944,7 @@ export class EnrollmentQuoteService {
       },
       orderBy: { createdAt: 'desc' },
       include: {
-        enrollmentIntent: {
+        enrollment: {
           select: {
             id: true,
             status: true,

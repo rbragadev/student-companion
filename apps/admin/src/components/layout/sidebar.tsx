@@ -55,8 +55,8 @@ export async function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <div className="flex flex-col gap-4">
-          {visibleGroups.map((group) => (
-            <section key={group.title}>
+          {visibleGroups.map((group, index) => (
+            <section key={`${group.title}-${index}`}>
               <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 {group.title}
               </p>

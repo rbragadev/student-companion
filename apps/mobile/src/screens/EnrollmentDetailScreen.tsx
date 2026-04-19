@@ -215,6 +215,8 @@ export default function EnrollmentDetailScreen() {
   const upsellAccommodationsQuery = useUpsellAccommodationsByEnrollment(enrollmentId);
   const upsellAccommodations = upsellAccommodationsQuery.data ?? [];
   const isAccommodationClosed = enrollment?.accommodationStatus === 'closed';
+  const isCheckoutPaid = checkoutQuery.data?.state === 'paid';
+  const isAccommodationLocked = isAccommodationClosed || isCheckoutPaid;
 
   React.useEffect(() => {
     setSelectedAccommodationId(enrollment?.accommodation?.id ?? '');
@@ -333,8 +335,9 @@ export default function EnrollmentDetailScreen() {
                     onPress={() =>
                       navigation.navigate(StackRoutes.ENROLLMENT_CHECKOUT, { enrollmentId })
                     }
+                    disabled={checkoutQuery.data.state === 'paid'}
                   >
-                    Ir para checkout
+                    {checkoutQuery.data.state === 'paid' ? 'Checkout concluído' : 'Ir para checkout'}
                   </Button>
                 </View>
               )}
@@ -368,7 +371,11 @@ export default function EnrollmentDetailScreen() {
                     <TouchableOpacity
                       key={item.id}
                       activeOpacity={0.7}
-                      onPress={() => setSelectedAccommodationId(item.id)}
+                      onPress={() => {
+                        if (!isAccommodationLocked) {
+                          setSelectedAccommodationId(item.id);
+                        }
+                      }}
                       className={`rounded-lg border px-3 py-2 ${selectedAccommodationId === item.id ? 'border-primary-500 bg-primary-50' : 'border-border'}`}
                     >
                       <View className="flex-row items-start justify-between gap-2">
@@ -394,7 +401,7 @@ export default function EnrollmentDetailScreen() {
                     <Button
                       className="flex-1"
                       onPress={() => setAccommodationMutation.mutate(selectedAccommodationId || null)}
-                      disabled={setAccommodationMutation.isPending || isAccommodationClosed}
+                      disabled={setAccommodationMutation.isPending || isAccommodationLocked}
                     >
                       {setAccommodationMutation.isPending ? 'Salvando...' : 'Salvar acomodação'}
                     </Button>
@@ -402,7 +409,7 @@ export default function EnrollmentDetailScreen() {
                       variant="outline"
                       className="flex-1"
                       onPress={() => setAccommodationMutation.mutate(null)}
-                      disabled={setAccommodationMutation.isPending || isAccommodationClosed}
+                      disabled={setAccommodationMutation.isPending || isAccommodationLocked}
                     >
                       Sem acomodação
                     </Button>
@@ -411,9 +418,11 @@ export default function EnrollmentDetailScreen() {
                     Status da acomodação: {enrollment.accommodationStatus}
                     {enrollment.accommodationClosedAt ? ` • Fechada em ${formatDate(enrollment.accommodationClosedAt)}` : ''}
                   </Text>
-                  {isAccommodationClosed && (
+                  {isAccommodationLocked && (
                     <Text variant="caption" className="text-amber-700">
-                      Acomodação fechada pelo time. Não é possível trocar.
+                      {isCheckoutPaid
+                        ? 'Pacote já pago. Acomodação bloqueada para troca.'
+                        : 'Acomodação fechada pelo time. Não é possível trocar.'}
                     </Text>
                   )}
 

@@ -66,6 +66,7 @@ const ids = {
     lucasConverted: 'aaaaaaa6-aaaa-4aaa-8aaa-aaaaaaaaaaa6',
   },
   enrollments: {
+    raphaelAwaitingApproval: 'bbbbbbb0-bbbb-4bbb-8bbb-bbbbbbbbbbb0',
     emilyActive: 'bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
     emilyCancelled: 'bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
     lucasReview: 'bbbbbbb3-bbbb-4bbb-8bbb-bbbbbbbbbbb3',
@@ -143,6 +144,7 @@ const ids = {
     emilyDocuments: '1b111111-1111-4111-8111-111111111114',
   },
   enrollmentStatusHistory: {
+    raphaelStarted: 'fffffff0-ffff-4fff-8fff-fffffffffff0',
     emilyStarted: 'fffffff1-ffff-4fff-8fff-fffffffffff1',
     emilyApproved: 'fffffff2-ffff-4fff-8fff-fffffffffff2',
     emilyEnrolled: 'fffffff3-ffff-4fff-8fff-fffffffffff3',
@@ -693,90 +695,22 @@ async function main() {
     skipDuplicates: true,
   });
 
-  const enrollmentIntents = [
+  const enrollments = [
     {
-      id: ids.enrollmentIntents.raphaelCancelledOld,
+      id: ids.enrollments.raphaelAwaitingApproval,
       studentId: ids.users.raphael,
+      institutionId: ids.institutions.global,
+      schoolId: ids.schools.ilsc,
+      unitId: ids.units.downtown,
       courseId: ids.courses.generalEnglishIlsc,
       classGroupId: ids.classGroups.engA1Morning,
       academicPeriodId: ids.academicPeriods.fall2026,
       accommodationId: null,
-      status: 'cancelled',
-      deniedReason: null,
-      convertedAt: null,
-      createdAt: new Date('2026-03-05T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentIntents.raphaelPending,
-      studentId: ids.users.raphael,
-      courseId: ids.courses.generalEnglishIlsc,
-      classGroupId: ids.classGroups.engA1Morning,
-      academicPeriodId: ids.academicPeriods.fall2026,
-      accommodationId: null,
-      status: 'pending',
-      deniedReason: null,
-      convertedAt: null,
+      status: 'awaiting_school_approval',
+      accommodationStatus: 'selected',
+      accommodationClosedAt: null,
       createdAt: new Date('2026-04-15T00:00:00.000Z'),
     },
-    {
-      id: ids.enrollmentIntents.emilyActive,
-      studentId: ids.users.emily,
-      courseId: ids.courses.ieltsVgc,
-      classGroupId: ids.classGroups.engB2Evening,
-      academicPeriodId: ids.academicPeriods.winter2027,
-      accommodationId: null,
-      status: 'converted',
-      deniedReason: null,
-      convertedAt: new Date('2026-04-10T00:00:00.000Z'),
-      createdAt: new Date('2026-04-02T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentIntents.emilyCancelled,
-      studentId: ids.users.emily,
-      courseId: ids.courses.generalEnglishIlsc,
-      classGroupId: ids.classGroups.engA1Morning,
-      academicPeriodId: ids.academicPeriods.fall2026,
-      accommodationId: null,
-      status: 'converted',
-      deniedReason: null,
-      convertedAt: new Date('2025-12-20T00:00:00.000Z'),
-      createdAt: new Date('2025-12-10T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentIntents.lucasDenied,
-      studentId: ids.users.lucas,
-      courseId: ids.courses.digitalMarketingCornerstone,
-      classGroupId: ids.classGroups.businessAfternoon,
-      academicPeriodId: ids.academicPeriods.spring2026,
-      accommodationId: null,
-      status: 'denied',
-      deniedReason: 'Documentação acadêmica incompleta para o período selecionado.',
-      convertedAt: null,
-      createdAt: new Date('2026-02-08T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentIntents.lucasConverted,
-      studentId: ids.users.lucas,
-      courseId: ids.courses.digitalMarketingCornerstone,
-      classGroupId: ids.classGroups.businessAfternoon,
-      academicPeriodId: ids.academicPeriods.spring2026,
-      accommodationId: null,
-      status: 'converted',
-      deniedReason: null,
-      convertedAt: new Date('2026-03-02T00:00:00.000Z'),
-      createdAt: new Date('2026-03-01T00:00:00.000Z'),
-    },
-  ] as const;
-
-  for (const intent of enrollmentIntents) {
-    await prisma.enrollmentIntent.upsert({
-      where: { id: intent.id },
-      create: intent,
-      update: intent,
-    });
-  }
-
-  const enrollments = [
     {
       id: ids.enrollments.emilyActive,
       studentId: ids.users.emily,
@@ -787,7 +721,6 @@ async function main() {
       classGroupId: ids.classGroups.engB2Evening,
       academicPeriodId: ids.academicPeriods.winter2027,
       accommodationId: null,
-      enrollmentIntentId: ids.enrollmentIntents.emilyActive,
       status: 'enrolled',
       accommodationStatus: 'closed',
       accommodationClosedAt: new Date('2026-04-13T00:00:00.000Z'),
@@ -803,7 +736,6 @@ async function main() {
       classGroupId: ids.classGroups.engA1Morning,
       academicPeriodId: ids.academicPeriods.fall2026,
       accommodationId: null,
-      enrollmentIntentId: ids.enrollmentIntents.emilyCancelled,
       status: 'cancelled',
       accommodationStatus: 'not_selected',
       accommodationClosedAt: null,
@@ -819,7 +751,6 @@ async function main() {
       classGroupId: ids.classGroups.businessAfternoon,
       academicPeriodId: ids.academicPeriods.spring2026,
       accommodationId: null,
-      enrollmentIntentId: ids.enrollmentIntents.lucasConverted,
       status: 'documents_pending',
       accommodationStatus: 'selected',
       accommodationClosedAt: null,
@@ -836,6 +767,15 @@ async function main() {
   }
 
   const statusHistory = [
+    {
+      id: ids.enrollmentStatusHistory.raphaelStarted,
+      enrollmentId: ids.enrollments.raphaelAwaitingApproval,
+      fromStatus: null,
+      toStatus: 'awaiting_school_approval',
+      reason: 'Matrícula enviada para aprovação da escola.',
+      changedById: ids.users.admin,
+      createdAt: new Date('2026-04-15T00:10:00.000Z'),
+    },
     {
       id: ids.enrollmentStatusHistory.emilyStarted,
       enrollmentId: ids.enrollments.emilyActive,
@@ -1453,23 +1393,10 @@ async function main() {
     });
   }
 
-  await prisma.enrollmentIntent.updateMany({
-    where: { id: ids.enrollmentIntents.raphaelPending },
+  await prisma.enrollment.updateMany({
+    where: { id: ids.enrollments.raphaelAwaitingApproval },
     data: { accommodationId: ids.accommodations.downtownShared },
   });
-  await prisma.enrollmentIntent.updateMany({
-    where: { id: ids.enrollmentIntents.emilyActive },
-    data: { accommodationId: ids.accommodations.burnabyStudio },
-  });
-  await prisma.enrollmentIntent.updateMany({
-    where: { id: ids.enrollmentIntents.lucasDenied },
-    data: { accommodationId: ids.accommodations.richmondApartment },
-  });
-  await prisma.enrollmentIntent.updateMany({
-    where: { id: ids.enrollmentIntents.lucasConverted },
-    data: { accommodationId: ids.accommodations.richmondApartment },
-  });
-
   await prisma.enrollment.updateMany({
     where: { id: ids.enrollments.emilyActive },
     data: { accommodationId: ids.accommodations.burnabyStudio },
@@ -1482,7 +1409,7 @@ async function main() {
   const quotes = [
     {
       id: ids.enrollmentQuotes.raphaelPendingCourseOnly,
-      enrollmentIntentId: ids.enrollmentIntents.raphaelPending,
+      enrollmentId: ids.enrollments.raphaelAwaitingApproval,
       coursePricingId: ids.coursePricing.ilscFallGeneral,
       accommodationPricingId: null,
       courseAmount: 5550,
@@ -1503,7 +1430,7 @@ async function main() {
     },
     {
       id: ids.enrollmentQuotes.emilyIntentWithAccommodation,
-      enrollmentIntentId: ids.enrollmentIntents.emilyActive,
+      enrollmentId: ids.enrollments.emilyActive,
       coursePricingId: ids.coursePricing.vgcWinterIelts,
       accommodationPricingId: ids.accommodationPricing.burnabyWinter,
       courseAmount: 5550,
@@ -1524,7 +1451,7 @@ async function main() {
     },
     {
       id: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
-      enrollmentIntentId: ids.enrollmentIntents.lucasConverted,
+      enrollmentId: ids.enrollments.lucasReview,
       coursePricingId: ids.coursePricing.cornerstoneSpringDigital,
       accommodationPricingId: ids.accommodationPricing.richmondSpring,
       courseAmount: 4350,
@@ -1545,7 +1472,7 @@ async function main() {
     },
     {
       id: ids.enrollmentQuotes.accommodationOnlySample,
-      enrollmentIntentId: null,
+      enrollmentId: null,
       coursePricingId: null,
       accommodationPricingId: ids.accommodationPricing.kitsFall,
       courseAmount: 0,
@@ -1566,7 +1493,7 @@ async function main() {
     },
     {
       id: ids.enrollmentQuotes.accommodationOnlyWinterLongStay,
-      enrollmentIntentId: null,
+      enrollmentId: null,
       coursePricingId: null,
       accommodationPricingId: ids.accommodationPricing.commercialWinter,
       courseAmount: 0,
@@ -1897,7 +1824,7 @@ async function main() {
       title: 'Proposta aprovada',
       message: 'Sua proposta foi aprovada. O checkout está disponível na sua matrícula.',
       metadata: {
-        enrollmentIntentId: ids.enrollmentIntents.raphaelPending,
+        enrollmentId: ids.enrollments.raphaelAwaitingApproval,
       },
       readAt: null,
       createdAt: new Date('2026-04-16T09:00:00.000Z'),
@@ -1909,7 +1836,7 @@ async function main() {
       title: 'Pagamento confirmado',
       message: 'Recebemos sua entrada. Seguiremos com as etapas operacionais.',
       metadata: {
-        enrollmentIntentId: ids.enrollmentIntents.raphaelPending,
+        enrollmentId: ids.enrollments.raphaelAwaitingApproval,
       },
       readAt: null,
       createdAt: new Date('2026-04-16T12:10:00.000Z'),
@@ -1921,7 +1848,7 @@ async function main() {
       title: 'Proposta rejeitada',
       message: 'Sua proposta foi rejeitada: documentação acadêmica incompleta para o período.',
       metadata: {
-        enrollmentIntentId: ids.enrollmentIntents.lucasDenied,
+        enrollmentId: ids.enrollments.lucasReview,
       },
       readAt: null,
       createdAt: new Date('2026-02-10T09:30:00.000Z'),

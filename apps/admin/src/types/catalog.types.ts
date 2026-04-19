@@ -161,6 +161,15 @@ export interface EnrollmentIntentAdmin {
 export interface EnrollmentAdmin {
   id: string;
   status:
+    | 'draft'
+    | 'started'
+    | 'awaiting_school_approval'
+    | 'checkout_available'
+    | 'payment_pending'
+    | 'partially_paid'
+    | 'paid'
+    | 'confirmed'
+    | 'expired'
     | 'application_started'
     | 'documents_pending'
     | 'under_review'
@@ -196,7 +205,7 @@ export interface EnrollmentAdmin {
     priceUnit: string;
     score?: number | null;
   } | null;
-  enrollmentIntent: { id: string; status: string; convertedAt: string | null };
+  enrollmentIntent?: { id: string; status: string; convertedAt: string | null } | null;
   pricing?: EnrollmentPricingAdmin | null;
   documents?: EnrollmentDocumentAdmin[];
   messages?: EnrollmentMessageAdmin[];
@@ -411,7 +420,7 @@ export interface AccommodationPricingAdmin {
 
 export interface EnrollmentQuoteAdmin {
   id: string;
-  enrollmentIntentId?: string | null;
+  enrollmentId?: string | null;
   coursePricingId?: string | null;
   accommodationPricingId?: string | null;
   courseAmount: number;
@@ -446,17 +455,6 @@ export interface EnrollmentQuoteAdmin {
   accommodationPricing?: {
     id: string;
     accommodation?: { id: string; title: string; accommodationType: string };
-  } | null;
-  enrollmentIntent?: {
-    id: string;
-    status: string;
-    studentId?: string;
-    student?: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
-    } | null;
   } | null;
   enrollment?: {
     id: string;

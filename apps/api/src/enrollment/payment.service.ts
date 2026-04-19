@@ -31,7 +31,7 @@ export class PaymentService {
   }
 
   private isApprovalReadyStatus(status: string): boolean {
-    return ['approved', 'enrolled'].includes(status);
+    return ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'enrolled'].includes(status);
   }
 
   private async reconcileInvoiceStatus(invoiceId?: string | null) {
@@ -79,7 +79,6 @@ export class PaymentService {
         accommodation: {
           select: { id: true, title: true, accommodationType: true, location: true, priceUnit: true },
         },
-        enrollmentIntent: { select: { id: true, status: true, deniedReason: true } },
         pricing: true,
       },
     });
@@ -106,9 +105,7 @@ export class PaymentService {
       reason = 'Entrada já confirmada para este pacote.';
     } else if (this.isRejectedStatus(enrollment.status)) {
       state = 'blocked_rejected';
-      reason =
-        enrollment.enrollmentIntent.deniedReason ??
-        'A proposta foi rejeitada/cancelada e o checkout está bloqueado.';
+      reason = 'A proposta foi rejeitada/cancelada e o checkout está bloqueado.';
     } else if (!quote) {
       state = 'blocked_missing_quote';
       reason = 'Ainda não há quote válida vinculada a esta matrícula.';

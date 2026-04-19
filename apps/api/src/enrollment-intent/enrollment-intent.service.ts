@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,7 +14,7 @@ export class EnrollmentIntentService {
     private readonly notificationService: NotificationService,
   ) {}
 
-  private readonly includeGraph = {
+  private readonly includeEnrollmentGraph = {
     student: {
       select: {
         id: true,
@@ -52,12 +53,6 @@ export class EnrollmentIntentService {
         status: true,
       },
     },
-    enrollment: {
-      select: {
-        id: true,
-        status: true,
-      },
-    },
     accommodation: {
       select: {
         id: true,
@@ -71,43 +66,126 @@ export class EnrollmentIntentService {
     },
   } as const;
 
-  private nextStudentStatus(currentStatus: string): string {
-    if (currentStatus === 'lead') return 'application_started';
-    if (currentStatus === 'application_started') return 'pending_enrollment';
-    return currentStatus;
+  private readonly activeLifecycleStatuses = [
+    'draft',
+    'started',
+    'awaiting_school_approval',
+    'approved',
+    'checkout_available',
+    'payment_pending',
+    'partially_paid',
+    'application_started',
+    ...ACTIVE_ENROLLMENT_STATUSES,
+  ];
+
+  private toLegacyIntentStatus(enrollmentStatus: string): 'pending' | 'converted' | 'cancelled' | 'denied' {
+    if (['cancelled', 'expired'].includes(enrollmentStatus)) return 'cancelled';
+    if (['rejected', 'denied'].includes(enrollmentStatus)) return 'denied';
+    if (
+      [
+        'approved',
+        'checkout_available',
+        'payment_pending',
+        'partially_paid',
+        'paid',
+        'confirmed',
+        'enrolled',
+      ].includes(enrollmentStatus)
+    ) {
+      return 'converted';
+    }
+    return 'pending';
+  }
+
+  private fromLegacyStatusFilter(
+    status?: string,
+  ): Prisma.EnrollmentWhereInput['status'] | undefined {
+    if (!status) return undefined;
+    if (status === 'pending') {
+      return {
+        in: ['draft', 'started', 'awaiting_school_approval', 'application_started', 'under_review'],
+      };
+    }
+    if (status === 'converted') {
+      return { in: ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'confirmed', 'enrolled'] };
+    }
+    if (status === 'cancelled') {
+      return { in: ['cancelled', 'expired'] };
+    }
+    if (status === 'denied') {
+      return { in: ['rejected', 'denied'] };
+    }
+    return status;
   }
 
   private async recalculateStudentStatus(
     tx: Prisma.TransactionClient,
     studentId: string,
   ) {
-    const [ongoingEnrollment, pendingIntent, anyJourney] = await Promise.all([
+    const [ongoingEnrollment, anyJourney] = await Promise.all([
       tx.enrollment.findFirst({
-        where: { studentId, status: { in: ACTIVE_ENROLLMENT_STATUSES } },
+        where: { studentId, status: { in: this.activeLifecycleStatuses } },
         select: { id: true },
       }),
-      tx.enrollmentIntent.findFirst({
-        where: { studentId, status: 'pending' },
-        select: { id: true },
-      }),
-      tx.enrollmentIntent.findFirst({
+      tx.enrollment.findFirst({
         where: { studentId },
         select: { id: true },
       }),
     ]);
 
-    const nextStatus = ongoingEnrollment
-      ? 'enrolled'
-      : pendingIntent
-        ? 'pending_enrollment'
-        : anyJourney
-          ? 'application_started'
-          : 'lead';
+    const nextStatus = ongoingEnrollment ? 'pending_enrollment' : anyJourney ? 'application_started' : 'lead';
 
     await tx.user.update({
       where: { id: studentId },
       data: { studentStatus: nextStatus },
     });
+  }
+
+  private mapEnrollmentToIntentView(
+    enrollment: {
+      id: string;
+      studentId: string;
+      courseId: string;
+      classGroupId: string;
+      academicPeriodId: string;
+      accommodationId: string | null;
+      status: string;
+      createdAt: Date;
+      student: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        studentStatus: string;
+      };
+      course: any;
+      classGroup: any;
+      academicPeriod: any;
+      accommodation: any;
+    },
+  ) {
+    const legacyStatus = this.toLegacyIntentStatus(enrollment.status);
+    return {
+      id: enrollment.id,
+      studentId: enrollment.studentId,
+      courseId: enrollment.courseId,
+      classGroupId: enrollment.classGroupId,
+      academicPeriodId: enrollment.academicPeriodId,
+      accommodationId: enrollment.accommodationId,
+      status: legacyStatus,
+      deniedReason: legacyStatus === 'denied' ? 'Negada na operação' : null,
+      convertedAt: legacyStatus === 'converted' ? enrollment.createdAt : null,
+      createdAt: enrollment.createdAt,
+      student: enrollment.student,
+      course: enrollment.course,
+      classGroup: enrollment.classGroup,
+      academicPeriod: enrollment.academicPeriod,
+      accommodation: enrollment.accommodation,
+      enrollment: {
+        id: enrollment.id,
+        status: enrollment.status,
+      },
+    };
   }
 
   private async validateChain(courseId: string, classGroupId: string, academicPeriodId: string) {
@@ -167,10 +245,7 @@ export class EnrollmentIntentService {
       throw new NotFoundException(`Acomodação ${accommodationId} não encontrada ou inativa`);
     }
 
-    // Recomendação por escola continua sendo critério de sugestão/prioridade,
-    // mas não bloqueia o fechamento do pacote.
     void schoolId;
-
     return accommodationId;
   }
 
@@ -187,17 +262,16 @@ export class EnrollmentIntentService {
   }
 
   async create(dto: CreateEnrollmentIntentDto) {
-    const [student, existingIntent, existingActiveEnrollment, chain] = await Promise.all([
+    const [student, existingOpenEnrollment, chain] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: dto.studentId },
-        select: { id: true, role: true, studentStatus: true },
-      }),
-      this.prisma.enrollmentIntent.findFirst({
-        where: { studentId: dto.studentId, status: 'pending' },
-        select: { id: true },
+        select: { id: true, role: true },
       }),
       this.prisma.enrollment.findFirst({
-        where: { studentId: dto.studentId, status: { in: ACTIVE_ENROLLMENT_STATUSES } },
+        where: {
+          studentId: dto.studentId,
+          status: { in: this.activeLifecycleStatuses },
+        },
         select: { id: true, status: true },
       }),
       this.validateChain(dto.courseId, dto.classGroupId, dto.academicPeriodId),
@@ -207,12 +281,9 @@ export class EnrollmentIntentService {
     if (student.role !== Role.STUDENT) {
       throw new BadRequestException('A intenção de matrícula só pode ser criada para usuários STUDENT');
     }
-    if (existingIntent) {
-      throw new BadRequestException('O aluno já possui uma intenção de matrícula ativa');
-    }
-    if (existingActiveEnrollment) {
+    if (existingOpenEnrollment) {
       throw new BadRequestException(
-        'O aluno já possui uma matrícula ativa em andamento. Finalize o checkout/pagamento antes de enviar nova intenção.',
+        'O aluno já possui matrícula aberta em andamento. Finalize o fluxo atual antes de criar outra.',
       );
     }
 
@@ -221,191 +292,230 @@ export class EnrollmentIntentService {
       dto.accommodationId,
     );
     await this.validateCoursePricing(chain.courseId, chain.academicPeriodId);
-    const nextStatus = this.nextStudentStatus(student.studentStatus);
 
-    const createdIntent = await this.prisma.$transaction(async (tx) => {
-      const createdIntent = await tx.enrollmentIntent.create({
+    const enrollmentId = randomUUID();
+    const enrollmentStatus = chain.autoApproveIntent ? 'checkout_available' : 'awaiting_school_approval';
+    const legacyIntentStatus = chain.autoApproveIntent ? 'converted' : 'pending';
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      await tx.enrollmentIntent.create({
         data: {
+          id: enrollmentId,
           studentId: dto.studentId,
           courseId: chain.courseId,
           classGroupId: chain.classGroupId,
           academicPeriodId: chain.academicPeriodId,
           accommodationId,
-          status: 'pending',
+          status: legacyIntentStatus,
+          convertedAt: chain.autoApproveIntent ? new Date() : null,
         },
       });
 
-      if (chain.autoApproveIntent) {
-        const enrollment = await tx.enrollment.create({
-          data: {
-            studentId: dto.studentId,
-            institutionId: chain.institutionId,
-            schoolId: chain.schoolId,
-            unitId: chain.unitId,
-            courseId: chain.courseId,
-            classGroupId: chain.classGroupId,
-            academicPeriodId: chain.academicPeriodId,
-            accommodationId,
-            enrollmentIntentId: createdIntent.id,
-            status: 'approved',
-            accommodationStatus: accommodationId ? 'selected' : 'not_selected',
-          },
-        });
-
-        await tx.enrollmentStatusHistory.create({
-          data: {
-            enrollmentId: enrollment.id,
-            fromStatus: null,
-            toStatus: 'approved',
-            reason: 'Auto-approve habilitado para o curso',
-            changedById: null,
-          },
-        });
-
-        await tx.enrollmentIntent.update({
-          where: { id: createdIntent.id },
-          data: {
-            status: 'converted',
-            convertedAt: new Date(),
-          },
-        });
-
-        await this.recalculateStudentStatus(tx, student.id);
-      } else if (nextStatus !== student.studentStatus) {
-        await tx.user.update({
-          where: { id: student.id },
-          data: { studentStatus: nextStatus },
-        });
-      }
-
-      return tx.enrollmentIntent.findUnique({
-        where: { id: createdIntent.id },
-        include: this.includeGraph,
+      const enrollment = await tx.enrollment.create({
+        data: {
+          id: enrollmentId,
+          studentId: dto.studentId,
+          institutionId: chain.institutionId,
+          schoolId: chain.schoolId,
+          unitId: chain.unitId,
+          courseId: chain.courseId,
+          classGroupId: chain.classGroupId,
+          academicPeriodId: chain.academicPeriodId,
+          accommodationId,
+          enrollmentIntentId: enrollmentId,
+          status: enrollmentStatus,
+          accommodationStatus: accommodationId ? 'selected' : 'not_selected',
+          accommodationClosedAt: null,
+        },
+        include: this.includeEnrollmentGraph,
       });
+
+      await tx.enrollmentStatusHistory.create({
+        data: {
+          enrollmentId: enrollment.id,
+          fromStatus: null,
+          toStatus: enrollmentStatus,
+          reason: chain.autoApproveIntent
+            ? 'Fluxo único de matrícula com auto-approve'
+            : 'Matrícula enviada para aprovação da escola',
+          changedById: null,
+        },
+      });
+
+      await this.recalculateStudentStatus(tx, dto.studentId);
+      return enrollment;
     });
 
-    if (!createdIntent) {
-      throw new NotFoundException('Falha ao carregar a intenção recém-criada');
-    }
-
-    if (chain.autoApproveIntent && createdIntent.enrollment?.id) {
+    if (chain.autoApproveIntent) {
       await this.notificationService.create({
-        userId: createdIntent.student.id,
+        userId: created.student.id,
         type: 'proposal_approved',
         title: 'Proposta aprovada automaticamente',
         message:
-          'Seu pacote foi aprovado automaticamente e o checkout já está disponível na sua matrícula.',
+          'Sua matrícula foi aprovada automaticamente e o checkout já está disponível.',
         metadata: {
-          enrollmentId: createdIntent.enrollment.id,
-          enrollmentIntentId: createdIntent.id,
+          enrollmentId: created.id,
+          enrollmentIntentId: created.id,
         },
       });
     }
 
-    return createdIntent;
+    return this.mapEnrollmentToIntentView(created);
   }
 
-  findAll(filters?: {
+  async findAll(filters?: {
     studentStatus?: string;
     institutionId?: string;
     schoolId?: string;
     studentId?: string;
     status?: string;
   }) {
-    return this.prisma.enrollmentIntent.findMany({
+    const enrollments = await this.prisma.enrollment.findMany({
       where: {
         studentId: filters?.studentId || undefined,
-        status: filters?.status || undefined,
+        status: this.fromLegacyStatusFilter(filters?.status),
+        institutionId: filters?.institutionId || undefined,
+        schoolId: filters?.schoolId || undefined,
         student: filters?.studentStatus ? { studentStatus: filters.studentStatus } : undefined,
-        course: {
-          school: {
-            institutionId: filters?.institutionId || undefined,
-            id: filters?.schoolId || undefined,
-          },
-        },
       },
       orderBy: { createdAt: 'desc' },
-      include: this.includeGraph,
+      include: this.includeEnrollmentGraph,
     });
+    return enrollments.map((item) => this.mapEnrollmentToIntentView(item));
   }
 
   async findOne(id: string) {
-    const intent = await this.prisma.enrollmentIntent.findUnique({
+    const enrollment = await this.prisma.enrollment.findUnique({
       where: { id },
-      include: this.includeGraph,
+      include: this.includeEnrollmentGraph,
     });
 
-    if (!intent) throw new NotFoundException(`Intenção de matrícula ${id} não encontrada`);
-    return intent;
+    if (!enrollment) throw new NotFoundException(`Intenção de matrícula ${id} não encontrada`);
+    return this.mapEnrollmentToIntentView(enrollment);
   }
 
   async update(id: string, dto: UpdateEnrollmentIntentDto) {
-    const intent = await this.findOne(id);
-    if (intent.status !== 'pending') {
-      throw new BadRequestException('Somente intenções pendentes podem ser alteradas');
-    }
-    if (intent.enrollment) {
-      throw new BadRequestException('A intenção já foi convertida e não pode ser alterada');
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id },
+      include: this.includeEnrollmentGraph,
+    });
+    if (!enrollment) {
+      throw new NotFoundException(`Intenção de matrícula ${id} não encontrada`);
     }
 
-    const courseId = dto.courseId ?? intent.course.id;
-    const classGroupId = dto.classGroupId ?? intent.classGroup.id;
-    const academicPeriodId = dto.academicPeriodId ?? intent.academicPeriod.id;
+    if (
+      ['rejected', 'denied', 'cancelled', 'expired', 'payment_pending', 'partially_paid', 'paid', 'confirmed', 'enrolled'].includes(
+        enrollment.status,
+      )
+    ) {
+      throw new BadRequestException('Matrícula já fechada e não pode ser alterada');
+    }
+
+    const courseId = dto.courseId ?? enrollment.courseId;
+    const classGroupId = dto.classGroupId ?? enrollment.classGroupId;
+    const academicPeriodId = dto.academicPeriodId ?? enrollment.academicPeriodId;
     const chain = await this.validateChain(courseId, classGroupId, academicPeriodId);
     await this.validateCoursePricing(chain.courseId, chain.academicPeriodId);
     const accommodationId =
       dto.accommodationId !== undefined
         ? await this.validateAccommodationForSchool(chain.schoolId, dto.accommodationId)
-        : intent.accommodation?.id ?? null;
+        : enrollment.accommodationId;
 
-    return this.prisma.enrollmentIntent.update({
-      where: { id },
-      data: {
-        courseId: chain.courseId,
-        classGroupId: chain.classGroupId,
-        academicPeriodId: chain.academicPeriodId,
-        accommodationId,
-      },
-      include: this.includeGraph,
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedEnrollment = await tx.enrollment.update({
+        where: { id },
+        data: {
+          institutionId: chain.institutionId,
+          schoolId: chain.schoolId,
+          unitId: chain.unitId,
+          courseId: chain.courseId,
+          classGroupId: chain.classGroupId,
+          academicPeriodId: chain.academicPeriodId,
+          accommodationId,
+          accommodationStatus: accommodationId ? 'selected' : 'not_selected',
+        },
+        include: this.includeEnrollmentGraph,
+      });
+
+      await tx.enrollmentIntent.updateMany({
+        where: { id },
+        data: {
+          courseId: chain.courseId,
+          classGroupId: chain.classGroupId,
+          academicPeriodId: chain.academicPeriodId,
+          accommodationId,
+        },
+      });
+
+      return updatedEnrollment;
     });
+
+    return this.mapEnrollmentToIntentView(updated);
   }
 
   async setAccommodation(id: string, accommodationId?: string | null) {
-    const intent = await this.findOne(id);
-    if (intent.status !== 'pending') {
-      throw new BadRequestException('Somente intenções pendentes podem alterar acomodação');
-    }
-    if (intent.enrollment) {
-      throw new BadRequestException('A intenção já foi convertida e não pode ser alterada');
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id },
+      include: {
+        ...this.includeEnrollmentGraph,
+        course: {
+          select: {
+            id: true,
+            program_name: true,
+            school: { select: { id: true, name: true, institution: { select: { id: true, name: true } } } },
+          },
+        },
+      },
+    });
+    if (!enrollment) {
+      throw new NotFoundException(`Intenção de matrícula ${id} não encontrada`);
     }
 
-    const schoolId = intent.course.school?.id;
-    if (!schoolId) {
-      throw new BadRequestException('Não foi possível identificar a escola do contexto da intenção');
-    }
-
+    const schoolId = enrollment.schoolId;
     const nextAccommodationId = await this.validateAccommodationForSchool(
       schoolId,
       accommodationId ?? null,
     );
 
-    return this.prisma.enrollmentIntent.update({
-      where: { id },
-      data: { accommodationId: nextAccommodationId },
-      include: this.includeGraph,
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedEnrollment = await tx.enrollment.update({
+        where: { id },
+        data: {
+          accommodationId: nextAccommodationId,
+          accommodationStatus: nextAccommodationId ? 'selected' : 'not_selected',
+        },
+        include: this.includeEnrollmentGraph,
+      });
+
+      await tx.enrollmentIntent.updateMany({
+        where: { id },
+        data: { accommodationId: nextAccommodationId },
+      });
+
+      return updatedEnrollment;
     });
+
+    return this.mapEnrollmentToIntentView(updated);
   }
 
   async findRecommendedAccommodations(params: { courseId?: string; intentId?: string }) {
     let schoolId: string | null = null;
 
     if (params.intentId) {
-      const intent = await this.prisma.enrollmentIntent.findUnique({
+      const enrollment = await this.prisma.enrollment.findUnique({
         where: { id: params.intentId },
-        select: { course: { select: { school: { select: { id: true } } } } },
+        select: { schoolId: true },
       });
-      if (!intent) throw new NotFoundException(`Intenção ${params.intentId} não encontrada`);
-      schoolId = intent.course.school.id;
+      if (enrollment) {
+        schoolId = enrollment.schoolId;
+      } else {
+        const legacyIntent = await this.prisma.enrollmentIntent.findUnique({
+          where: { id: params.intentId },
+          select: { course: { select: { school: { select: { id: true } } } } },
+        });
+        if (!legacyIntent) throw new NotFoundException(`Intenção ${params.intentId} não encontrada`);
+        schoolId = legacyIntent.course.school.id;
+      }
     } else if (params.courseId) {
       const course = await this.prisma.course.findUnique({
         where: { id: params.courseId },
@@ -442,84 +552,119 @@ export class EnrollmentIntentService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'cancelled' | 'denied', reason?: string) {
-    const intent = await this.findOne(id);
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id },
+      include: { student: { select: { id: true } } },
+    });
+    if (!enrollment) {
+      throw new NotFoundException(`Intenção de matrícula ${id} não encontrada`);
+    }
 
-    if (intent.status === 'converted') {
-      throw new BadRequestException('Intenção convertida não pode alterar status');
-    }
-    if (intent.enrollment) {
-      throw new BadRequestException('Intenção vinculada a matrícula não pode alterar status');
-    }
-
-    if (status === 'pending') {
-      const otherPending = await this.prisma.enrollmentIntent.findFirst({
-        where: { studentId: intent.student.id, status: 'pending', id: { not: id } },
-        select: { id: true },
-      });
-      if (otherPending) {
-        throw new BadRequestException('O aluno já possui outra intenção pendente');
-      }
-    }
     if (status === 'denied' && !reason?.trim()) {
       throw new BadRequestException('Motivo da negativa é obrigatório');
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.enrollmentIntent.update({
-        where: { id },
-        data: {
-          status,
-          deniedReason: status === 'denied' ? reason?.trim() : null,
+    if (status === 'pending') {
+      const otherOpen = await this.prisma.enrollment.findFirst({
+        where: {
+          studentId: enrollment.studentId,
+          id: { not: id },
+          status: { in: this.activeLifecycleStatuses },
         },
-        include: this.includeGraph,
+        select: { id: true },
+      });
+      if (otherOpen) {
+        throw new BadRequestException('O aluno já possui outra matrícula em andamento');
+      }
+    }
+
+    const targetStatus =
+      status === 'pending'
+        ? 'awaiting_school_approval'
+        : status === 'cancelled'
+          ? 'cancelled'
+          : 'rejected';
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const enrollmentUpdated = await tx.enrollment.update({
+        where: { id },
+        data: { status: targetStatus },
+        include: this.includeEnrollmentGraph,
       });
 
-      await this.recalculateStudentStatus(tx, intent.student.id);
-      return updated;
+      await tx.enrollmentStatusHistory.create({
+        data: {
+          enrollmentId: id,
+          fromStatus: enrollment.status,
+          toStatus: targetStatus,
+          reason: reason?.trim() || null,
+          changedById: null,
+        },
+      });
+
+      await tx.enrollmentIntent.updateMany({
+        where: { id },
+        data: {
+          status:
+            status === 'pending'
+              ? 'pending'
+              : status === 'cancelled'
+                ? 'cancelled'
+                : 'denied',
+          deniedReason: status === 'denied' ? reason?.trim() || null : null,
+        },
+      });
+
+      await this.recalculateStudentStatus(tx, enrollment.student.id);
+      return enrollmentUpdated;
     });
 
     if (status === 'denied') {
       await this.notificationService.create({
-        userId: intent.student.id,
+        userId: enrollment.student.id,
         type: 'proposal_rejected',
         title: 'Proposta rejeitada',
         message: reason?.trim()
           ? `Sua proposta foi rejeitada: ${reason.trim()}`
           : 'Sua proposta foi rejeitada pela operação.',
         metadata: {
-          enrollmentIntentId: id,
-          status,
+          enrollmentId: id,
+          status: 'denied',
         },
       });
     }
 
-    return updated;
+    return this.mapEnrollmentToIntentView(updated);
   }
 
   async resolveIntentForEnrollment(intentId: string) {
-    const intent = await this.prisma.enrollmentIntent.findUnique({
+    const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: intentId },
       include: {
         student: { select: { id: true, role: true } },
-        enrollment: { select: { id: true } },
       },
     });
 
-    if (!intent) throw new NotFoundException(`Intenção de matrícula ${intentId} não encontrada`);
-    if (intent.student.role !== Role.STUDENT) {
+    if (!enrollment) throw new NotFoundException(`Intenção de matrícula ${intentId} não encontrada`);
+    if (enrollment.student.role !== Role.STUDENT) {
       throw new BadRequestException('A intenção deve pertencer a um aluno STUDENT');
     }
-    if (intent.status !== 'pending') {
-      throw new BadRequestException('A intenção não está mais pendente para confirmação');
-    }
-    if (intent.enrollment) {
-      throw new BadRequestException('A intenção já foi convertida em matrícula');
-    }
 
-    const chain = await this.validateChain(intent.courseId, intent.classGroupId, intent.academicPeriodId);
+    const chain = await this.validateChain(
+      enrollment.courseId,
+      enrollment.classGroupId,
+      enrollment.academicPeriodId,
+    );
 
     return {
-      intent,
+      intent: {
+        id: enrollment.id,
+        studentId: enrollment.studentId,
+        courseId: enrollment.courseId,
+        classGroupId: enrollment.classGroupId,
+        academicPeriodId: enrollment.academicPeriodId,
+        accommodationId: enrollment.accommodationId,
+      },
       chain,
     };
   }

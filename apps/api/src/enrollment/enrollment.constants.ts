@@ -1,4 +1,13 @@
 export const ENROLLMENT_STATUSES = [
+  'draft',
+  'started',
+  'awaiting_school_approval',
+  'checkout_available',
+  'payment_pending',
+  'partially_paid',
+  'paid',
+  'confirmed',
+  'expired',
   'application_started',
   'documents_pending',
   'under_review',
@@ -15,6 +24,12 @@ export const ENROLLMENT_STATUSES = [
 export type EnrollmentStatus = (typeof ENROLLMENT_STATUSES)[number];
 
 export const ACTIVE_ENROLLMENT_STATUSES: EnrollmentStatus[] = [
+  'draft',
+  'started',
+  'awaiting_school_approval',
+  'checkout_available',
+  'payment_pending',
+  'partially_paid',
   'application_started',
   'documents_pending',
   'under_review',

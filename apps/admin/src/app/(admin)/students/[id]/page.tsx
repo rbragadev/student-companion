@@ -16,6 +16,15 @@ const intentStatusLabel = {
 } as const;
 
 const enrollmentStatusLabel = {
+  draft: 'Draft',
+  started: 'Started',
+  awaiting_school_approval: 'Awaiting School Approval',
+  checkout_available: 'Checkout Available',
+  payment_pending: 'Payment Pending',
+  partially_paid: 'Partially Paid',
+  paid: 'Paid',
+  confirmed: 'Confirmed',
+  expired: 'Expired',
   application_started: 'Application Started',
   documents_pending: 'Documents Pending',
   under_review: 'Under Review',

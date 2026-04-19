@@ -31,12 +31,12 @@ JWT payload: `{ sub, email, role }`. Campo `passwordHash` no model `User` (bcryp
 | `POST /users` | Criar usuário |
 | `GET /users/:id` | Buscar usuário com preferências |
 | `POST /users/:id/preferences` | Criar/atualizar preferências |
-| `POST /enrollment-intents` | Criar intenção de matrícula (aluno + curso + turma + período) |
-| `GET /enrollment-intents` | Listar intenções de matrícula (filtros: studentId/status/studentStatus/instituição/escola) |
-| `GET /enrollment-intents/:id` | Detalhe de intenção de matrícula |
-| `PATCH /enrollment-intents/:id` | Editar intenção pendente antes da confirmação |
-| `PATCH /enrollment-intents/:id/status` | Operar status da intenção (`pending/cancelled/denied`) |
-| `POST /enrollments/from-intent/:intentId` | Confirmar intenção e gerar matrícula real |
+| `POST /enrollment-intents` | Compatibilidade: inicia matrícula única (`enrollment`) e retorna payload no formato legado |
+| `GET /enrollment-intents` | Compatibilidade: lista matrículas abertas/fechadas no formato legado de intent |
+| `GET /enrollment-intents/:id` | Compatibilidade: detalhe da matrícula no formato legado de intent |
+| `PATCH /enrollment-intents/:id` | Compatibilidade: edita matrícula em andamento |
+| `PATCH /enrollment-intents/:id/status` | Compatibilidade: opera status da matrícula (`pending/cancelled/denied`) |
+| `POST /enrollments/from-intent/:intentId` | Compatibilidade: promove matrícula existente (sem duplicar) |
 | `GET /enrollments` | Listar matrículas (`studentId/status/institutionId/schoolId`) |
 | `GET /enrollments/active?studentId=...` | Buscar matrícula ativa do aluno |
 | `GET /enrollments/journey/:studentId` | Consulta consolidada da jornada acadêmica |
@@ -111,8 +111,8 @@ PostgreSQL 16 · Prisma 7 · adapter `@prisma/adapter-pg`
 | `course` | unitId, school_id, program_name, weekly_hours, price_in_cents, target_audience |
 | `class_group` | courseId, name, code, shift, status, capacity |
 | `academic_period` | classGroupId, name, startDate, endDate, status |
-| `enrollment_intent` | studentId, courseId, classGroupId, academicPeriodId, status, createdAt |
-| `enrollment` | studentId, institutionId, schoolId, unitId, courseId, classGroupId, academicPeriodId, enrollmentIntentId, status |
+| `enrollment_intent` | legado/compatibilidade (espelho técnico 1:1 com matrícula em transição) |
+| `enrollment` | entidade central do ciclo comercial/acadêmico (draft até paid/cancelled) |
 | `enrollment_document` | enrollmentId, type, fileUrl, status, adminNote |
 | `enrollment_message` | enrollmentId, senderId, message, createdAt |
 | `enrollment_pricing` | enrollmentId, basePrice, fees, discounts, totalAmount, currency, commissionAmount |

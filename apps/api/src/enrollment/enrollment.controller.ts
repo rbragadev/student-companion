@@ -4,6 +4,7 @@ import { UpdateEnrollmentStatusDto } from './dto/update-enrollment-status.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { SetEnrollmentAccommodationDto } from './dto/set-enrollment-accommodation.dto';
 import { UpdateEnrollmentAccommodationWorkflowDto } from './dto/update-enrollment-accommodation-workflow.dto';
+import { StartEnrollmentDto } from './dto/start-enrollment.dto';
 
 @Controller('enrollments')
 export class EnrollmentController {
@@ -12,6 +13,11 @@ export class EnrollmentController {
   @Post('from-intent/:intentId')
   createFromIntent(@Param('intentId') intentId: string) {
     return this.enrollmentService.createFromIntent(intentId);
+  }
+
+  @Post('start')
+  start(@Body() dto: StartEnrollmentDto) {
+    return this.enrollmentService.start(dto);
   }
 
   @Get()

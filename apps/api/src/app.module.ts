@@ -16,7 +16,6 @@ import { InstitutionModule } from './institution/institution.module';
 import { UnitModule } from './unit/unit.module';
 import { AcademicPeriodModule } from './academic-period/academic-period.module';
 import { ClassGroupModule } from './class-group/class-group.module';
-import { EnrollmentIntentModule } from './enrollment-intent/enrollment-intent.module';
 import { EnrollmentModule } from './enrollment/enrollment.module';
 import { NotificationModule } from './notification/notification.module';
 
@@ -37,7 +36,6 @@ import { NotificationModule } from './notification/notification.module';
     UnitModule,
     AcademicPeriodModule,
     ClassGroupModule,
-    EnrollmentIntentModule,
     EnrollmentModule,
     NotificationModule,
   ],

@@ -107,6 +107,7 @@ export interface CreateEnrollmentIntentPayload {
   classGroupId: string;
   academicPeriodId: string;
   accommodationId?: string;
+  quoteId?: string;
 }
 
 export interface Enrollment {
@@ -328,7 +329,7 @@ export interface NotificationItem {
 
 export interface EnrollmentQuote {
   id: string;
-  enrollmentIntentId?: string | null;
+  enrollmentId?: string | null;
   coursePricingId?: string | null;
   accommodationPricingId?: string | null;
   courseAmount: number;

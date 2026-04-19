@@ -108,19 +108,14 @@ export class FinancialService {
         course: { select: { id: true, program_name: true } },
         accommodation: { select: { id: true, title: true, accommodationType: true } },
         pricing: true,
-        enrollmentIntent: {
+        quotes: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
           select: {
             id: true,
-            quotes: {
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-              select: {
-                id: true,
-                type: true,
-                downPaymentAmount: true,
-                remainingAmount: true,
-              },
-            },
+            type: true,
+            downPaymentAmount: true,
+            remainingAmount: true,
           },
         },
         payments: {
@@ -149,7 +144,7 @@ export class FinancialService {
     });
 
     return rows.map((item) => {
-      const latestQuote = item.enrollmentIntent.quotes[0] ?? null;
+      const latestQuote = item.quotes[0] ?? null;
       const latestInvoice = item.invoices[0] ?? null;
       const paidAmount = item.payments
         .filter((payment) => payment.status === 'paid')

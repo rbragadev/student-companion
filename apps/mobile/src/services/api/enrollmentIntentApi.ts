@@ -10,6 +10,67 @@ import type {
 import type { Accommodation } from '../../types/accommodation.types';
 import { apiClient } from './client';
 
+const ENROLLMENT_PENDING_STATUSES = new Set([
+  'draft',
+  'started',
+  'awaiting_school_approval',
+  'application_started',
+  'under_review',
+]);
+
+function mapEnrollmentStatusToIntentStatus(
+  status: string,
+): EnrollmentIntent['status'] {
+  if (status === 'cancelled' || status === 'expired') return 'cancelled';
+  if (status === 'rejected' || status === 'denied') return 'denied';
+  if (
+    [
+      'approved',
+      'checkout_available',
+      'payment_pending',
+      'partially_paid',
+      'paid',
+      'confirmed',
+      'enrolled',
+      'completed',
+    ].includes(status)
+  ) {
+    return 'converted';
+  }
+  return 'pending';
+}
+
+function mapEnrollmentToIntentLike(entry: any): EnrollmentIntent {
+  return {
+    id: entry.id,
+    status: mapEnrollmentStatusToIntentStatus(entry.status),
+    deniedReason:
+      entry.status === 'rejected' || entry.status === 'denied'
+        ? 'Negada na operação'
+        : null,
+    convertedAt:
+      mapEnrollmentStatusToIntentStatus(entry.status) === 'converted'
+        ? entry.updatedAt ?? entry.createdAt ?? null
+        : null,
+    studentId: entry.studentId,
+    courseId: entry.courseId,
+    classGroupId: entry.classGroupId,
+    academicPeriodId: entry.academicPeriodId,
+    accommodationId: entry.accommodationId ?? null,
+    createdAt: entry.createdAt,
+    student: entry.student,
+    course: entry.course,
+    classGroup: entry.classGroup,
+    academicPeriod: entry.academicPeriod,
+    accommodation: entry.accommodation ?? null,
+    enrollment: {
+      id: entry.id,
+      status: entry.status,
+      createdAt: entry.createdAt ?? null,
+    },
+  };
+}
+
 export const enrollmentIntentApi = {
   getClassGroupsByCourse: async (courseId: string): Promise<ClassGroupOption[]> => {
     const { data } = await apiClient.get(`/class-group?courseId=${courseId}`);
@@ -24,24 +85,87 @@ export const enrollmentIntentApi = {
   createEnrollmentIntent: async (
     payload: CreateEnrollmentIntentPayload,
   ): Promise<EnrollmentIntent> => {
-    const { data } = await apiClient.post('/enrollment-intents', payload);
-    return data;
+    const explicitQuote = payload.quoteId
+      ? await enrollmentIntentApi.getQuoteById(payload.quoteId)
+      : null;
+    const currentQuote =
+      explicitQuote ?? (await enrollmentIntentApi.getCurrentQuoteByStudent(payload.studentId));
+    if (!currentQuote?.id) {
+      throw new Error(
+        'Não foi possível enviar a proposta: quote do pacote não encontrada. Reabra o carrinho e gere o pacote novamente.',
+      );
+    }
+
+    const { data: startedEnrollment } = await apiClient.post('/enrollments/start', {
+      studentId: payload.studentId,
+      courseId: payload.courseId,
+      classGroupId: payload.classGroupId,
+      academicPeriodId: payload.academicPeriodId,
+      accommodationId: payload.accommodationId ?? undefined,
+    });
+    const enrollmentId = startedEnrollment?.id as string | undefined;
+    if (!enrollmentId) {
+      throw new Error('Não foi possível iniciar a matrícula para envio da proposta.');
+    }
+
+    const baseItems =
+      currentQuote.items?.map((item) => ({
+        itemType: item.itemType,
+        referenceId: item.referenceId,
+        startDate: item.startDate,
+        endDate: item.endDate,
+        ...(item.itemType === 'course'
+          ? { coursePricingId: item.referenceId }
+          : { accommodationPricingId: item.referenceId }),
+      })) ?? [];
+
+    await enrollmentIntentApi.recalculateQuote(currentQuote.id, {
+      enrollmentId,
+      fees: Number(currentQuote.fees ?? 0),
+      discounts: Number(currentQuote.discounts ?? 0),
+      downPaymentPercentage: Number(currentQuote.downPaymentPercentage ?? 30),
+      items: baseItems,
+    });
+
+    const { data: course } = await apiClient.get(`/course/${payload.courseId}`);
+    const isAutoApprove =
+      Boolean(course?.autoApproveIntent) || Boolean(course?.auto_approve_intent);
+    const targetStatus = isAutoApprove
+      ? 'checkout_available'
+      : 'awaiting_school_approval';
+
+    const { data } = await apiClient.patch(
+      `/enrollments/${enrollmentId}/status`,
+      {
+        status: targetStatus,
+      },
+    );
+    return mapEnrollmentToIntentLike(data);
   },
 
   getOpenIntentByStudent: async (studentId: string): Promise<EnrollmentIntent | null> => {
-    const { data } = await apiClient.get(`/enrollment-intents?studentId=${studentId}&status=pending`);
+    const { data } = await apiClient.get(`/enrollments?studentId=${studentId}`);
     if (!Array.isArray(data) || data.length === 0) return null;
-    return data[0] as EnrollmentIntent;
+    const open = data.find((item: any) =>
+      ENROLLMENT_PENDING_STATUSES.has(item.status),
+    );
+    return open ? mapEnrollmentToIntentLike(open) : null;
   },
 
   getIntentsByStudent: async (studentId: string): Promise<EnrollmentIntent[]> => {
-    const { data } = await apiClient.get(`/enrollment-intents?studentId=${studentId}`);
-    return Array.isArray(data) ? (data as EnrollmentIntent[]) : [];
+    const { data } = await apiClient.get(`/enrollments?studentId=${studentId}`);
+    return Array.isArray(data)
+      ? data.map((item: any) => mapEnrollmentToIntentLike(item))
+      : [];
   },
 
   getRecommendedAccommodationsByCourse: async (courseId: string): Promise<Accommodation[]> => {
+    const { data: course } = await apiClient.get(`/course/${courseId}`);
+    const schoolId =
+      course?.schoolId ?? course?.school_id ?? course?.school?.id ?? null;
+    if (!schoolId) return [];
     const { data } = await apiClient.get(
-      `/enrollment-intents/recommended-accommodations?courseId=${courseId}`,
+      `/accommodation/recommended/school/${schoolId}`,
     );
     return Array.isArray(data) ? (data as Accommodation[]) : [];
   },
@@ -50,10 +174,10 @@ export const enrollmentIntentApi = {
     intentId: string,
     accommodationId?: string | null,
   ): Promise<EnrollmentIntent> => {
-    const { data } = await apiClient.patch(`/enrollment-intents/${intentId}/accommodation`, {
+    const { data } = await apiClient.patch(`/enrollments/${intentId}/accommodation`, {
       accommodationId: accommodationId ?? null,
     });
-    return data as EnrollmentIntent;
+    return mapEnrollmentToIntentLike(data);
   },
 
   updateIntentStatus: async (
@@ -61,11 +185,17 @@ export const enrollmentIntentApi = {
     status: 'pending' | 'cancelled' | 'denied',
     reason?: string,
   ): Promise<EnrollmentIntent> => {
-    const { data } = await apiClient.patch(`/enrollment-intents/${intentId}/status`, {
-      status,
+    const enrollmentStatus =
+      status === 'pending'
+        ? 'awaiting_school_approval'
+        : status === 'cancelled'
+          ? 'cancelled'
+          : 'rejected';
+    const { data } = await apiClient.patch(`/enrollments/${intentId}/status`, {
+      status: enrollmentStatus,
       ...(reason ? { reason } : {}),
     });
-    return data as EnrollmentIntent;
+    return mapEnrollmentToIntentLike(data);
   },
 
   getCoursePricing: async (
@@ -108,7 +238,7 @@ export const enrollmentIntentApi = {
   },
 
   createQuote: async (payload: {
-    enrollmentIntentId?: string;
+    enrollmentId?: string;
     coursePricingId?: string;
     accommodationPricingId?: string;
     courseId?: string;
@@ -157,6 +287,7 @@ export const enrollmentIntentApi = {
   recalculateQuote: async (
     quoteId: string,
     payload: {
+      enrollmentId?: string;
       items?: Array<{
         itemType: 'course' | 'accommodation';
         referenceId?: string;

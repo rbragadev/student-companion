@@ -40,7 +40,6 @@ model User {
   reviews                 Review[]
   preferences             UserPreferences?
   adminProfiles           UserAdminProfile[]
-  enrollmentIntent        EnrollmentIntent[]
   enrollments             Enrollment[]
   enrollmentMessages      EnrollmentMessage[]
   enrollmentStatusChanges EnrollmentStatusHistory[]
@@ -49,34 +48,6 @@ model User {
   notifications           Notification[]
 
   @@map("users")
-}
-
-model EnrollmentIntent {
-  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  studentId        String         @map("student_id") @db.Uuid
-  courseId         String         @map("course_id") @db.Uuid
-  classGroupId     String         @map("class_group_id") @db.Uuid
-  academicPeriodId String         @map("academic_period_id") @db.Uuid
-  accommodationId  String?        @map("accommodation_id") @db.Uuid
-  status           String         @default("pending")
-  deniedReason     String?        @map("denied_reason")
-  convertedAt      DateTime?      @map("converted_at")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  course           Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  classGroup       ClassGroup     @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
-  academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
-  accommodation    Accommodation? @relation(fields: [accommodationId], references: [id], onDelete: SetNull)
-  enrollment       Enrollment?
-  quotes           EnrollmentQuote[]
-
-  @@index([studentId])
-  @@index([studentId, status])
-  @@index([courseId])
-  @@index([classGroupId])
-  @@index([academicPeriodId])
-  @@index([accommodationId])
-  @@map("enrollment_intent")
 }
 
 model Enrollment {
@@ -89,7 +60,6 @@ model Enrollment {
   classGroupId       String                    @map("class_group_id") @db.Uuid
   academicPeriodId   String                    @map("academic_period_id") @db.Uuid
   accommodationId    String?                   @map("accommodation_id") @db.Uuid
-  enrollmentIntentId String                    @unique @map("enrollment_intent_id") @db.Uuid
   status             String                    @default("active")
   accommodationStatus String                   @default("not_selected") @map("accommodation_status")
   accommodationClosedAt DateTime?              @map("accommodation_closed_at")
@@ -102,7 +72,6 @@ model Enrollment {
   classGroup         ClassGroup                @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
   academicPeriod     AcademicPeriod            @relation(fields: [academicPeriodId], references: [id], onDelete: Cascade)
   accommodation      Accommodation?            @relation(fields: [accommodationId], references: [id], onDelete: SetNull)
-  enrollmentIntent   EnrollmentIntent          @relation(fields: [enrollmentIntentId], references: [id], onDelete: Cascade)
   documents          EnrollmentDocument[]
   messages           EnrollmentMessage[]
   pricing            EnrollmentPricing?
@@ -111,6 +80,7 @@ model Enrollment {
   messageReads       EnrollmentMessageRead[]
   payments           Payment[]
   invoices           Invoice[]
+  quotes             EnrollmentQuote[]
 
   @@index([studentId, status])
   @@index([institutionId])
@@ -165,7 +135,6 @@ model AcademicPeriod {
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
   classGroup        ClassGroup         @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
-  enrollmentIntents EnrollmentIntent[]
   enrollments       Enrollment[]
   coursePricings    CoursePricing[]
 
@@ -186,7 +155,6 @@ model ClassGroup {
   updatedAt         DateTime           @updatedAt @map("updated_at")
   course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
   periods           AcademicPeriod[]
-  enrollmentIntents EnrollmentIntent[]
   enrollments       Enrollment[]
 
   @@unique([courseId, code])
@@ -296,7 +264,6 @@ model Course {
   unit              Unit               @relation(fields: [unitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   school            School             @relation(fields: [school_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "course_school_fk")
   classes           ClassGroup[]
-  enrollmentIntents EnrollmentIntent[]
   enrollments       Enrollment[]
   coursePricings    CoursePricing[]
 
@@ -375,7 +342,6 @@ model Accommodation {
   createdAt             DateTime?                           @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt             DateTime?                           @default(now()) @map("updated_at") @db.Timestamp(6)
   schoolRecommendations SchoolAccommodationRecommendation[]
-  enrollmentIntents     EnrollmentIntent[]
   enrollments           Enrollment[]
   accommodationPricings AccommodationPricing[]
 
@@ -537,7 +503,7 @@ model AccommodationPricing {
 
 model EnrollmentQuote {
   id                          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  enrollmentIntentId          String?              @map("enrollment_intent_id") @db.Uuid
+  enrollmentId                String?              @map("enrollment_id") @db.Uuid
   coursePricingId             String?              @map("course_pricing_id") @db.Uuid
   accommodationPricingId      String?              @map("accommodation_pricing_id") @db.Uuid
   courseAmount                Decimal              @default(0) @map("course_amount") @db.Decimal(12, 2)
@@ -555,14 +521,14 @@ model EnrollmentQuote {
   commissionAccommodationAmount Decimal            @default(0) @map("commission_accommodation_amount") @db.Decimal(12, 2)
   type                        String               @db.VarChar(40)
   createdAt                   DateTime             @default(now()) @map("created_at")
-  enrollmentIntent            EnrollmentIntent?    @relation(fields: [enrollmentIntentId], references: [id], onDelete: SetNull)
+  enrollment                  Enrollment?          @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
   coursePricing               CoursePricing?       @relation(fields: [coursePricingId], references: [id], onDelete: SetNull)
   accommodationPricing        AccommodationPricing? @relation(fields: [accommodationPricingId], references: [id], onDelete: SetNull)
   items                       EnrollmentQuoteItem[]
   payments                    Payment[]
   invoices                    Invoice[]
 
-  @@index([enrollmentIntentId, createdAt])
+  @@index([enrollmentId, createdAt])
   @@index([coursePricingId])
   @@index([accommodationPricingId])
   @@index([type])

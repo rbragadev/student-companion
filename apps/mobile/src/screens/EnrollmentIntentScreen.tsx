@@ -270,15 +270,30 @@ export default function EnrollmentIntentScreen() {
         );
         setSelectedAccommodationId(pendingIntent?.accommodation?.id ?? '');
         const draftId = quoteId ?? (await getDraftQuoteId(userId)) ?? undefined;
+        let hydrated = false;
+
         if (draftId) {
           const draftQuote = await enrollmentIntentApi.getQuoteById(draftId);
           if (draftQuote) {
             hydrateFromQuote(draftQuote, offers, courseDetail.periodType);
+            hydrated = true;
+          } else {
+            await clearDraftQuoteId(userId);
           }
-        } else if (pendingIntent?.id) {
+        }
+
+        if (!hydrated && pendingIntent?.id) {
           const currentQuote = await enrollmentIntentApi.getQuoteByIntent(pendingIntent.id);
           if (currentQuote) {
             hydrateFromQuote(currentQuote, offers, courseDetail.periodType);
+            hydrated = true;
+          }
+        }
+
+        if (!hydrated) {
+          const currentByStudent = await enrollmentIntentApi.getCurrentQuoteByStudent(userId);
+          if (currentByStudent) {
+            hydrateFromQuote(currentByStudent, offers, courseDetail.periodType);
           }
         }
       } catch (err) {
@@ -521,21 +536,7 @@ export default function EnrollmentIntentScreen() {
         classGroupId: selectedClassGroupId,
         academicPeriodId: selectedPeriodId,
         accommodationId: selectedAccommodationId || undefined,
-      });
-
-      await enrollmentIntentApi.createQuote({
-        enrollmentIntentId: createdIntent.id,
-        downPaymentPercentage: 30,
-        items:
-          quotePreview.items?.map((item) => ({
-            itemType: item.itemType,
-            referenceId: item.referenceId,
-            coursePricingId: item.itemType === 'course' ? item.referenceId : undefined,
-            accommodationPricingId:
-              item.itemType === 'accommodation' ? item.referenceId : undefined,
-            startDate: item.startDate,
-            endDate: item.endDate,
-          })) ?? [],
+        quoteId: quotePreview.id,
       });
 
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId) });

@@ -25,13 +25,25 @@ import {
 } from '../actions';
 
 const STATUS_OPTIONS = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'started', label: 'Started' },
   { value: 'application_started', label: 'Application Started' },
   { value: 'documents_pending', label: 'Documents Pending' },
   { value: 'under_review', label: 'Under Review' },
+  { value: 'awaiting_school_approval', label: 'Awaiting School Approval' },
   { value: 'approved', label: 'Approved' },
+  { value: 'checkout_available', label: 'Checkout Available' },
+  { value: 'payment_pending', label: 'Payment Pending' },
+  { value: 'partially_paid', label: 'Partially Paid' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'confirmed', label: 'Confirmed' },
   { value: 'enrolled', label: 'Enrolled' },
+  { value: 'expired', label: 'Expired' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'cancelled', label: 'Cancelled' },
+  { value: 'active', label: 'Active (legacy)' },
+  { value: 'completed', label: 'Completed (legacy)' },
+  { value: 'denied', label: 'Denied (legacy)' },
 ];
 
 const ACCOMMODATION_STATUS_OPTIONS = [
@@ -59,7 +71,7 @@ export default async function EnrollmentDetailPage({
   ]);
   if (!enrollment) notFound();
   const [quote, checkout, payments] = await Promise.all([
-    apiFetch<EnrollmentQuoteAdmin>(`/quotes/by-intent/${enrollment.enrollmentIntent.id}`).catch(() => null),
+    apiFetch<EnrollmentQuoteAdmin>(`/quotes/by-enrollment/${enrollment.id}`).catch(() => null),
     apiFetch<EnrollmentCheckoutAdmin>(`/enrollments/${id}/checkout`).catch(() => null),
     apiFetch<PaymentAdmin[]>(`/payments?enrollmentId=${id}`).catch(() => []),
   ]);

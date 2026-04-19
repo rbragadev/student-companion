@@ -30,13 +30,13 @@ export class EnrollmentQuoteController {
   @Get()
   findAll(
     @Query('type') type?: string,
-    @Query('enrollmentIntentId') enrollmentIntentId?: string,
+    @Query('enrollmentId') enrollmentId?: string,
     @Query('accommodationId') accommodationId?: string,
     @Query('courseId') courseId?: string,
   ) {
     return this.enrollmentQuoteService.findAll({
       type,
-      enrollmentIntentId,
+      enrollmentId,
       accommodationId,
       courseId,
     });
