@@ -935,31 +935,26 @@ export class EnrollmentService {
 
   async setAccommodationOrder(id: string, orderId?: string | null) {
     const enrollment = await this.findOne(id);
-    const hasConfirmedDownPayment = await this.prisma.payment.findFirst({
-      where: {
-        enrollmentId: id,
-        type: 'down_payment',
-        status: 'paid',
-      },
-      select: { id: true },
-    });
-
-    if (hasConfirmedDownPayment) {
-      throw new BadRequestException(
-        'Pagamento de entrada já confirmado. Não é possível alterar order de acomodação.',
-      );
-    }
 
     if (!orderId) {
-      return this.prisma.enrollment.update({
-        where: { id },
-        data: {
-          accommodationOrderId: null,
-          accommodationId: null,
-          accommodationStatus: 'not_selected',
-          accommodationClosedAt: null,
-        },
-        include: this.includeDetailGraph,
+      return this.prisma.$transaction(async (tx) => {
+        if (enrollment.accommodationOrder?.id) {
+          await tx.order.updateMany({
+            where: {
+              id: enrollment.accommodationOrder.id,
+              enrollmentId: enrollment.id,
+            },
+            data: { enrollmentId: null },
+          });
+        }
+
+        return tx.enrollment.update({
+          where: { id },
+          data: {
+            accommodationOrderId: null,
+          },
+          include: this.includeDetailGraph,
+        });
       });
     }
 
@@ -978,19 +973,42 @@ export class EnrollmentService {
     if (order.userId !== enrollment.student.id) {
       throw new BadRequestException('Order de acomodação pertence a outro aluno');
     }
+    if (order.enrollmentId && order.enrollmentId !== enrollment.id) {
+      throw new BadRequestException('Order já está vinculada a outra matrícula');
+    }
     const accommodationItem = order.items.find((item) => item.accommodationId);
     if (!accommodationItem?.accommodationId) {
       throw new BadRequestException('Order não possui item de acomodação');
     }
 
-    return this.prisma.enrollment.update({
-      where: { id },
-      data: {
-        accommodationOrderId: order.id,
-        accommodationId: accommodationItem.accommodationId,
-        accommodationStatus: enrollment.accommodationStatus === 'not_selected' ? 'selected' : enrollment.accommodationStatus,
-      },
-      include: this.includeDetailGraph,
+    return this.prisma.$transaction(async (tx) => {
+      if (enrollment.accommodationOrder?.id && enrollment.accommodationOrder.id !== order.id) {
+        await tx.order.updateMany({
+          where: {
+            id: enrollment.accommodationOrder.id,
+            enrollmentId: enrollment.id,
+          },
+          data: { enrollmentId: null },
+        });
+      }
+
+      await tx.order.update({
+        where: { id: order.id },
+        data: { enrollmentId: enrollment.id },
+      });
+
+      return tx.enrollment.update({
+        where: { id },
+        data: {
+          accommodationOrderId: order.id,
+          accommodationId: accommodationItem.accommodationId,
+          accommodationStatus:
+            enrollment.accommodationStatus === 'not_selected'
+              ? 'selected'
+              : enrollment.accommodationStatus,
+        },
+        include: this.includeDetailGraph,
+      });
     });
   }
 

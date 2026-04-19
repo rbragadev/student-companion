@@ -48,7 +48,9 @@ export class OrderService {
         items: {
           include: {
             course: { select: { id: true, program_name: true } },
-            accommodation: { select: { id: true, title: true, accommodationType: true } },
+            accommodation: {
+              select: { id: true, title: true, accommodationType: true, location: true },
+            },
           },
         },
       },
@@ -105,7 +107,9 @@ export class OrderService {
         items: {
           include: {
             course: { select: { id: true, program_name: true } },
-            accommodation: { select: { id: true, title: true, accommodationType: true } },
+            accommodation: {
+              select: { id: true, title: true, accommodationType: true, location: true },
+            },
           },
         },
       },
@@ -129,7 +133,9 @@ export class OrderService {
         items: {
           include: {
             course: { select: { id: true, program_name: true } },
-            accommodation: { select: { id: true, title: true, accommodationType: true } },
+            accommodation: {
+              select: { id: true, title: true, accommodationType: true, location: true },
+            },
           },
         },
         payments: {
@@ -169,4 +175,3 @@ export class OrderService {
     });
   }
 }
-

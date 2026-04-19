@@ -2,7 +2,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import type { EnrollmentAdmin } from '@/types/catalog.types';
+import type { OrderAdmin } from '@/types/catalog.types';
 
 function money(value?: number, currency = 'CAD') {
   return `${Number(value ?? 0).toFixed(2)} ${currency}`;
@@ -11,57 +11,58 @@ function money(value?: number, currency = 'CAD') {
 export default async function AccommodationOperationsPage() {
   await requirePermission('users.read');
 
-  const enrollments = await apiFetch<EnrollmentAdmin[]>(
-    '/enrollments?accommodationStatus=selected',
-  ).catch(() => []);
-  const approved = await apiFetch<EnrollmentAdmin[]>(
-    '/enrollments?accommodationStatus=approved',
-  ).catch(() => []);
-  const closed = await apiFetch<EnrollmentAdmin[]>(
-    '/enrollments?accommodationStatus=closed',
-  ).catch(() => []);
+  const orders = await apiFetch<OrderAdmin[]>('/orders').catch(() => []);
+  const rows = orders.filter((order) =>
+    order.items.some((item) => item.itemType === 'accommodation'),
+  );
 
-  const rows = [...enrollments, ...approved, ...closed].filter((item) => item.accommodation);
-
-  const columns: Column<EnrollmentAdmin>[] = [
+  const columns: Column<OrderAdmin>[] = [
     {
       key: 'student',
       label: 'Aluno',
-      render: (item) => (
+      render: (order) => (
         <div>
-          <p className="font-medium text-slate-900">{item.student.firstName} {item.student.lastName}</p>
-          <p className="text-xs text-slate-500">{item.student.email}</p>
+          <p className="font-medium text-slate-900">{order.user?.firstName} {order.user?.lastName}</p>
+          <p className="text-xs text-slate-500">{order.user?.email}</p>
         </div>
       ),
     },
     {
       key: 'accommodation',
       label: 'Acomodação',
-      render: (item) => (
-        <div>
-          <p className="font-medium text-slate-900">{item.accommodation?.title ?? 'Sem acomodação'}</p>
-          <p className="text-xs text-slate-500">{item.school.name} • {item.accommodation?.location}</p>
-        </div>
-      ),
+      render: (order) => {
+        const accItem = order.items.find((item) => item.itemType === 'accommodation');
+        return (
+          <div>
+            <p className="font-medium text-slate-900">{accItem?.accommodation?.title ?? 'Acomodação'}</p>
+            <p className="text-xs text-slate-500">
+              {accItem?.accommodation?.accommodationType ?? '-'} •{' '}
+              {accItem?.accommodation?.location ?? '-'}
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: 'status',
-      label: 'Status Acomodação',
-      render: (item) => item.accommodationStatus,
+      label: 'Status da venda',
+      render: (order) => `${order.status} • pagamento ${order.paymentStatus}`,
     },
     {
       key: 'financial',
-      label: 'Pacote / Comissão',
-      render: (item) => (
+      label: 'Acomodação / Total',
+      render: (order) => {
+        const accItem = order.items.find((item) => item.itemType === 'accommodation');
+        return (
         <div>
           <p className="text-sm text-slate-700">
-            {money(Number(item.pricing?.packageTotalAmount ?? item.pricing?.totalAmount), item.pricing?.currency)}
+            Acomodação {money(Number(accItem?.amount ?? 0), order.currency)}
           </p>
           <p className="text-xs text-slate-500">
-            Comissão {money(Number(item.pricing?.totalCommissionAmount ?? item.pricing?.commissionAmount), item.pricing?.currency)}
+            Order total {money(Number(order.totalAmount), order.currency)}
           </p>
         </div>
-      ),
+      )},
     },
   ];
 
@@ -69,16 +70,16 @@ export default async function AccommodationOperationsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Fechamento de Acomodação"
-        description="Operação e faturamento da acomodação no contexto da matrícula. Ao fechar no detalhe, a troca fica bloqueada."
+        description="Operação da venda de acomodação como produto independente, com vínculo opcional à matrícula."
       />
 
-      <DataTable<EnrollmentAdmin>
+      <DataTable<OrderAdmin>
         columns={columns}
         data={rows}
-        keyExtractor={(item) => item.id}
-        getRowHref={(item) => `/enrollments/${item.id}`}
+        keyExtractor={(order) => order.id}
+        getRowHref={(order) => `/accommodation-operations/${order.id}`}
         emptyTitle="Nenhuma operação de acomodação encontrada"
-        emptyDescription="Quando houver acomodação selecionada em matrícula, ela aparecerá aqui."
+        emptyDescription="Quando houver order com item de acomodação, ela aparecerá aqui."
       />
     </div>
   );

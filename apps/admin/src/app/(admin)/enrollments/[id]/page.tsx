@@ -56,6 +56,20 @@ function formatDateTime(value?: string | null) {
   return new Date(value).toLocaleString('pt-BR');
 }
 
+function toneByStatus(status?: string | null) {
+  const value = String(status ?? '').toLowerCase();
+  if (value.includes('paid') || value === 'confirmed' || value === 'closed' || value === 'completed') {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  }
+  if (value.includes('await') || value.includes('pending') || value === 'started' || value === 'approved') {
+    return 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+  if (value.includes('reject') || value.includes('cancel') || value.includes('denied') || value.includes('expired')) {
+    return 'bg-rose-50 text-rose-700 border-rose-200';
+  }
+  return 'bg-slate-50 text-slate-700 border-slate-200';
+}
+
 export default async function EnrollmentDetailPage({
   params,
 }: Readonly<{ params: Promise<{ id: string }> }>) {
@@ -115,6 +129,39 @@ export default async function EnrollmentDetailPage({
         )}
       />
 
+      <section className="grid gap-3 md:grid-cols-3">
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status da matrícula</p>
+          <p className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneByStatus(enrollment.status)}`}>
+            {enrollment.status}
+          </p>
+          <p className="mt-2 text-xs text-slate-500">Próximo passo operacional:</p>
+          <p className="text-xs text-slate-700">{quote?.nextStep ?? 'Sem próximo passo definido.'}</p>
+        </article>
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Composição do pacote</p>
+          <p className="mt-2 text-sm font-semibold text-slate-800">
+            {quote?.type ?? (enrollment.accommodation ? 'course_with_accommodation' : 'course_only')}
+          </p>
+          <p className="mt-2 text-xs text-slate-500">Status do pacote:</p>
+          <p className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneByStatus(quote?.packageStatus ?? 'draft')}`}>
+            {quote?.packageStatus ?? 'draft'}
+          </p>
+        </article>
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Produto acomodação</p>
+          <p className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneByStatus(enrollment.accommodationStatus)}`}>
+            {enrollment.accommodationStatus}
+          </p>
+          <p className="mt-2 text-xs text-slate-700">
+            {enrollment.accommodation ? enrollment.accommodation.title : 'Sem acomodação no pacote.'}
+          </p>
+          <p className="text-xs text-slate-500">
+            {enrollment.accommodationOrder?.id ? `Order vinculada: ${enrollment.accommodationOrder.id}` : 'Sem order vinculada'}
+          </p>
+        </article>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2">
         <article className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="text-sm font-semibold text-slate-900">Aluno</h2>
@@ -133,7 +180,7 @@ export default async function EnrollmentDetailPage({
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Curso e Turma</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Produto Curso</h2>
           <p className="mt-2 text-sm text-slate-700">{enrollment.course.program_name}</p>
           <p className="text-xs text-slate-500">{enrollment.classGroup.name} ({enrollment.classGroup.code})</p>
           <Link href={`/courses/${enrollment.course.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
@@ -142,7 +189,7 @@ export default async function EnrollmentDetailPage({
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Período e Status</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Período e Estado Comercial</h2>
           <p className="mt-2 text-sm text-slate-700">{enrollment.academicPeriod.name}</p>
           <p className="text-xs text-slate-500">
             {new Date(enrollment.academicPeriod.startDate).toLocaleDateString('pt-BR')} - {new Date(enrollment.academicPeriod.endDate).toLocaleDateString('pt-BR')}
@@ -186,9 +233,13 @@ export default async function EnrollmentDetailPage({
               Atual: {enrollment.accommodation.title} • {(enrollment.accommodation.priceInCents / 100).toFixed(2)} {enrollment.accommodation.priceUnit}
             </p>
           )}
-          {enrollment.accommodation ? (
+          {enrollment.accommodationOrder?.id ? (
+            <Link href={`/accommodation-operations/${enrollment.accommodationOrder.id}`} className="mt-1 inline-block text-xs text-blue-600 hover:underline">
+              Abrir operação da acomodação
+            </Link>
+          ) : enrollment.accommodation ? (
             <Link href={`/accommodations/${enrollment.accommodation.id}`} className="mt-1 inline-block text-xs text-blue-600 hover:underline">
-              Abrir acomodação
+              Abrir cadastro da acomodação
             </Link>
           ) : null}
           <p className="mt-1 text-xs text-slate-500">
@@ -380,7 +431,10 @@ export default async function EnrollmentDetailPage({
           ) : (
             <div className="mt-3 space-y-1 text-xs text-slate-600">
               <p>
-                Estado do checkout: <strong>{checkout.state}</strong>
+                Estado do checkout:{' '}
+                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${toneByStatus(checkout.state)}`}>
+                  {checkout.state}
+                </span>
               </p>
               {checkout.reason && <p>{checkout.reason}</p>}
               <p>Total: {Number(checkout.financial.totalAmount).toFixed(2)} {checkout.financial.currency}</p>

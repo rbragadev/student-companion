@@ -19,6 +19,18 @@ export default async function OrderDetailPage({
 
   const order = await apiFetch<OrderAdmin>(`/orders/${id}`).catch(() => null);
   if (!order) notFound();
+  const enrollmentForContext = order.enrollment?.id
+    ? await apiFetch<{
+        id: string;
+        course: { id: string; program_name: string };
+        accommodation?: { id: string; title: string } | null;
+      }>(`/enrollments/${order.enrollment.id}`).catch(() => null)
+    : null;
+
+  const courseItems = order.items.filter((item) => item.itemType === 'course');
+  const accommodationItems = order.items.filter((item) => item.itemType === 'accommodation');
+  const hasAccommodationInEnrollmentOnly =
+    accommodationItems.length === 0 && Boolean(enrollmentForContext?.accommodation?.id);
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,15 +67,100 @@ export default async function OrderDetailPage({
         </article>
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Item de curso</h2>
+          {courseItems.length === 0 ? (
+            <p className="mt-2 text-xs text-slate-500">Esta order não possui item de curso.</p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {courseItems.map((item) => (
+                <div key={item.id} className="rounded border border-slate-200 p-3 text-xs text-slate-600">
+                  <p className="font-medium text-slate-800">{item.course?.program_name ?? enrollmentForContext?.course.program_name ?? 'Curso'}</p>
+                  <p>
+                    Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} -{' '}
+                    {new Date(item.endDate).toLocaleDateString('pt-BR')}
+                  </p>
+                  <p>Valor: {money(item.amount, order.currency)}</p>
+                  {order.enrollment?.id ? (
+                    <Link
+                      href={`/enrollments/${order.enrollment.id}`}
+                      className="mt-1 inline-block text-xs text-blue-600 hover:underline"
+                    >
+                      Abrir matrícula vinculada
+                    </Link>
+                  ) : null}
+                  {item.course?.id ? (
+                    <Link
+                      href={`/courses/${item.course.id}`}
+                      className="ml-3 mt-1 inline-block text-xs text-blue-600 hover:underline"
+                    >
+                      Abrir curso
+                    </Link>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Item de acomodação</h2>
+          {accommodationItems.length === 0 ? (
+            <div className="mt-2 space-y-2 text-xs text-slate-500">
+              <p>Esta order não possui item de acomodação explícito.</p>
+              {hasAccommodationInEnrollmentOnly ? (
+                <div className="rounded border border-amber-200 bg-amber-50 p-2 text-amber-700">
+                  A matrícula vinculada possui acomodação: <strong>{enrollmentForContext?.accommodation?.title}</strong>.
+                  <div>
+                    <Link
+                      href={`/enrollments/${order.enrollment!.id}`}
+                      className="mt-1 inline-block text-xs text-blue-600 hover:underline"
+                    >
+                      Abrir matrícula para ver o vínculo da acomodação
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {accommodationItems.map((item) => (
+                <div key={item.id} className="rounded border border-slate-200 p-3 text-xs text-slate-600">
+                  <p className="font-medium text-slate-800">{item.accommodation?.title ?? 'Acomodação'}</p>
+                  <p>
+                    Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} -{' '}
+                    {new Date(item.endDate).toLocaleDateString('pt-BR')}
+                  </p>
+                  <p>Valor: {money(item.amount, order.currency)}</p>
+                  <Link
+                    href={`/accommodation-operations/${order.id}`}
+                    className="mt-1 inline-block text-xs text-blue-600 hover:underline"
+                  >
+                    Abrir operação da acomodação
+                  </Link>
+                  {item.accommodation?.id ? (
+                    <Link
+                      href={`/accommodations/${item.accommodation.id}`}
+                      className="ml-3 mt-1 inline-block text-xs text-blue-600 hover:underline"
+                    >
+                      Abrir cadastro da acomodação
+                    </Link>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+      </section>
+
       <section className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-slate-900">Itens</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Resumo técnico dos itens</h2>
         <div className="mt-3 space-y-2">
           {order.items.map((item) => (
             <div key={item.id} className="rounded border border-slate-200 p-3 text-xs text-slate-600">
               <p className="font-medium text-slate-800">
-                {item.itemType === 'course'
-                  ? item.course?.program_name ?? 'Curso'
-                  : item.accommodation?.title ?? 'Acomodação'}
+                {item.itemType} • ref {item.referenceId}
               </p>
               <p>
                 Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} -{' '}
@@ -77,4 +174,3 @@ export default async function OrderDetailPage({
     </div>
   );
 }
-

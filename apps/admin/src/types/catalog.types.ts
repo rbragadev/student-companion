@@ -481,7 +481,12 @@ export interface OrderAdmin {
     endDate: string;
     amount: number;
     course?: { id: string; program_name: string } | null;
-    accommodation?: { id: string; title: string; accommodationType: string } | null;
+    accommodation?: {
+      id: string;
+      title: string;
+      accommodationType: string;
+      location?: string | null;
+    } | null;
   }>;
 }
 
