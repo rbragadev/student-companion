@@ -10,8 +10,10 @@ interface HomeHeaderProps {
   purpose: string;
   avatarUrl?: string;
   hasUnreadNotifications?: boolean;
+  hasActivePackage?: boolean;
   onSettingsPress?: () => void;
   onNotificationsPress?: () => void;
+  onPackagePress?: () => void;
   onAvatarPress?: () => void;
 }
 
@@ -22,8 +24,10 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
   purpose,
   avatarUrl,
   hasUnreadNotifications = false,
+  hasActivePackage = false,
   onSettingsPress,
   onNotificationsPress,
+  onPackagePress,
   onAvatarPress,
 }) => {
   // Gera iniciais: primeira letra do firstName + primeira letra do lastName
@@ -63,6 +67,18 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
             <Ionicons name="notifications-outline" size={22} color="#212529" />
             {hasUnreadNotifications && (
               <View className="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent" />
+            )}
+          </TouchableOpacity>
+
+          {/* Pacote/Carrinho */}
+          <TouchableOpacity
+            onPress={onPackagePress}
+            className="w-10 h-10 items-center justify-center rounded-full bg-surface relative"
+            activeOpacity={0.7}
+          >
+            <Ionicons name="bag-handle-outline" size={22} color="#212529" />
+            {hasActivePackage && (
+              <View className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary-500" />
             )}
           </TouchableOpacity>
 

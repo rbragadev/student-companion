@@ -597,8 +597,14 @@ export class EnrollmentQuoteService {
     const createdQuote = await this.prisma.enrollmentQuote.create({
       data: {
         enrollmentIntentId: resolvedIntent?.id ?? dto.enrollmentIntentId ?? null,
-        coursePricingId: coursePricing?.id ?? null,
-        accommodationPricingId: accommodationPricing?.id ?? null,
+        coursePricingId:
+          coursePricing?.id ??
+          resolvedItems.find((item) => item.itemType === 'course')?.coursePricingId ??
+          null,
+        accommodationPricingId:
+          accommodationPricing?.id ??
+          resolvedItems.find((item) => item.itemType === 'accommodation')?.accommodationPricingId ??
+          null,
         courseAmount,
         accommodationAmount,
         fees,
@@ -694,12 +700,19 @@ export class EnrollmentQuoteService {
       endDate: item.endDate.toISOString(),
     }));
 
+    const providedItems = dto.items?.length ? dto.items : fallbackItems;
+    const hasCourseItem = providedItems.some((item) => item.itemType === 'course');
+    const hasAccommodationItem = providedItems.some((item) => item.itemType === 'accommodation');
+
     const payload: CreateEnrollmentQuoteDto = {
       enrollmentIntentId: dto.enrollmentIntentId ?? existing.enrollmentIntentId ?? undefined,
-      items: dto.items?.length ? dto.items : fallbackItems,
-      coursePricingId: dto.coursePricingId ?? existing.coursePricingId ?? undefined,
-      accommodationPricingId:
-        dto.accommodationPricingId ?? existing.accommodationPricingId ?? undefined,
+      items: providedItems,
+      coursePricingId: hasCourseItem
+        ? dto.coursePricingId ?? existing.coursePricingId ?? undefined
+        : undefined,
+      accommodationPricingId: hasAccommodationItem
+        ? dto.accommodationPricingId ?? existing.accommodationPricingId ?? undefined
+        : undefined,
       courseId: dto.courseId,
       academicPeriodId: dto.academicPeriodId,
       accommodationId: dto.accommodationId,
@@ -745,6 +758,38 @@ export class EnrollmentQuoteService {
       discounts: this.toNumber(existing.discounts),
       downPaymentPercentage: this.toNumber(existing.downPaymentPercentage),
     });
+  }
+
+  async removeQuote(id: string) {
+    const existing = await this.prisma.enrollmentQuote.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            items: true,
+            payments: true,
+            invoices: true,
+          },
+        },
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Quote ${id} não encontrada`);
+    }
+
+    if (existing.enrollmentIntentId) {
+      throw new BadRequestException(
+        'Este pacote já foi fechado/enviado e não pode ser removido do carrinho',
+      );
+    }
+
+    if (existing._count.payments > 0 || existing._count.invoices > 0) {
+      throw new BadRequestException('Pacote com financeiro vinculado não pode ser removido');
+    }
+
+    await this.prisma.enrollmentQuote.delete({ where: { id } });
+    return { id, removed: true };
   }
 
   async findByIntent(intentId: string) {
@@ -810,14 +855,10 @@ export class EnrollmentQuoteService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const latestIntent = await this.prisma.enrollmentIntent.findFirst({
-      where: { studentId },
-      select: { id: true },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const targetIntentId =
-      activeEnrollment?.enrollmentIntentId ?? pendingIntent?.id ?? latestIntent?.id ?? null;
+    // Pacote "atual" só deve existir se houver matrícula ativa em andamento
+    // ou intenção pendente. Intenções canceladas/negadas não devem bloquear
+    // novo fluxo de matrícula/acomodação.
+    const targetIntentId = activeEnrollment?.enrollmentIntentId ?? pendingIntent?.id ?? null;
 
     if (!targetIntentId) return null;
 

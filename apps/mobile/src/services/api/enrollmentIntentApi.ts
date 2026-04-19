@@ -56,6 +56,18 @@ export const enrollmentIntentApi = {
     return data as EnrollmentIntent;
   },
 
+  updateIntentStatus: async (
+    intentId: string,
+    status: 'pending' | 'cancelled' | 'denied',
+    reason?: string,
+  ): Promise<EnrollmentIntent> => {
+    const { data } = await apiClient.patch(`/enrollment-intents/${intentId}/status`, {
+      status,
+      ...(reason ? { reason } : {}),
+    });
+    return data as EnrollmentIntent;
+  },
+
   getCoursePricing: async (
     courseId: string,
     academicPeriodId: string,
@@ -133,6 +145,15 @@ export const enrollmentIntentApi = {
     return (data ?? null) as EnrollmentQuote | null;
   },
 
+  getQuoteById: async (quoteId: string): Promise<EnrollmentQuote | null> => {
+    try {
+      const { data } = await apiClient.get(`/quotes/${quoteId}`);
+      return (data ?? null) as EnrollmentQuote | null;
+    } catch {
+      return null;
+    }
+  },
+
   recalculateQuote: async (
     quoteId: string,
     payload: {
@@ -156,5 +177,10 @@ export const enrollmentIntentApi = {
   removeQuoteItem: async (quoteId: string, itemId: string): Promise<EnrollmentQuote> => {
     const { data } = await apiClient.delete(`/quotes/${quoteId}/items/${itemId}`);
     return data as EnrollmentQuote;
+  },
+
+  removeQuote: async (quoteId: string): Promise<{ id: string; removed: boolean }> => {
+    const { data } = await apiClient.delete(`/quotes/${quoteId}`);
+    return data as { id: string; removed: boolean };
   },
 };

@@ -41,7 +41,7 @@ export const navigationGroups: NavGroup[] = [
     ],
   },
   {
-    title: 'Configuração Acadêmica',
+    title: 'Cadastro e Configuração',
     items: [
       { label: 'Instituições', href: '/institutions', icon: 'University', permission: 'structure.read' },
       {
@@ -74,19 +74,24 @@ export const navigationGroups: NavGroup[] = [
     ],
   },
   {
-    title: 'Estrutura Física',
+    title: 'Cadastro e Configuração',
     items: [
       { label: 'Acomodações', href: '/accommodations', icon: 'Home', permission: 'structure.read' },
       { label: 'Lugares', href: '/places', icon: 'MapPin', permission: 'structure.read' },
     ],
   },
   {
-    title: 'Pessoas e Acesso',
+    title: 'Operação',
     items: [
       { label: 'Alunos', href: '/students', icon: 'Users', permission: 'users.read' },
       { label: 'Intenções de Matrícula', href: '/enrollment-intents', icon: 'FileBadge2', permission: 'users.read' },
       { label: 'Matrículas', href: '/enrollments', icon: 'BadgeCheck', permission: 'users.read' },
       { label: 'Fechamento Acomodação', href: '/accommodation-operations', icon: 'Home', permission: 'users.read' },
+    ],
+  },
+  {
+    title: 'Acesso e Segurança',
+    items: [
       { label: 'Usuários Admin', href: '/admin-users', icon: 'UserCog', permission: 'users.read' },
       { label: 'Perfis', href: '/profiles', icon: 'Shield', permission: 'roles.read' },
       { label: 'Permissões', href: '/permissions', icon: 'KeyRound', permission: 'permissions.read' },

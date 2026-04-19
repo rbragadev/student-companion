@@ -22,6 +22,11 @@ export class EnrollmentQuoteController {
     return this.enrollmentQuoteService.removeItem(id, itemId);
   }
 
+  @Delete(':id')
+  removeQuote(@Param('id') id: string) {
+    return this.enrollmentQuoteService.removeQuote(id);
+  }
+
   @Get()
   findAll(
     @Query('type') type?: string,

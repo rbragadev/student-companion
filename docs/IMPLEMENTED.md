@@ -378,6 +378,11 @@ Fluxo no SaaS:
     - `DELETE /quotes/:id/items/:itemId`.
 - Mobile:
   - checkout passa a exibir pacote/carrinho com tipo, status, próximo passo e itens com datas/valor.
+  - nova tela dedicada de pacote/carrinho (`PackageCartScreen`) com:
+    - leitura do pacote atual do aluno (`GET /quotes/current/:studentId`);
+    - remoção de item com recálculo real (`DELETE /quotes/:id/items/:itemId`);
+    - atalhos para ajuste de curso/datas e acomodação.
+  - Home com atalho visível para pacote/carrinho (badge quando há pacote em andamento).
 - SaaS:
   - detalhe de intenção e matrícula exibe status operacional do pacote + próximo passo.
 

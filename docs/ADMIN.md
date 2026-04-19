@@ -297,12 +297,14 @@ Status da integração mobile (escopo acadêmico já coberto):
 ## Sidebar (Ordem de Operação)
 
 - Dashboard
-- Configuração Acadêmica
+- Cadastro e Configuração
   Instituições → Escolas (Catálogo App) → Unidades → Cursos → Estrutura Acadêmica
-- Estrutura Física
+- Cadastro e Configuração
   Acomodações → Lugares
-- Pessoas e Acesso
-  Alunos → Intenções de Matrícula → Matrículas → Fechamento Acomodação → Usuários Admin → Perfis → Permissões
+- Operação
+  Alunos → Intenções de Matrícula → Matrículas → Fechamento Acomodação
+- Acesso e Segurança
+  Usuários Admin → Perfis → Permissões
 - Financeiro
   Financeiro (Overview) → Vendas/Pacotes → Invoices → Pagamentos → Comissões → Relatórios
 

@@ -187,7 +187,7 @@ export class EnrollmentIntentService {
   }
 
   async create(dto: CreateEnrollmentIntentDto) {
-    const [student, existingIntent, chain] = await Promise.all([
+    const [student, existingIntent, existingActiveEnrollment, chain] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: dto.studentId },
         select: { id: true, role: true, studentStatus: true },
@@ -195,6 +195,10 @@ export class EnrollmentIntentService {
       this.prisma.enrollmentIntent.findFirst({
         where: { studentId: dto.studentId, status: 'pending' },
         select: { id: true },
+      }),
+      this.prisma.enrollment.findFirst({
+        where: { studentId: dto.studentId, status: { in: ACTIVE_ENROLLMENT_STATUSES } },
+        select: { id: true, status: true },
       }),
       this.validateChain(dto.courseId, dto.classGroupId, dto.academicPeriodId),
     ]);
@@ -205,6 +209,11 @@ export class EnrollmentIntentService {
     }
     if (existingIntent) {
       throw new BadRequestException('O aluno já possui uma intenção de matrícula ativa');
+    }
+    if (existingActiveEnrollment) {
+      throw new BadRequestException(
+        'O aluno já possui uma matrícula ativa em andamento. Finalize o checkout/pagamento antes de enviar nova intenção.',
+      );
     }
 
     const accommodationId = await this.validateAccommodationForSchool(

@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Screen, Text } from '../components';
-import { RootStackParamList, StackRoutes } from '../types/navigation';
+import { RootStackParamList, StackRoutes, TabRoutes } from '../types/navigation';
 import { enrollmentIntentApi } from '../services/api/enrollmentIntentApi';
 import type {
   CoursePricing,
@@ -21,6 +21,7 @@ import type { Accommodation } from '../types/accommodation.types';
 import { accommodationApi } from '../services/api/accommodationApi';
 import { courseApi } from '../services/api/courseApi';
 import type { Course, CourseOffer } from '../types/course.types';
+import { clearDraftQuoteId, getDraftQuoteId, setDraftQuoteId } from '../utils/draftQuoteStorage';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, typeof StackRoutes.ENROLLMENT_INTENT>;
@@ -86,7 +87,7 @@ function formatMoney(value: number, currency: string): string {
 export default function EnrollmentIntentScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const { courseId } = route.params;
+  const { courseId, initialStep, quoteId } = route.params;
   const { userId } = useAuth();
   const queryClient = useQueryClient();
 
@@ -96,9 +97,12 @@ export default function EnrollmentIntentScreen() {
     [],
   );
 
-  const [step, setStep] = React.useState<Step>(1);
+  const initialStepSafe: Step =
+    initialStep && [1, 2, 3].includes(initialStep) ? (initialStep as Step) : 1;
+  const [step, setStep] = React.useState<Step>(initialStepSafe);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [cancellingIntent, setCancellingIntent] = React.useState(false);
   const [quoteLoading, setQuoteLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -132,8 +136,18 @@ export default function EnrollmentIntentScreen() {
   const [modalPricingLoading, setModalPricingLoading] = React.useState(false);
 
   const [quotePreview, setQuotePreview] = React.useState<EnrollmentQuote | null>(null);
+  const quotePreviewRef = React.useRef<EnrollmentQuote | null>(null);
   const [resultType, setResultType] = React.useState<'auto_approve' | 'proposal'>('proposal');
   const [createdEnrollmentId, setCreatedEnrollmentId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    quotePreviewRef.current = quotePreview;
+  }, [quotePreview]);
+
+  React.useEffect(() => {
+    if (!userId || !quotePreview?.id) return;
+    void setDraftQuoteId(userId, quotePreview.id);
+  }, [quotePreview?.id, userId]);
 
   const selectedOffer = React.useMemo(
     () => courseOffers.find((item) => item.id === selectedOfferId) ?? null,
@@ -169,6 +183,49 @@ export default function EnrollmentIntentScreen() {
     if (!selectedAccommodationId) return true;
     return recommendedAccommodations.some((item) => item.id === selectedAccommodationId);
   }, [recommendedAccommodations, selectedAccommodationId]);
+
+  const topScoreAccommodations = React.useMemo(
+    () => [...allAccommodations].sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0)).slice(0, 5),
+    [allAccommodations],
+  );
+
+  const hydrateFromQuote = React.useCallback(
+    (quote: EnrollmentQuote, offers: CourseOffer[], periodType?: Course['periodType']) => {
+      setQuotePreview(quote);
+
+      const courseItem = quote.items?.find((item) => item.itemType === 'course');
+      const accommodationItem = quote.items?.find((item) => item.itemType === 'accommodation');
+
+      const quotePeriodId = quote.coursePricing?.academicPeriod?.id;
+      const matchedOffer =
+        offers.find((offer) => offer.academicPeriodId === quotePeriodId) ?? offers[0] ?? null;
+      if (matchedOffer) {
+        setSelectedOfferId(matchedOffer.id);
+      }
+
+      if (courseItem) {
+        setCourseStartDate(courseItem.startDate.slice(0, 10));
+        setCourseEndDate(courseItem.endDate.slice(0, 10));
+      }
+
+      if (accommodationItem) {
+        const selectedAccommodation = quote.accommodationPricing?.accommodation?.id ?? '';
+        if (selectedAccommodation) {
+          setSelectedAccommodationId(selectedAccommodation);
+        }
+        setAccommodationStartDate(accommodationItem.startDate.slice(0, 10));
+        setAccommodationEndDate(accommodationItem.endDate.slice(0, 10));
+      } else {
+        setSelectedAccommodationId('');
+        if (courseItem && periodType === 'weekly') {
+          const start = alignToNextSunday(courseItem.startDate.slice(0, 10));
+          setAccommodationStartDate(start);
+          setAccommodationEndDate(addDays(start, 28));
+        }
+      }
+    },
+    [],
+  );
 
   React.useEffect(() => {
     const run = async () => {
@@ -212,9 +269,17 @@ export default function EnrollmentIntentScreen() {
           [...all].sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0)),
         );
         setSelectedAccommodationId(pendingIntent?.accommodation?.id ?? '');
-        if (pendingIntent?.id) {
+        const draftId = quoteId ?? (await getDraftQuoteId(userId)) ?? undefined;
+        if (draftId) {
+          const draftQuote = await enrollmentIntentApi.getQuoteById(draftId);
+          if (draftQuote) {
+            hydrateFromQuote(draftQuote, offers, courseDetail.periodType);
+          }
+        } else if (pendingIntent?.id) {
           const currentQuote = await enrollmentIntentApi.getQuoteByIntent(pendingIntent.id);
-          setQuotePreview(currentQuote);
+          if (currentQuote) {
+            hydrateFromQuote(currentQuote, offers, courseDetail.periodType);
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar fluxo de matrícula');
@@ -224,7 +289,7 @@ export default function EnrollmentIntentScreen() {
     };
 
     void run();
-  }, [courseId, userId]);
+  }, [courseId, hydrateFromQuote, quoteId, userId]);
 
   React.useEffect(() => {
     const run = async () => {
@@ -349,19 +414,18 @@ export default function EnrollmentIntentScreen() {
 
   const rebuildQuote = React.useCallback(async () => {
     if (!coursePricing) {
-      setQuotePreview(null);
       return;
     }
     if (!isIsoDate(courseStartDate) || !isIsoDate(courseEndDate)) {
-      setQuotePreview(null);
       return;
     }
     if (course?.periodType === 'weekly' && !isWeeklyRangeValid(courseStartDate, courseEndDate)) {
-      setQuotePreview(null);
       return;
     }
     if (selectedAccommodationId && !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)) {
-      setQuotePreview(null);
+      return;
+    }
+    if (selectedAccommodationId && !accommodationPricing) {
       return;
     }
 
@@ -390,10 +454,26 @@ export default function EnrollmentIntentScreen() {
 
     try {
       setQuoteLoading(true);
-      const quote = await enrollmentIntentApi.createQuote({
-        downPaymentPercentage: 30,
-        items,
-      });
+      const currentQuoteId = quotePreviewRef.current?.id;
+      let quote: EnrollmentQuote;
+      if (currentQuoteId) {
+        try {
+          quote = await enrollmentIntentApi.recalculateQuote(currentQuoteId, {
+            downPaymentPercentage: 30,
+            items,
+          });
+        } catch {
+          quote = await enrollmentIntentApi.createQuote({
+            downPaymentPercentage: 30,
+            items,
+          });
+        }
+      } else {
+        quote = await enrollmentIntentApi.createQuote({
+          downPaymentPercentage: 30,
+          items,
+        });
+      }
       setQuotePreview(quote);
     } catch (err) {
       setQuotePreview(null);
@@ -420,6 +500,16 @@ export default function EnrollmentIntentScreen() {
 
   const submitIntent = async () => {
     if (!userId || !coursePricing || !selectedClassGroupId || !selectedPeriodId || !quotePreview) return;
+    if (openIntent) {
+      setError('Você já tem uma intenção em aberto. Aguarde resposta da escola antes de fechar outro pacote.');
+      return;
+    }
+    if (hasActiveEnrollment) {
+      setError(
+        'Você já possui matrícula/checkout em andamento. Finalize esse fluxo antes de enviar nova intenção.',
+      );
+      return;
+    }
 
     try {
       setSaving(true);
@@ -449,6 +539,7 @@ export default function EnrollmentIntentScreen() {
       });
 
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId) });
+      await clearDraftQuoteId(userId);
       if (createdIntent.enrollment?.id) {
         setCreatedEnrollmentId(createdIntent.enrollment.id);
       }
@@ -458,6 +549,59 @@ export default function EnrollmentIntentScreen() {
       setError(err instanceof Error ? err.message : 'Falha ao finalizar pacote');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const cancelCurrentIntent = async () => {
+    if (!openIntent) return;
+
+    try {
+      setCancellingIntent(true);
+      setError(null);
+      await enrollmentIntentApi.updateIntentStatus(openIntent.id, 'cancelled');
+      setOpenIntent(null);
+      setQuotePreview(null);
+      await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId ?? '') });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao cancelar intenção atual');
+    } finally {
+      setCancellingIntent(false);
+    }
+  };
+
+  const continueWithoutAccommodation = async () => {
+    if (!coursePricing) return;
+    if (!isIsoDate(courseStartDate) || !isIsoDate(courseEndDate)) return;
+    if (course?.periodType === 'weekly' && !isWeeklyRangeValid(courseStartDate, courseEndDate)) {
+      return;
+    }
+
+    try {
+      setQuoteLoading(true);
+      setError(null);
+      setSelectedAccommodationId('');
+      setAcceptedNonRecommendedAccommodation(false);
+      setAccommodationPricing(null);
+
+      const quote = await enrollmentIntentApi.createQuote({
+        downPaymentPercentage: 30,
+        items: [
+          {
+            itemType: 'course',
+            coursePricingId: coursePricing.id,
+            referenceId: coursePricing.id,
+            startDate: toIsoDate(courseStartDate),
+            endDate: toIsoDate(courseEndDate),
+          },
+        ],
+      });
+
+      setQuotePreview(quote);
+      setStep(3);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao seguir sem acomodação');
+    } finally {
+      setQuoteLoading(false);
     }
   };
 
@@ -485,6 +629,17 @@ export default function EnrollmentIntentScreen() {
           <Text variant="caption">
             Tipo de período: {course?.periodType === 'weekly' ? 'Semanal' : 'Fixo'}
           </Text>
+          <Button
+            className="mt-2"
+            variant="outline"
+            onPress={() =>
+              navigation.navigate(StackRoutes.MAIN_TABS, {
+                screen: TabRoutes.COURSES,
+              })
+            }
+          >
+            Trocar curso
+          </Button>
         </View>
       </Card>
 
@@ -646,12 +801,12 @@ export default function EnrollmentIntentScreen() {
       <Card>
         <Text variant="h3" className="font-semibold">Etapa 2 — Acomodação (Opcional)</Text>
         <Text variant="caption" className="mt-1">
-          Recomendadas no topo. Você pode escolher outra no catálogo completo ou seguir sem acomodação.
+          Recomendadas pela escola no topo. Abaixo, opções por score (top 5), com ou sem recomendação.
         </Text>
       </Card>
 
       <Card>
-        <Text variant="h3" className="font-semibold">Recomendadas</Text>
+        <Text variant="h3" className="font-semibold">Recomendadas pela escola</Text>
         <View className="mt-3 gap-2">
           {recommendedAccommodations.map((item) => (
             <TouchableOpacity
@@ -687,17 +842,17 @@ export default function EnrollmentIntentScreen() {
       </Card>
 
       <Card>
-        <Text variant="h3" className="font-semibold">Catálogo completo</Text>
+        <Text variant="h3" className="font-semibold">Top 5 por score</Text>
         <Button
           variant="outline"
           className="mt-3"
           onPress={() => setShowAllAccommodations((value) => !value)}
         >
-          {showAllAccommodations ? 'Ocultar catálogo' : 'Ver todas'}
+          {showAllAccommodations ? 'Ocultar opções' : 'Ver top 5'}
         </Button>
         {showAllAccommodations && (
           <View className="mt-3 gap-2">
-            {allAccommodations.map((item) => (
+            {topScoreAccommodations.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 onPress={() => {
@@ -721,6 +876,9 @@ export default function EnrollmentIntentScreen() {
                 )}
               </TouchableOpacity>
             ))}
+            {topScoreAccommodations.length === 0 && (
+              <Text variant="caption">Sem acomodações disponíveis no catálogo.</Text>
+            )}
           </View>
         )}
       </Card>
@@ -871,10 +1029,8 @@ export default function EnrollmentIntentScreen() {
       </View>
       <Button
         variant="ghost"
-        onPress={() => {
-          setSelectedAccommodationId('');
-          setAcceptedNonRecommendedAccommodation(false);
-        }}
+        onPress={continueWithoutAccommodation}
+        disabled={quoteLoading || !coursePricing}
       >
         Seguir sem acomodação
       </Button>
@@ -920,10 +1076,32 @@ export default function EnrollmentIntentScreen() {
         <Button variant="outline" className="flex-1" onPress={() => setStep(2)}>
           Voltar
         </Button>
-        <Button className="flex-1" onPress={submitIntent} disabled={saving || !quotePreview}>
-          {saving ? 'Finalizando...' : 'Fechar pacote'}
+        <Button
+          className="flex-1"
+          onPress={submitIntent}
+          disabled={saving || !quotePreview || !!openIntent || hasActiveEnrollment}
+        >
+          {openIntent
+            ? 'Aguardando resposta da escola'
+            : hasActiveEnrollment
+              ? 'Finalize matrícula ativa'
+              : saving
+                ? 'Finalizando...'
+                : 'Fechar pacote'}
         </Button>
       </View>
+
+      <Button
+        className="mt-2"
+        variant="ghost"
+        onPress={() =>
+          navigation.navigate(StackRoutes.PACKAGE_CART, {
+            quoteId: quotePreview?.id,
+          })
+        }
+      >
+        Abrir pacote / carrinho
+      </Button>
     </>
   );
 
@@ -976,12 +1154,26 @@ export default function EnrollmentIntentScreen() {
   }
 
   return (
-    <Screen safeArea={true} scrollable={true}>
+    <Screen key={`intent-step-${step}`} safeArea={true} scrollable={true}>
       <View className="px-4 py-4 gap-4">
-        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.8} className="flex-row items-center gap-2">
-          <Ionicons name="arrow-back" size={22} color={colorValues.textPrimary} />
-          <Text variant="body" className="font-medium">Voltar</Text>
-        </TouchableOpacity>
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.8} className="flex-row items-center gap-2">
+            <Ionicons name="arrow-back" size={22} color={colorValues.textPrimary} />
+            <Text variant="body" className="font-medium">Voltar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate(StackRoutes.MAIN_TABS, {
+                screen: TabRoutes.HOME,
+              })
+            }
+            className="flex-row items-center gap-2 rounded-lg border border-border px-3 py-2"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="home-outline" size={18} color={colorValues.textPrimary} />
+            <Text variant="caption" className="font-medium">Início</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text variant="h2" className="font-semibold">Fechamento de pacote</Text>
         {renderStepHeader()}
@@ -990,8 +1182,15 @@ export default function EnrollmentIntentScreen() {
           <Card className="border-amber-200 bg-amber-50">
             <Text variant="h3" className="font-semibold text-amber-900">Você já possui uma intenção em aberto</Text>
             <Text variant="caption" className="mt-2 text-amber-700">
-              Ajuste a intenção atual antes de iniciar outra.
+              Você pode continuar montando este carrinho, mas não pode fechar outro pacote até receber resposta.
             </Text>
+            <Button
+              className="mt-3"
+              onPress={cancelCurrentIntent}
+              disabled={cancellingIntent}
+            >
+              {cancellingIntent ? 'Cancelando...' : 'Cancelar intenção atual'}
+            </Button>
             <Button className="mt-3" variant="outline" onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}>
               Ir para jornada acadêmica
             </Button>
@@ -1001,19 +1200,18 @@ export default function EnrollmentIntentScreen() {
         {hasActiveEnrollment && (
           <Card className="border-blue-200 bg-blue-50">
             <Text variant="caption" className="text-blue-900">
-              Você possui matrícula ativa. Ainda assim pode montar novo pacote se não tiver intenção pendente.
+              Você possui matrícula/checkout ativo. Pode simular novo pacote, mas o envio fica
+              bloqueado até finalizar o fluxo atual.
             </Text>
           </Card>
         )}
 
-        {!openIntent && (
-          <>
-            {step === 1 && renderCourseStep()}
-            {step === 2 && renderAccommodationStep()}
-            {step === 3 && renderConfirmStep()}
-            {step === 4 && renderResultStep()}
-          </>
-        )}
+        <>
+          {step === 1 && renderCourseStep()}
+          {step === 2 && renderAccommodationStep()}
+          {step === 3 && renderConfirmStep()}
+          {step === 4 && renderResultStep()}
+        </>
 
         <Modal
           visible={Boolean(selectedAccommodationPreview)}

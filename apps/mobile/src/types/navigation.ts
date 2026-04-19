@@ -20,6 +20,7 @@ export enum StackRoutes {
   ACADEMIC_JOURNEY = 'AcademicJourney',
   ENROLLMENT_DETAIL = 'EnrollmentDetail',
   ENROLLMENT_CHECKOUT = 'EnrollmentCheckout',
+  PACKAGE_CART = 'PackageCart',
   NOTIFICATIONS = 'Notifications',
   PLACE_DETAIL = 'PlaceDetail',
   PROFILE = 'Profile',
@@ -47,10 +48,11 @@ export type RootStackParamList = {
     initialEndDate?: string;
   };
   [StackRoutes.COURSE_DETAIL]: { courseId: string };
-  [StackRoutes.ENROLLMENT_INTENT]: { courseId: string };
+  [StackRoutes.ENROLLMENT_INTENT]: { courseId: string; initialStep?: 1 | 2 | 3; quoteId?: string };
   [StackRoutes.ACADEMIC_JOURNEY]: undefined;
   [StackRoutes.ENROLLMENT_DETAIL]: { enrollmentId: string };
   [StackRoutes.ENROLLMENT_CHECKOUT]: { enrollmentId: string };
+  [StackRoutes.PACKAGE_CART]: { quoteId?: string } | undefined;
   [StackRoutes.NOTIFICATIONS]: undefined;
   [StackRoutes.PLACE_DETAIL]: { placeId: string };
   [StackRoutes.PROFILE]: undefined;

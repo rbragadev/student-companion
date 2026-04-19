@@ -10,12 +10,14 @@ import {
 } from '../components';
 import { useHeroContent } from '../services/mockData';
 import { useRecommendations } from '../hooks/api/useRecommendations';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootTabParamList, RootStackParamList, TabRoutes, StackRoutes } from '../types/navigation';
 import { useUserProfile } from '../hooks/api/useUserProfile';
 import { useAuth } from '../contexts/AuthContext';
+import { enrollmentIntentApi } from '../services/api/enrollmentIntentApi';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList, typeof TabRoutes.HOME>,
@@ -31,6 +33,11 @@ export default function HomeScreen() {
     error: userError,
   } = useUserProfile(userId ?? '');
   const { content: heroContent, loading: heroLoading } = useHeroContent();
+  const currentQuoteQuery = useQuery({
+    queryKey: ['quotes', 'current', userId],
+    queryFn: () => enrollmentIntentApi.getCurrentQuoteByStudent(userId ?? ''),
+    enabled: Boolean(userId),
+  });
 
   const { data: recommendations = [], isLoading: recsLoading } = useRecommendations(
     userId ?? '',
@@ -74,6 +81,10 @@ export default function HomeScreen() {
     navigation.navigate(StackRoutes.PROFILE);
   };
 
+  const handlePackagePress = () => {
+    navigation.navigate(StackRoutes.PACKAGE_CART);
+  };
+
   const handleHeroCtaPress = () => {
     // Navega para o Copilot com intent de accommodation
     navigation.navigate(TabRoutes.COPILOT, { intent: heroContent.ctaIntent });
@@ -112,8 +123,10 @@ export default function HomeScreen() {
         purpose={user.preferences.purpose}
         avatarUrl={user.avatar}
         hasUnreadNotifications={user.preferences.hasUnreadNotifications}
+        hasActivePackage={Boolean(currentQuoteQuery.data)}
         onSettingsPress={handleSettingsPress}
         onNotificationsPress={handleNotificationsPress}
+        onPackagePress={handlePackagePress}
         onAvatarPress={handleAvatarPress}
       />
 
@@ -180,6 +193,14 @@ export default function HomeScreen() {
             onPress={handleBrowseCourses}
           />
         </View>
+
+        {currentQuoteQuery.data ? (
+          <SecondaryAction
+            icon="bag-handle-outline"
+            label="Pacote em andamento"
+            onPress={handlePackagePress}
+          />
+        ) : null}
       </View>
     </Screen>
   );

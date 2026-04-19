@@ -11,6 +11,7 @@ import { enrollmentIntentApi } from '../services/api/enrollmentIntentApi';
 import type { AccommodationPricing, EnrollmentQuote } from '../types/enrollment.types';
 import { financeApi, type InvoiceSummary } from '../services/api/financeApi';
 import { useAuth } from '../contexts/AuthContext';
+import { setDraftQuoteId } from '../utils/draftQuoteStorage';
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -93,6 +94,7 @@ export default function AccommodationCheckoutScreen() {
     () => currentQuote?.items?.find((item) => item.itemType === 'course') ?? null,
     [currentQuote],
   );
+  const isDirectCatalogFlow = !mode;
   const canAddToCurrentPackage = Boolean(
     currentQuote &&
       currentCourseItem &&
@@ -100,6 +102,13 @@ export default function AccommodationCheckoutScreen() {
       currentQuote.packageStatus !== 'paid' &&
       currentQuote.packageStatus !== 'cancelled',
   );
+
+  React.useEffect(() => {
+    if (!userId) return;
+    const quoteId = quote?.id ?? currentQuote?.id;
+    if (!quoteId) return;
+    void setDraftQuoteId(userId, quoteId);
+  }, [quote?.id, currentQuote?.id, userId]);
 
   React.useEffect(() => {
     const run = async () => {
@@ -232,21 +241,40 @@ export default function AccommodationCheckoutScreen() {
               : { accommodationPricingId: item.referenceId }),
           })) ?? [];
 
-      const recalculated = await enrollmentIntentApi.recalculateQuote(currentQuote.id, {
-        items: [
-          ...preservedItems,
-          {
-            itemType: 'accommodation',
-            referenceId: selectedPricing.id,
-            accommodationPricingId: selectedPricing.id,
-            startDate: toIsoDate(startDate),
-            endDate: toIsoDate(endDate),
-          },
-        ],
-        fees: Number(currentQuote.fees ?? 0),
-        discounts: Number(currentQuote.discounts ?? 0),
-        downPaymentPercentage: Number(currentQuote.downPaymentPercentage ?? 30),
-      });
+      let recalculated: EnrollmentQuote;
+      try {
+        recalculated = await enrollmentIntentApi.recalculateQuote(currentQuote.id, {
+          items: [
+            ...preservedItems,
+            {
+              itemType: 'accommodation',
+              referenceId: selectedPricing.id,
+              accommodationPricingId: selectedPricing.id,
+              startDate: toIsoDate(startDate),
+              endDate: toIsoDate(endDate),
+            },
+          ],
+          fees: Number(currentQuote.fees ?? 0),
+          discounts: Number(currentQuote.discounts ?? 0),
+          downPaymentPercentage: Number(currentQuote.downPaymentPercentage ?? 30),
+        });
+      } catch {
+        recalculated = await enrollmentIntentApi.createQuote({
+          downPaymentPercentage: Number(currentQuote.downPaymentPercentage ?? 30),
+          fees: Number(currentQuote.fees ?? 0),
+          discounts: Number(currentQuote.discounts ?? 0),
+          items: [
+            ...preservedItems,
+            {
+              itemType: 'accommodation',
+              referenceId: selectedPricing.id,
+              accommodationPricingId: selectedPricing.id,
+              startDate: toIsoDate(startDate),
+              endDate: toIsoDate(endDate),
+            },
+          ],
+        });
+      }
 
       setQuote(recalculated);
       setCurrentQuote(recalculated);
@@ -308,10 +336,24 @@ export default function AccommodationCheckoutScreen() {
   return (
     <Screen safeArea={true}>
       <View className="px-4 py-4 gap-4 pb-8">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="flex-row items-center gap-2">
-          <Ionicons name="arrow-back" size={22} color={colorValues.textPrimary} />
-          <Text variant="body" className="font-medium">Voltar</Text>
-        </TouchableOpacity>
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity onPress={() => navigation.goBack()} className="flex-row items-center gap-2">
+            <Ionicons name="arrow-back" size={22} color={colorValues.textPrimary} />
+            <Text variant="body" className="font-medium">Voltar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate(StackRoutes.MAIN_TABS, {
+                screen: TabRoutes.HOME,
+              })
+            }
+            className="flex-row items-center gap-2 rounded-lg border border-border px-3 py-2"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="home-outline" size={18} color={colorValues.textPrimary} />
+            <Text variant="caption" className="font-medium">Início</Text>
+          </TouchableOpacity>
+        </View>
 
         <View>
           <Text variant="h2" className="font-semibold">Fechamento de acomodação</Text>
@@ -446,6 +488,15 @@ export default function AccommodationCheckoutScreen() {
             Escolha se quer adicionar ao pacote atual ou fechar somente acomodação.
           </Text>
 
+          {canAddToCurrentPackage && isDirectCatalogFlow ? (
+            <Card className="mt-3 border-amber-200 bg-amber-50">
+              <Text variant="caption" className="text-amber-700">
+                Você já tem matrícula/pacote em andamento. Sugerimos as datas do curso atual e
+                você pode ajustar antes de adicionar ao pacote.
+              </Text>
+            </Card>
+          ) : null}
+
           <Button
             className="mt-3"
             onPress={addToCurrentPackage}
@@ -522,6 +573,17 @@ export default function AccommodationCheckoutScreen() {
               }
             >
               Voltar ao catálogo
+            </Button>
+            <Button
+              className="mt-2"
+              variant="ghost"
+              onPress={() =>
+                navigation.navigate(StackRoutes.PACKAGE_CART, {
+                  quoteId: quote?.id ?? currentQuote?.id,
+                })
+              }
+            >
+              Abrir pacote / carrinho
             </Button>
           </Card>
         ) : null}
