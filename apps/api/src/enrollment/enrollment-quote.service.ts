@@ -6,7 +6,18 @@ import {
   CreateEnrollmentQuoteDto,
   CreateEnrollmentQuoteItemDto,
 } from './dto/create-enrollment-quote.dto';
+import { UpdateEnrollmentQuoteDto } from './dto/update-enrollment-quote.dto';
 import { ENROLLMENT_QUOTE_TYPES, type EnrollmentQuoteType } from './enrollment.constants';
+
+type PackageStatus =
+  | 'draft'
+  | 'proposal_sent'
+  | 'awaiting_approval'
+  | 'approved'
+  | 'checkout_available'
+  | 'payment_pending'
+  | 'paid'
+  | 'cancelled';
 
 @Injectable()
 export class EnrollmentQuoteService {
@@ -106,6 +117,150 @@ export class EnrollmentQuoteService {
         totalCommissionAmount: this.toNumber(quote.commissionAmount),
       },
     });
+  }
+
+  private resolvePackageStatusContext(input: {
+    intentStatus?: string | null;
+    enrollmentStatus?: string | null;
+    autoApproveIntent?: boolean;
+    hasPendingPayment?: boolean;
+    hasPaidDownPayment?: boolean;
+  }): { packageStatus: PackageStatus; nextStep: string } {
+    const {
+      intentStatus,
+      enrollmentStatus,
+      autoApproveIntent,
+      hasPendingPayment,
+      hasPaidDownPayment,
+    } = input;
+
+    if (hasPaidDownPayment) {
+      return {
+        packageStatus: 'paid',
+        nextStep: 'Pagamento confirmado. Seguir com etapas operacionais.',
+      };
+    }
+
+    if (['cancelled', 'denied', 'rejected'].includes(enrollmentStatus ?? intentStatus ?? '')) {
+      return {
+        packageStatus: 'cancelled',
+        nextStep: 'Pacote cancelado/negado. Ajuste itens e reenvie se necessário.',
+      };
+    }
+
+    if (enrollmentStatus) {
+      const approvalReady =
+        autoApproveIntent === true || ['approved', 'enrolled', 'completed'].includes(enrollmentStatus);
+      if (!approvalReady) {
+        return {
+          packageStatus: 'awaiting_approval',
+          nextStep: 'Aguardando aprovação operacional para liberar checkout.',
+        };
+      }
+
+      if (hasPendingPayment) {
+        return {
+          packageStatus: 'payment_pending',
+          nextStep: 'Checkout liberado. Falta concluir pagamento.',
+        };
+      }
+
+      return {
+        packageStatus: 'checkout_available',
+        nextStep: 'Checkout disponível para pagamento da entrada.',
+      };
+    }
+
+    if (intentStatus === 'pending') {
+      return {
+        packageStatus: 'proposal_sent',
+        nextStep: 'Proposta enviada. Aguarde análise da operação.',
+      };
+    }
+
+    if (intentStatus === 'converted') {
+      return {
+        packageStatus: 'approved',
+        nextStep: 'Proposta convertida em matrícula. Checkout disponível na jornada.',
+      };
+    }
+
+    return {
+      packageStatus: 'draft',
+      nextStep: 'Pacote em rascunho. Revise itens e datas antes de fechar.',
+    };
+  }
+
+  private async enrichQuote<T extends { id: string; enrollmentIntentId?: string | null }>(quote: T) {
+    const [intent, enrollment, payments] = await Promise.all([
+      quote.enrollmentIntentId
+        ? this.prisma.enrollmentIntent.findUnique({
+            where: { id: quote.enrollmentIntentId },
+            select: {
+              id: true,
+              status: true,
+              studentId: true,
+              student: {
+                select: { id: true, firstName: true, lastName: true, email: true },
+              },
+            },
+          })
+        : Promise.resolve(null),
+      quote.enrollmentIntentId
+        ? this.prisma.enrollment.findFirst({
+            where: { enrollmentIntentId: quote.enrollmentIntentId },
+            select: {
+              id: true,
+              status: true,
+              course: {
+                select: {
+                  auto_approve_intent: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve(null),
+      this.prisma.payment.findMany({
+        where: { enrollmentQuoteId: quote.id },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          amount: true,
+          currency: true,
+          paidAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const hasPaidDownPayment = payments.some(
+      (item) => item.type === 'down_payment' && item.status === 'paid',
+    );
+    const hasPendingPayment = payments.some((item) => item.status === 'pending');
+
+    const statusContext = this.resolvePackageStatusContext({
+      intentStatus: intent?.status,
+      enrollmentStatus: enrollment?.status,
+      autoApproveIntent: enrollment?.course.auto_approve_intent ?? undefined,
+      hasPendingPayment,
+      hasPaidDownPayment,
+    });
+
+    return {
+      ...quote,
+      enrollmentIntent: intent,
+      enrollment: enrollment
+        ? {
+            id: enrollment.id,
+            status: enrollment.status,
+          }
+        : null,
+      packageStatus: statusContext.packageStatus,
+      nextStep: statusContext.nextStep,
+      payments,
+    };
   }
 
   async create(dto: CreateEnrollmentQuoteDto) {
@@ -494,8 +649,8 @@ export class EnrollmentQuoteService {
     return createdQuote;
   }
 
-  findOne(id: string) {
-    return this.prisma.enrollmentQuote.findUnique({
+  async findOne(id: string) {
+    const quote = await this.prisma.enrollmentQuote.findUnique({
       where: { id },
       include: {
         enrollmentIntent: { select: { id: true, status: true, studentId: true } },
@@ -512,6 +667,83 @@ export class EnrollmentQuoteService {
         },
         items: true,
       },
+    });
+    if (!quote) {
+      throw new NotFoundException(`Quote ${id} não encontrada`);
+    }
+    return this.enrichQuote(quote);
+  }
+
+  async recalculate(id: string, dto: UpdateEnrollmentQuoteDto) {
+    const existing = await this.prisma.enrollmentQuote.findUnique({
+      where: { id },
+      include: {
+        items: true,
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Quote ${id} não encontrada`);
+    }
+
+    const fallbackItems: CreateEnrollmentQuoteItemDto[] = (existing.items ?? []).map((item) => ({
+      itemType: item.itemType as 'course' | 'accommodation',
+      referenceId: item.referenceId,
+      coursePricingId: item.coursePricingId ?? undefined,
+      accommodationPricingId: item.accommodationPricingId ?? undefined,
+      startDate: item.startDate.toISOString(),
+      endDate: item.endDate.toISOString(),
+    }));
+
+    const payload: CreateEnrollmentQuoteDto = {
+      enrollmentIntentId: dto.enrollmentIntentId ?? existing.enrollmentIntentId ?? undefined,
+      items: dto.items?.length ? dto.items : fallbackItems,
+      coursePricingId: dto.coursePricingId ?? existing.coursePricingId ?? undefined,
+      accommodationPricingId:
+        dto.accommodationPricingId ?? existing.accommodationPricingId ?? undefined,
+      courseId: dto.courseId,
+      academicPeriodId: dto.academicPeriodId,
+      accommodationId: dto.accommodationId,
+      periodOption: dto.periodOption,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      fees: dto.fees ?? this.toNumber(existing.fees),
+      discounts: dto.discounts ?? this.toNumber(existing.discounts),
+      downPaymentPercentage:
+        dto.downPaymentPercentage ?? this.toNumber(existing.downPaymentPercentage),
+    };
+
+    return this.create(payload);
+  }
+
+  async removeItem(id: string, itemId: string) {
+    const existing = await this.prisma.enrollmentQuote.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Quote ${id} não encontrada`);
+    }
+
+    const remainingItems: CreateEnrollmentQuoteItemDto[] = (existing.items ?? [])
+      .filter((item) => item.id !== itemId)
+      .map((item) => ({
+        itemType: item.itemType as 'course' | 'accommodation',
+        referenceId: item.referenceId,
+        coursePricingId: item.coursePricingId ?? undefined,
+        accommodationPricingId: item.accommodationPricingId ?? undefined,
+        startDate: item.startDate.toISOString(),
+        endDate: item.endDate.toISOString(),
+      }));
+
+    if (!remainingItems.length) {
+      throw new BadRequestException('Pacote precisa ter ao menos 1 item');
+    }
+
+    return this.recalculate(id, {
+      items: remainingItems,
+      fees: this.toNumber(existing.fees),
+      discounts: this.toNumber(existing.discounts),
+      downPaymentPercentage: this.toNumber(existing.downPaymentPercentage),
     });
   }
 
@@ -537,7 +769,7 @@ export class EnrollmentQuoteService {
     if (!quote) {
       throw new NotFoundException(`Quote para intent ${intentId} não encontrada`);
     }
-    return quote;
+    return this.enrichQuote(quote);
   }
 
   async findLatestByIntent(intentId: string): Promise<EnrollmentQuote | null> {
@@ -545,5 +777,177 @@ export class EnrollmentQuoteService {
       where: { enrollmentIntentId: intentId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async findByEnrollment(enrollmentId: string) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id: enrollmentId },
+      select: { id: true, enrollmentIntentId: true },
+    });
+    if (!enrollment) {
+      throw new NotFoundException(`Matrícula ${enrollmentId} não encontrada`);
+    }
+    return this.findByIntent(enrollment.enrollmentIntentId);
+  }
+
+  async findCurrentByStudent(studentId: string) {
+    const activeEnrollment = await this.prisma.enrollment.findFirst({
+      where: {
+        studentId,
+        status: {
+          in: ['application_started', 'documents_pending', 'under_review', 'approved', 'enrolled', 'active'],
+        },
+      },
+      select: {
+        enrollmentIntentId: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const pendingIntent = await this.prisma.enrollmentIntent.findFirst({
+      where: { studentId, status: 'pending' },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const latestIntent = await this.prisma.enrollmentIntent.findFirst({
+      where: { studentId },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const targetIntentId =
+      activeEnrollment?.enrollmentIntentId ?? pendingIntent?.id ?? latestIntent?.id ?? null;
+
+    if (!targetIntentId) return null;
+
+    const quote = await this.prisma.enrollmentQuote.findFirst({
+      where: { enrollmentIntentId: targetIntentId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        coursePricing: {
+          include: {
+            course: { select: { id: true, program_name: true } },
+            academicPeriod: { select: { id: true, name: true } },
+          },
+        },
+        accommodationPricing: {
+          include: {
+            accommodation: { select: { id: true, title: true, accommodationType: true } },
+          },
+        },
+        items: true,
+      },
+    });
+
+    if (!quote) return null;
+    return this.enrichQuote(quote);
+  }
+
+  async findAll(filters?: {
+    type?: string;
+    enrollmentIntentId?: string;
+    accommodationId?: string;
+    courseId?: string;
+  }) {
+    const quotes = await this.prisma.enrollmentQuote.findMany({
+      where: {
+        type: filters?.type as EnrollmentQuoteType | undefined,
+        enrollmentIntentId: filters?.enrollmentIntentId,
+        OR:
+          filters?.accommodationId || filters?.courseId
+            ? [
+                filters?.accommodationId
+                  ? {
+                      accommodationPricing: {
+                        accommodationId: filters.accommodationId,
+                      },
+                    }
+                  : undefined,
+                filters?.courseId
+                  ? {
+                      coursePricing: {
+                        courseId: filters.courseId,
+                      },
+                    }
+                  : undefined,
+                filters?.accommodationId
+                  ? {
+                      items: {
+                        some: {
+                          itemType: 'accommodation',
+                          accommodationPricing: {
+                            accommodationId: filters.accommodationId,
+                          },
+                        },
+                      },
+                    }
+                  : undefined,
+                filters?.courseId
+                  ? {
+                      items: {
+                        some: {
+                          itemType: 'course',
+                          coursePricing: {
+                            courseId: filters.courseId,
+                          },
+                        },
+                      },
+                    }
+                  : undefined,
+              ].filter(Boolean) as Prisma.EnrollmentQuoteWhereInput[]
+            : undefined,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        enrollmentIntent: {
+          select: {
+            id: true,
+            status: true,
+            studentId: true,
+            student: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        coursePricing: {
+          include: {
+            course: { select: { id: true, program_name: true } },
+            academicPeriod: { select: { id: true, name: true } },
+          },
+        },
+        accommodationPricing: {
+          include: {
+            accommodation: { select: { id: true, title: true, accommodationType: true } },
+          },
+        },
+        items: {
+          include: {
+            coursePricing: {
+              select: {
+                id: true,
+                course: { select: { id: true, program_name: true } },
+              },
+            },
+            accommodationPricing: {
+              select: {
+                id: true,
+                accommodation: {
+                  select: { id: true, title: true, accommodationType: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const enriched = await Promise.all(quotes.map((quote) => this.enrichQuote(quote)));
+    return enriched;
   }
 }

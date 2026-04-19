@@ -22,8 +22,10 @@ export default function AccommodationDetailScreen() {
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
 
   const handleInterestPress = () => {
-    console.log('Navigate to lead form');
-    // TODO: Navegar para tela de lead
+    navigation.navigate(StackRoutes.ACCOMMODATION_CHECKOUT, {
+      accommodationId,
+      mode: 'standalone',
+    });
   };
 
   const handleBackPress = () => {
@@ -320,7 +322,7 @@ export default function AccommodationDetailScreen() {
             onPress={handleInterestPress}
             className="flex-1"
           >
-            Tenho interesse
+            Fechar apenas acomodação
           </Button>
         </View>
       </View>

@@ -166,6 +166,8 @@ export default async function EnrollmentIntentDetailPage({
           ) : (
             <div className="mt-2 grid gap-1 text-xs text-slate-600 md:grid-cols-2">
               <p>Tipo: <strong>{quote.type}</strong></p>
+              <p>Status do pacote: <strong>{quote.packageStatus ?? 'draft'}</strong></p>
+              {quote.nextStep ? <p className="md:col-span-2">Próximo passo: {quote.nextStep}</p> : null}
               <p>Curso: {Number(quote.courseAmount).toFixed(2)} {quote.currency}</p>
               <p>Acomodação: {Number(quote.accommodationAmount).toFixed(2)} {quote.currency}</p>
               <p>Taxas: {Number(quote.fees).toFixed(2)} {quote.currency}</p>

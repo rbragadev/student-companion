@@ -321,6 +321,21 @@ export interface PaymentAdmin {
     school: EnrollmentAdmin['school'];
     course: EnrollmentAdmin['course'];
   } | null;
+  enrollmentQuote?: {
+    id: string;
+    type: string;
+    totalAmount: number;
+    downPaymentAmount: number;
+    currency: string;
+    coursePricing?: {
+      id: string;
+      course?: { id: string; program_name: string } | null;
+    } | null;
+    accommodationPricing?: {
+      id: string;
+      accommodation?: { id: string; title: string; accommodationType: string } | null;
+    } | null;
+  } | null;
   invoice?: {
     id: string;
     number: string;
@@ -432,6 +447,40 @@ export interface EnrollmentQuoteAdmin {
     id: string;
     accommodation?: { id: string; title: string; accommodationType: string };
   } | null;
+  enrollmentIntent?: {
+    id: string;
+    status: string;
+    studentId?: string;
+    student?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | null;
+  } | null;
+  enrollment?: {
+    id: string;
+    status: string;
+  } | null;
+  packageStatus?:
+    | 'draft'
+    | 'proposal_sent'
+    | 'awaiting_approval'
+    | 'approved'
+    | 'checkout_available'
+    | 'payment_pending'
+    | 'paid'
+    | 'cancelled';
+  nextStep?: string;
+  payments?: Array<{
+    id: string;
+    type: string;
+    status: string;
+    amount: number;
+    currency: string;
+    paidAt?: string | null;
+    createdAt: string;
+  }>;
 }
 
 export interface FinancialOverviewAdmin {
@@ -504,6 +553,14 @@ export interface InvoiceAdmin {
     type: string;
     downPaymentAmount: number;
     remainingAmount: number;
+    coursePricing?: {
+      id: string;
+      course?: { id: string; program_name: string } | null;
+    } | null;
+    accommodationPricing?: {
+      id: string;
+      accommodation?: { id: string; title: string; accommodationType: string } | null;
+    } | null;
   } | null;
   items?: Array<{
     id: string;

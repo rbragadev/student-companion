@@ -59,9 +59,28 @@ export default async function FinancePaymentsPage({ searchParams }: Readonly<Pag
       label: 'Contexto',
       render: (row) => (
         <div>
-          <p className="text-sm text-slate-700">{row.enrollment?.student.firstName ?? '-'} {row.enrollment?.student.lastName ?? ''}</p>
-          <p className="text-xs text-slate-500">{row.enrollment?.institution.name ?? '-'}</p>
-          <p className="text-xs text-slate-500">{row.enrollment?.course.program_name ?? '-'}</p>
+          {row.enrollment ? (
+            <>
+              <p className="text-sm text-slate-700">
+                {row.enrollment.student.firstName} {row.enrollment.student.lastName}
+              </p>
+              <p className="text-xs text-slate-500">{row.enrollment.institution.name}</p>
+              <p className="text-xs text-slate-500">{row.enrollment.course.program_name}</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-slate-700">
+                {row.enrollmentQuote?.type === 'accommodation_only'
+                  ? 'Standalone accommodation'
+                  : 'Quote sem matrícula'}
+              </p>
+              <p className="text-xs text-slate-500">
+                {row.enrollmentQuote?.accommodationPricing?.accommodation?.title ??
+                  row.enrollmentQuote?.coursePricing?.course?.program_name ??
+                  '-'}
+              </p>
+            </>
+          )}
         </div>
       ),
     },

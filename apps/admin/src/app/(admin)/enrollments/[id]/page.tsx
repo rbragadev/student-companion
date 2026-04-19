@@ -283,6 +283,8 @@ export default async function EnrollmentDetailPage({
           ) : (
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
               <p>Tipo: <strong>{quote.type}</strong></p>
+              <p>Status do pacote: <strong>{quote.packageStatus ?? 'draft'}</strong></p>
+              {quote.nextStep ? <p className="col-span-2">{quote.nextStep}</p> : null}
               <p>Total: <strong>{Number(quote.totalAmount).toFixed(2)} {quote.currency}</strong></p>
               <p>Curso: {Number(quote.courseAmount).toFixed(2)} {quote.currency}</p>
               <p>Acomodação: {Number(quote.accommodationAmount).toFixed(2)} {quote.currency}</p>

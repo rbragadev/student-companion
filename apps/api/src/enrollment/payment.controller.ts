@@ -10,6 +10,7 @@ export class PaymentController {
   @Get()
   findAll(
     @Query('enrollmentId') enrollmentId?: string,
+    @Query('enrollmentQuoteId') enrollmentQuoteId?: string,
     @Query('studentId') studentId?: string,
     @Query('invoiceId') invoiceId?: string,
     @Query('institutionId') institutionId?: string,
@@ -17,6 +18,7 @@ export class PaymentController {
   ) {
     return this.paymentService.findAll({
       enrollmentId,
+      enrollmentQuoteId,
       studentId,
       invoiceId,
       institutionId,

@@ -29,6 +29,13 @@ function money(value: unknown, currency: string) {
   return `${toMoneyNumber(value).toFixed(2)} ${currency}`;
 }
 
+function packageTypeLabel(type?: string) {
+  if (type === 'course_only') return 'Curso';
+  if (type === 'course_with_accommodation') return 'Curso + Acomodação';
+  if (type === 'accommodation_only') return 'Acomodação';
+  return '-';
+}
+
 export default function EnrollmentCheckoutScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
@@ -101,10 +108,12 @@ export default function EnrollmentCheckoutScreen() {
         {checkout && (
           <>
             <Card>
-              <Text variant="h3" className="font-semibold">Resumo do pacote</Text>
+              <Text variant="h3" className="font-semibold">Pacote / Carrinho</Text>
               <View className="mt-3 gap-1">
-                <Text variant="caption">Estado: {checkout.state}</Text>
+                <Text variant="caption">Tipo: {packageTypeLabel(checkout.quote?.type)}</Text>
+                <Text variant="caption">Status do pacote: {checkout.packageStatus ?? checkout.state}</Text>
                 {checkout.reason ? <Text variant="caption">{checkout.reason}</Text> : null}
+                {checkout.nextStep ? <Text variant="caption">Próximo passo: {checkout.nextStep}</Text> : null}
                 <Text variant="caption">
                   Curso: {checkout.course?.program_name ?? '-'}
                 </Text>
@@ -117,6 +126,13 @@ export default function EnrollmentCheckoutScreen() {
                 ) : (
                   <Text variant="caption">Acomodação: sem acomodação</Text>
                 )}
+                {(checkout.quote?.items ?? []).map((item) => (
+                  <Text key={item.id} variant="caption">
+                    Item {item.itemType}: {new Date(item.startDate).toLocaleDateString()} -{' '}
+                    {new Date(item.endDate).toLocaleDateString()} •{' '}
+                    {money(item.amount, checkout.financial.currency)}
+                  </Text>
+                ))}
               </View>
             </Card>
 

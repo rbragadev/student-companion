@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TabNavigator from './src/navigation/TabNavigator';
 import {
   AccommodationDetailScreen,
+  AccommodationCheckoutScreen,
   CourseDetailScreen,
   EnrollmentIntentScreen,
   AcademicJourneyScreen,
@@ -32,6 +33,11 @@ function MainStack() {
       <Stack.Screen
         name={StackRoutes.ACCOMMODATION_DETAIL}
         component={AccommodationDetailScreen}
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen
+        name={StackRoutes.ACCOMMODATION_CHECKOUT}
+        component={AccommodationCheckoutScreen}
         options={{ presentation: 'card' }}
       />
       <Stack.Screen

@@ -14,6 +14,7 @@ export enum TabRoutes {
 export enum StackRoutes {
   MAIN_TABS = 'MainTabs',
   ACCOMMODATION_DETAIL = 'AccommodationDetail',
+  ACCOMMODATION_CHECKOUT = 'AccommodationCheckout',
   COURSE_DETAIL = 'CourseDetail',
   ENROLLMENT_INTENT = 'EnrollmentIntent',
   ACADEMIC_JOURNEY = 'AcademicJourney',
@@ -38,6 +39,13 @@ export type RootTabParamList = {
 export type RootStackParamList = {
   [StackRoutes.MAIN_TABS]: NavigatorScreenParams<RootTabParamList>;
   [StackRoutes.ACCOMMODATION_DETAIL]: { accommodationId: string };
+  [StackRoutes.ACCOMMODATION_CHECKOUT]: {
+    accommodationId: string;
+    intentId?: string;
+    mode?: 'standalone' | 'package';
+    initialStartDate?: string;
+    initialEndDate?: string;
+  };
   [StackRoutes.COURSE_DETAIL]: { courseId: string };
   [StackRoutes.ENROLLMENT_INTENT]: { courseId: string };
   [StackRoutes.ACADEMIC_JOURNEY]: undefined;

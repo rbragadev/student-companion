@@ -195,6 +195,18 @@ export class InvoiceService {
             type: true,
             downPaymentAmount: true,
             remainingAmount: true,
+            coursePricing: {
+              select: {
+                id: true,
+                course: { select: { id: true, program_name: true } },
+              },
+            },
+            accommodationPricing: {
+              select: {
+                id: true,
+                accommodation: { select: { id: true, title: true, accommodationType: true } },
+              },
+            },
           },
         },
         payments: {
@@ -239,6 +251,18 @@ export class InvoiceService {
             type: true,
             downPaymentAmount: true,
             remainingAmount: true,
+            coursePricing: {
+              select: {
+                id: true,
+                course: { select: { id: true, program_name: true } },
+              },
+            },
+            accommodationPricing: {
+              select: {
+                id: true,
+                accommodation: { select: { id: true, title: true, accommodationType: true } },
+              },
+            },
           },
         },
         payments: {

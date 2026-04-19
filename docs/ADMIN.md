@@ -264,6 +264,11 @@ Status da integração mobile (escopo acadêmico já coberto):
   - ao aprovar/rejeitar proposta, backend cria notificação para o aluno com metadado da matrícula/intenção.
 - Upload de documentos no mobile fica visível apenas em status compatível com etapa documental (`documents_pending`, `under_review`).
 - Upsell de acomodação da matrícula usa dados reais com contexto da escola (`GET /accommodation/upsell/enrollment/:enrollmentId`), mostrando apenas acomodações recomendadas para a escola da matrícula com badge configurado no SaaS.
+- Acomodação também opera como produto standalone:
+  - fechamento sem curso no app (quote `accommodation_only`);
+  - listagem operacional por quote no backend (`GET /quotes?type=accommodation_only`);
+  - visualização no SaaS em acomodações e financeiro (invoices/pagamentos com contexto de quote mesmo sem matrícula).
+  - no app, o fechamento de acomodação também pode adicionar item ao pacote atual do aluno (quando houver curso em aberto), com recálculo completo do quote.
 - No fluxo de intenção/matrícula:
   - mobile consome `GET /enrollment-intents/recommended-accommodations?courseId=...` para mostrar acomodação elegível no momento de iniciar a intenção;
   - intenção aceita seleção/troca/remoção de acomodação via `PATCH /enrollment-intents/:id/accommodation`;
@@ -275,6 +280,11 @@ Status da integração mobile (escopo acadêmico já coberto):
   - resumo financeiro da matrícula (`GET /enrollments/:id/package-summary`) não aplica fallback implícito de valor de acomodação quando não houver quote/pricing válido.
   - quote exibe tipo do pacote (`course_only`, `course_with_accommodation`), total, entrada, saldo e comissão.
   - quote aceita montagem por itens (`course` e `accommodation`) com datas por item; suporta `accommodation_only` (standalone) no backend.
+  - pacote/carrinho unificado também suporta edição sem duplicar entidade:
+    - `PATCH /quotes/:id/recalculate` (recalcula snapshot mantendo contexto da quote);
+    - `DELETE /quotes/:id/items/:itemId` (remove item e gera nova quote recalculada);
+    - `GET /quotes/current/:studentId` (retorna pacote corrente do aluno com `packageStatus` e `nextStep`);
+    - `GET /quotes/by-enrollment/:enrollmentId` (resolução direta da quote da matrícula).
   - no mobile, o fechamento de pacote é em 4 etapas:
     1. curso + oferta de datas
     2. acomodação (recomendadas no topo, catálogo completo abaixo, opcional)

@@ -87,7 +87,8 @@ export class PaymentService {
       throw new NotFoundException(`Matrícula ${enrollmentId} não encontrada`);
     }
 
-    const quote = await this.enrollmentQuoteService.findLatestByIntent(enrollment.enrollmentIntent.id);
+    const quote =
+      (await this.enrollmentQuoteService.findByEnrollment(enrollment.id).catch(() => null)) ?? null;
     const payments = await this.prisma.payment.findMany({
       where: { enrollmentId },
       orderBy: { createdAt: 'desc' },
@@ -163,6 +164,28 @@ export class PaymentService {
       accommodation: context.enrollment.accommodation,
       enrollmentStatus: context.enrollment.status,
       quote: context.quote,
+      packageStatus:
+        context.state === 'paid'
+          ? 'paid'
+          : context.state === 'blocked_rejected'
+            ? 'cancelled'
+            : context.state === 'blocked_waiting_approval'
+              ? 'awaiting_approval'
+              : context.payments.some((item) => item.status === 'pending')
+                ? 'payment_pending'
+                : context.state === 'available'
+                  ? 'checkout_available'
+                  : 'draft',
+      nextStep:
+        context.state === 'paid'
+          ? 'Pagamento confirmado.'
+          : context.state === 'blocked_rejected'
+            ? 'Pacote cancelado/negado.'
+            : context.state === 'blocked_waiting_approval'
+              ? 'Aguardando aprovação operacional.'
+              : context.state === 'available'
+                ? 'Prosseguir com pagamento da entrada.'
+                : 'Gerar ou atualizar quote para liberar checkout.',
       financial: context.financial,
       payments: context.payments,
     };
@@ -260,6 +283,7 @@ export class PaymentService {
 
   async findAll(filters?: {
     enrollmentId?: string;
+    enrollmentQuoteId?: string;
     studentId?: string;
     invoiceId?: string;
     institutionId?: string;
@@ -268,6 +292,7 @@ export class PaymentService {
     return this.prisma.payment.findMany({
       where: {
         enrollmentId: filters?.enrollmentId,
+        enrollmentQuoteId: filters?.enrollmentQuoteId,
         invoiceId: filters?.invoiceId,
         status: filters?.status,
         enrollment:
@@ -299,7 +324,25 @@ export class PaymentService {
           },
         },
         enrollmentQuote: {
-          select: { id: true, type: true, totalAmount: true, downPaymentAmount: true, currency: true },
+          select: {
+            id: true,
+            type: true,
+            totalAmount: true,
+            downPaymentAmount: true,
+            currency: true,
+            coursePricing: {
+              select: {
+                id: true,
+                course: { select: { id: true, program_name: true } },
+              },
+            },
+            accommodationPricing: {
+              select: {
+                id: true,
+                accommodation: { select: { id: true, title: true, accommodationType: true } },
+              },
+            },
+          },
         },
       },
     });

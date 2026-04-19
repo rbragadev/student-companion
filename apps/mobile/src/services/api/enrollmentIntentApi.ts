@@ -88,6 +88,13 @@ export const enrollmentIntentApi = {
     return data as AccommodationPricing;
   },
 
+  getAccommodationPricingOptions: async (
+    accommodationId: string,
+  ): Promise<AccommodationPricing[]> => {
+    const { data } = await apiClient.get(`/accommodation-pricing?accommodationId=${accommodationId}`);
+    return Array.isArray(data) ? (data as AccommodationPricing[]) : [];
+  },
+
   createQuote: async (payload: {
     enrollmentIntentId?: string;
     coursePricingId?: string;
@@ -119,5 +126,35 @@ export const enrollmentIntentApi = {
     } catch {
       return null;
     }
+  },
+
+  getCurrentQuoteByStudent: async (studentId: string): Promise<EnrollmentQuote | null> => {
+    const { data } = await apiClient.get(`/quotes/current/${studentId}`);
+    return (data ?? null) as EnrollmentQuote | null;
+  },
+
+  recalculateQuote: async (
+    quoteId: string,
+    payload: {
+      items?: Array<{
+        itemType: 'course' | 'accommodation';
+        referenceId?: string;
+        coursePricingId?: string;
+        accommodationPricingId?: string;
+        startDate: string;
+        endDate: string;
+      }>;
+      fees?: number;
+      discounts?: number;
+      downPaymentPercentage?: number;
+    },
+  ): Promise<EnrollmentQuote> => {
+    const { data } = await apiClient.patch(`/quotes/${quoteId}/recalculate`, payload);
+    return data as EnrollmentQuote;
+  },
+
+  removeQuoteItem: async (quoteId: string, itemId: string): Promise<EnrollmentQuote> => {
+    const { data } = await apiClient.delete(`/quotes/${quoteId}/items/${itemId}`);
+    return data as EnrollmentQuote;
   },
 };

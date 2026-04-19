@@ -7,6 +7,7 @@ import type {
   AccommodationAdmin,
   EnrollmentAdmin,
   EnrollmentIntentAdmin,
+  EnrollmentQuoteAdmin,
   SchoolAccommodationRecommendationAdmin,
   SchoolAdmin,
 } from '@/types/catalog.types';
@@ -17,11 +18,12 @@ export default async function AccommodationsPage() {
   const session = await requirePermission('structure.read');
   const canWrite = session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
-  const [accommodations, schools, intents, enrollments] = await Promise.all([
+  const [accommodations, schools, intents, enrollments, standaloneQuotes] = await Promise.all([
     apiFetch<AccommodationAdmin[]>('/accommodation').catch(() => []),
     apiFetch<SchoolAdmin[]>('/school').catch(() => []),
     apiFetch<EnrollmentIntentAdmin[]>('/enrollment-intents').catch(() => []),
     apiFetch<EnrollmentAdmin[]>('/enrollments').catch(() => []),
+    apiFetch<EnrollmentQuoteAdmin[]>('/quotes?type=accommodation_only').catch(() => []),
   ]);
 
   const recommendationEntries = await Promise.all(
@@ -187,6 +189,56 @@ export default async function AccommodationsPage() {
               )}
             </div>
           </article>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="text-base font-semibold text-slate-900">Fechamentos standalone de acomodação</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Quotes do tipo <code>accommodation_only</code> para operação comercial sem curso.
+        </p>
+
+        <div className="mt-4 space-y-2">
+          {standaloneQuotes.map((quote) => {
+            const accommodation =
+              quote.accommodationPricing?.accommodation ??
+              quote.items?.find((item) => item.itemType === 'accommodation');
+            return (
+              <div key={quote.id} className="rounded border border-slate-200 p-3">
+                <p className="text-sm font-medium text-slate-900">
+                  {typeof accommodation === 'object' && accommodation && 'title' in accommodation
+                    ? accommodation.title
+                    : 'Acomodação (standalone)'}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Tipo: {quote.type} • Total: {Number(quote.totalAmount).toFixed(2)} {quote.currency}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Status do pacote: {quote.packageStatus ?? 'draft'}
+                </p>
+                {quote.nextStep ? (
+                  <p className="text-xs text-slate-500">Próximo passo: {quote.nextStep}</p>
+                ) : null}
+                <p className="text-xs text-slate-500">
+                  Entrada: {Number(quote.downPaymentAmount).toFixed(2)} {quote.currency} •
+                  Saldo: {Number(quote.remainingAmount).toFixed(2)} {quote.currency}
+                </p>
+                {(quote.items ?? [])
+                  .filter((item) => item.itemType === 'accommodation')
+                  .map((item) => (
+                    <p key={item.id} className="text-xs text-slate-500">
+                      Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} -{' '}
+                      {new Date(item.endDate).toLocaleDateString('pt-BR')}
+                    </p>
+                  ))}
+              </div>
+            );
+          })}
+          {standaloneQuotes.length === 0 && (
+            <p className="text-xs text-slate-500">
+              Nenhum fechamento standalone de acomodação encontrado no momento.
+            </p>
+          )}
         </div>
       </section>
     </div>

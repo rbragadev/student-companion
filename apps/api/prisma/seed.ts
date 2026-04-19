@@ -105,6 +105,7 @@ const ids = {
     emilyIntentWithAccommodation: 'eeeeeec2-eeee-4eee-8eee-eeeeeeeeeec2',
     lucasConvertedWithAccommodation: 'eeeeeec3-eeee-4eee-8eee-eeeeeeeeeec3',
     accommodationOnlySample: 'eeeeeec4-eeee-4eee-8eee-eeeeeeeeeec4',
+    accommodationOnlyWinterLongStay: 'eeeeeec5-eeee-4eee-8eee-eeeeeeeeeec5',
   },
   enrollmentQuoteItems: {
     raphaelCourse: 'eeeeeef1-eeee-4eee-8eee-eeeeeeeeeef1',
@@ -113,16 +114,19 @@ const ids = {
     lucasCourse: 'eeeeeef4-eeee-4eee-8eee-eeeeeeeeeef4',
     lucasAccommodation: 'eeeeeef5-eeee-4eee-8eee-eeeeeeeeeef5',
     accommodationOnly: 'eeeeeef6-eeee-4eee-8eee-eeeeeeeeeef6',
+    accommodationOnlyWinterLongStay: 'eeeeeef7-eeee-4eee-8eee-eeeeeeeeeef7',
   },
   payments: {
     emilyDownPaymentPaid: '1a111111-1111-4111-8111-111111111111',
     lucasDownPaymentPending: '1a111111-1111-4111-8111-111111111112',
     raphaelInvoicePending: '1a111111-1111-4111-8111-111111111113',
+    accommodationOnlyPaid: '1a111111-1111-4111-8111-111111111114',
   },
   invoices: {
     emilyPaid: '2a111111-1111-4111-8111-111111111111',
     lucasPending: '2a111111-1111-4111-8111-111111111112',
     raphaelOverdue: '2a111111-1111-4111-8111-111111111113',
+    accommodationOnlyPending: '2a111111-1111-4111-8111-111111111114',
   },
   invoiceItems: {
     emilyCourse: '2b111111-1111-4111-8111-111111111111',
@@ -130,6 +134,7 @@ const ids = {
     lucasCourse: '2b111111-1111-4111-8111-111111111113',
     lucasAccommodation: '2b111111-1111-4111-8111-111111111114',
     raphaelCourse: '2b111111-1111-4111-8111-111111111115',
+    accommodationOnly: '2b111111-1111-4111-8111-111111111116',
   },
   notifications: {
     raphaelApproved: '1b111111-1111-4111-8111-111111111111',
@@ -1559,6 +1564,27 @@ async function main() {
       type: 'accommodation_only',
       createdAt: new Date('2026-04-16T00:00:00.000Z'),
     },
+    {
+      id: ids.enrollmentQuotes.accommodationOnlyWinterLongStay,
+      enrollmentIntentId: null,
+      coursePricingId: null,
+      accommodationPricingId: ids.accommodationPricing.commercialWinter,
+      courseAmount: 0,
+      accommodationAmount: 5200,
+      fees: 120,
+      discounts: 200,
+      totalAmount: 5120,
+      currency: 'CAD',
+      downPaymentPercentage: 30,
+      downPaymentAmount: 1536,
+      remainingAmount: 3584,
+      commissionPercentage: 4.6875,
+      commissionAmount: 240,
+      commissionCourseAmount: 0,
+      commissionAccommodationAmount: 240,
+      type: 'accommodation_only',
+      createdAt: new Date('2026-12-05T00:00:00.000Z'),
+    },
   ] as const;
 
   for (const item of quotes) {
@@ -1642,6 +1668,18 @@ async function main() {
       amount: 1200,
       commissionAmount: 0,
     },
+    {
+      id: ids.enrollmentQuoteItems.accommodationOnlyWinterLongStay,
+      quoteId: ids.enrollmentQuotes.accommodationOnlyWinterLongStay,
+      itemType: 'accommodation',
+      referenceId: ids.accommodationPricing.commercialWinter,
+      coursePricingId: null,
+      accommodationPricingId: ids.accommodationPricing.commercialWinter,
+      startDate: new Date('2027-01-10T00:00:00.000Z'),
+      endDate: new Date('2027-03-07T00:00:00.000Z'),
+      amount: 5200,
+      commissionAmount: 240,
+    },
   ] as const;
 
   for (const item of quoteItems) {
@@ -1708,6 +1746,26 @@ async function main() {
       updatedAt: new Date('2026-04-18T10:00:00.000Z'),
       items: [
         { id: ids.invoiceItems.raphaelCourse, description: 'Curso', type: 'course', amount: 5550 },
+      ],
+    },
+    {
+      id: ids.invoices.accommodationOnlyPending,
+      number: 'INV-20260418-1004',
+      enrollmentId: null,
+      enrollmentQuoteId: ids.enrollmentQuotes.accommodationOnlySample,
+      totalAmount: 1280,
+      dueDate: new Date('2026-04-25T00:00:00.000Z'),
+      status: 'pending',
+      currency: 'CAD',
+      createdAt: new Date('2026-04-18T09:20:00.000Z'),
+      updatedAt: new Date('2026-04-18T09:20:00.000Z'),
+      items: [
+        {
+          id: ids.invoiceItems.accommodationOnly,
+          description: 'Acomodação standalone',
+          type: 'accommodation',
+          amount: 1200,
+        },
       ],
     },
   ] as const;
@@ -1805,6 +1863,21 @@ async function main() {
       paidAt: null,
       createdAt: new Date('2026-04-16T10:15:00.000Z'),
       updatedAt: new Date('2026-04-16T10:15:00.000Z'),
+    },
+    {
+      id: ids.payments.accommodationOnlyPaid,
+      enrollmentId: null,
+      enrollmentQuoteId: ids.enrollmentQuotes.accommodationOnlySample,
+      invoiceId: ids.invoices.accommodationOnlyPending,
+      type: 'down_payment',
+      amount: 384,
+      currency: 'CAD',
+      status: 'paid',
+      provider: 'fake',
+      providerReference: 'fake_seed_accommodation_only_001',
+      paidAt: new Date('2026-04-18T09:35:00.000Z'),
+      createdAt: new Date('2026-04-18T09:30:00.000Z'),
+      updatedAt: new Date('2026-04-18T09:35:00.000Z'),
     },
   ] as const;
 

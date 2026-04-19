@@ -347,6 +347,40 @@ Fluxo no SaaS:
 - SaaS:
   - detalhe do aluno com seção de preferências editável no próprio contexto da jornada.
 
+### Acomodação Standalone (Fluxo Independente)
+
+- Backend:
+  - `GET /quotes` com filtros (`type`, `enrollmentIntentId`, `accommodationId`, `courseId`) para operação comercial/financeira;
+  - `GET /payments` aceita filtro `enrollmentQuoteId` para rastrear pagamentos por pacote standalone;
+  - invoices/pagamentos retornam contexto enriquecido de quote (curso/acomodação) mesmo sem matrícula.
+- Mobile:
+  - novo fluxo dedicado: detalhe da acomodação -> fechamento standalone;
+  - seleção de período semanal (domingo a domingo) com janela clara de datas (início/fim/duração);
+  - cálculo em tempo real via backend (`/accommodation-pricing/resolve`) com breakdown (`basePrice`, `weeks`, `durationDays`, `totalAmount`);
+  - suporte a dois caminhos no fechamento:
+    - `adicionar ao pacote atual` (recalcula quote com curso via `PATCH /quotes/:id/recalculate`);
+    - `fechar somente acomodação` (gera quote `accommodation_only` + pagamento fake da entrada).
+- SaaS:
+  - seção de acomodações exibe fechamentos `accommodation_only`;
+  - financeiro (vendas/invoices/pagamentos) diferencia contexto standalone vs pacote com matrícula.
+
+### Pacote/Carrinho Unificado
+
+- Backend:
+  - quote enriquecida com contexto operacional:
+    - `packageStatus` (`draft`, `proposal_sent`, `awaiting_approval`, `approved`, `checkout_available`, `payment_pending`, `paid`, `cancelled`);
+    - `nextStep`;
+    - vínculo de matrícula/intenção e pagamentos.
+  - endpoints de fluxo unificado:
+    - `GET /quotes/current/:studentId`;
+    - `GET /quotes/by-enrollment/:enrollmentId`;
+    - `PATCH /quotes/:id/recalculate`;
+    - `DELETE /quotes/:id/items/:itemId`.
+- Mobile:
+  - checkout passa a exibir pacote/carrinho com tipo, status, próximo passo e itens com datas/valor.
+- SaaS:
+  - detalhe de intenção e matrícula exibe status operacional do pacote + próximo passo.
+
 ### Componentes genéricos prontos
 
 | Componente | Uso |

@@ -127,10 +127,12 @@ export class AccommodationPricingService {
     const startDate = this.parseIsoDate(options?.startDate);
     const endDate = this.parseIsoDate(options?.endDate);
     let weeks = 0;
+    let durationDays = 0;
     let calculatedAmount = effectivePrice;
 
     if (startDate && endDate) {
       weeks = this.validateWeeklyRange(startDate, endDate);
+      durationDays = weeks * 7;
       calculatedAmount = Number((effectivePrice * weeks).toFixed(2));
     }
 
@@ -144,6 +146,16 @@ export class AccommodationPricingService {
       accommodation: effectiveAccommodation,
       calculatedAmount,
       weeks,
+      durationDays,
+      selectedStartDate: startDate?.toISOString() ?? null,
+      selectedEndDate: endDate?.toISOString() ?? null,
+      breakdown: {
+        basePrice: effectivePrice,
+        priceUnit: 'week',
+        weeks,
+        durationDays,
+        totalAmount: calculatedAmount,
+      },
       pricingLabel: 'per week',
     };
   }

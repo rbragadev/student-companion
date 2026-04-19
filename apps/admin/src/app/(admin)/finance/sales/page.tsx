@@ -2,7 +2,13 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { PageHeader } from '@/components/ui/page-header';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import type { CourseAdmin, InstitutionAdmin, SalesRowAdmin, SchoolAdmin } from '@/types/catalog.types';
+import type {
+  CourseAdmin,
+  EnrollmentQuoteAdmin,
+  InstitutionAdmin,
+  SalesRowAdmin,
+  SchoolAdmin,
+} from '@/types/catalog.types';
 
 function money(amount: number, currency: string) {
   return `${Number(amount ?? 0).toFixed(2)} ${currency}`;
@@ -33,11 +39,12 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
   if (status) query.set('status', status);
   if (hasAccommodation) query.set('hasAccommodation', hasAccommodation);
 
-  const [sales, institutions, schools, courses] = await Promise.all([
+  const [sales, institutions, schools, courses, standaloneQuotes] = await Promise.all([
     apiFetch<SalesRowAdmin[]>(`/sales${query.toString() ? `?${query.toString()}` : ''}`).catch(() => []),
     apiFetch<InstitutionAdmin[]>('/institution').catch(() => []),
     apiFetch<SchoolAdmin[]>('/school').catch(() => []),
     apiFetch<CourseAdmin[]>('/course').catch(() => []),
+    apiFetch<EnrollmentQuoteAdmin[]>('/quotes?type=accommodation_only').catch(() => []),
   ]);
 
   const columns: Column<SalesRowAdmin>[] = [
@@ -150,6 +157,30 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
         emptyTitle="Nenhuma venda encontrada"
         emptyDescription="Ajuste os filtros ou avance no fluxo de matrícula para gerar pacotes."
       />
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="text-base font-semibold text-slate-900">Pacotes standalone de acomodação</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Fechamentos sem matrícula (tipo <code>accommodation_only</code>).
+        </p>
+        <div className="mt-3 space-y-2">
+          {standaloneQuotes.map((quote) => (
+            <div key={quote.id} className="rounded border border-slate-200 p-3">
+              <p className="text-sm font-medium text-slate-900">
+                {quote.accommodationPricing?.accommodation?.title ?? 'Acomodação'}
+              </p>
+              <p className="text-xs text-slate-500">
+                Total: {money(quote.totalAmount, quote.currency)} • Entrada:{' '}
+                {money(quote.downPaymentAmount, quote.currency)} • Saldo:{' '}
+                {money(quote.remainingAmount, quote.currency)}
+              </p>
+            </div>
+          ))}
+          {standaloneQuotes.length === 0 && (
+            <p className="text-xs text-slate-500">Nenhum pacote standalone encontrado.</p>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

@@ -36,6 +36,16 @@ export interface AccommodationPricing {
   basePrice: number;
   calculatedAmount?: number;
   weeks?: number;
+  durationDays?: number;
+  selectedStartDate?: string | null;
+  selectedEndDate?: string | null;
+  breakdown?: {
+    basePrice: number;
+    priceUnit: string;
+    weeks: number;
+    durationDays: number;
+    totalAmount: number;
+  };
   pricingLabel?: 'per week' | string;
   currency: string;
   isActive: boolean;
@@ -278,6 +288,16 @@ export interface EnrollmentCheckoutState {
   academicPeriod?: { id: string; name: string };
   accommodation?: { id: string; title: string } | null;
   quote?: EnrollmentQuote | null;
+  packageStatus?:
+    | 'draft'
+    | 'proposal_sent'
+    | 'awaiting_approval'
+    | 'approved'
+    | 'checkout_available'
+    | 'payment_pending'
+    | 'paid'
+    | 'cancelled';
+  nextStep?: string;
   financial: {
     currency: string;
     totalAmount: number;
@@ -325,6 +345,26 @@ export interface EnrollmentQuote {
   commissionCourseAmount: number;
   commissionAccommodationAmount: number;
   type: 'course_only' | 'course_with_accommodation' | 'accommodation_only';
+  packageStatus?:
+    | 'draft'
+    | 'proposal_sent'
+    | 'awaiting_approval'
+    | 'approved'
+    | 'checkout_available'
+    | 'payment_pending'
+    | 'paid'
+    | 'cancelled';
+  nextStep?: string;
+  enrollment?: { id: string; status: string } | null;
+  payments?: Array<{
+    id: string;
+    type: string;
+    status: string;
+    amount: number;
+    currency: string;
+    paidAt?: string | null;
+    createdAt: string;
+  }>;
   items?: Array<{
     id: string;
     itemType: 'course' | 'accommodation';
