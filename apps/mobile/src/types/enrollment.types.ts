@@ -122,11 +122,10 @@ export interface Enrollment {
     | 'partially_paid'
     | 'paid'
     | 'confirmed'
+    | 'enrolled'
     | 'expired'
     | 'rejected'
     | 'cancelled'
-    | 'closed'
-    | 'completed'
     ;
   createdAt: string;
   accommodationStatus: 'not_selected' | 'selected' | 'approved' | 'denied' | 'closed';

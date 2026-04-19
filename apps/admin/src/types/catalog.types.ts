@@ -121,11 +121,10 @@ export interface EnrollmentAdmin {
     | 'partially_paid'
     | 'paid'
     | 'confirmed'
+    | 'enrolled'
     | 'expired'
     | 'rejected'
     | 'cancelled'
-    | 'closed'
-    | 'completed'
     ;
   createdAt: string;
   accommodationStatus: 'not_selected' | 'selected' | 'approved' | 'denied' | 'closed';
@@ -140,7 +139,7 @@ export interface EnrollmentAdmin {
   institution: { id: string; name: string };
   school: { id: string; name: string };
   unit: { id: string; name: string; code: string };
-  course: { id: string; program_name: string };
+  course: { id: string; program_name: string; auto_approve_intent?: boolean };
   classGroup: { id: string; name: string; code: string };
   academicPeriod: { id: string; name: string; startDate: string; endDate: string };
   accommodation?: {

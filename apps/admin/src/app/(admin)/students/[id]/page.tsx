@@ -18,10 +18,9 @@ const enrollmentStatusLabel = {
   partially_paid: 'Partially Paid',
   paid: 'Paid',
   confirmed: 'Confirmed',
+  enrolled: 'Enrolled',
   expired: 'Expired',
   rejected: 'Rejected',
-  closed: 'Closed',
-  completed: 'Concluída',
   cancelled: 'Cancelada',
 } as const;
 

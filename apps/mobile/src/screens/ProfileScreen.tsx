@@ -30,6 +30,38 @@ const studentStatusLabel: Record<string, string> = {
   enrolled: 'Enrolled',
 };
 
+const enrollmentJourneyLabel: Record<string, string> = {
+  draft: 'Rascunho',
+  started: 'Iniciada',
+  awaiting_school_approval: 'Aguardando aprovação da escola',
+  approved: 'Aprovada',
+  checkout_available: 'Checkout disponível',
+  payment_pending: 'Pagamento pendente',
+  partially_paid: 'Parcialmente paga',
+  paid: 'Paga',
+  confirmed: 'Confirmada',
+  enrolled: 'Matriculado',
+  rejected: 'Rejeitada',
+  cancelled: 'Cancelada',
+  expired: 'Expirada',
+};
+
+const journeyNextStepByStatus: Record<string, string> = {
+  draft: 'Continuar montagem do pacote.',
+  started: 'Enviar aplicação para análise.',
+  awaiting_school_approval: 'Aguardar aprovação operacional.',
+  approved: 'Seguir para checkout.',
+  checkout_available: 'Pagar entrada para avançar.',
+  payment_pending: 'Concluir pagamento pendente.',
+  partially_paid: 'Pagar saldo restante.',
+  paid: 'Aguardar confirmação final.',
+  confirmed: 'Matrícula confirmada. Aguardando ativação.',
+  enrolled: 'Matrícula ativa. Siga com curso e suporte.',
+  rejected: 'Revisar e reenviar nova aplicação.',
+  cancelled: 'Iniciar nova matrícula quando desejar.',
+  expired: 'Fluxo expirado. Recomeçar aplicação.',
+};
+
 function formatMoney(value?: number) {
   if (!value && value !== 0) return '-';
   return `CAD ${Number(value).toFixed(0)}`;
@@ -151,6 +183,7 @@ export default function ProfileScreen() {
   }
 
   const profileStatus = activeEnrollment?.status || user.studentStatus || 'lead';
+  const journeyStatus = activeEnrollment?.status ?? null;
 
   return (
     <Screen safeArea={true} scrollable={true}>
@@ -184,7 +217,9 @@ export default function ProfileScreen() {
             <View className="h-px bg-border" />
             <Text variant="caption" className="text-textMuted">Status do aluno</Text>
             <Text variant="body" className="font-medium">
-              {studentStatusLabel[profileStatus] ?? profileStatus}
+              {journeyStatus
+                ? enrollmentJourneyLabel[journeyStatus] ?? journeyStatus
+                : studentStatusLabel[profileStatus] ?? profileStatus}
             </Text>
           </View>
         </Card>
@@ -193,29 +228,11 @@ export default function ProfileScreen() {
         <Card>
           <View className="gap-2">
             <Text variant="body" className="font-semibold">Resumo da jornada atual</Text>
+            <Text variant="caption">Status atual: {journeyStatus ? (enrollmentJourneyLabel[journeyStatus] ?? journeyStatus) : 'Sem matrícula ativa'}</Text>
             <Text variant="caption">
-              Matrícula em andamento:{' '}
-              {activeEnrollment &&
-              ['draft', 'started', 'awaiting_school_approval'].includes(activeEnrollment.status)
-                ? 'Sim'
-                : 'Não'}
+              Próximo passo: {journeyStatus ? (journeyNextStepByStatus[journeyStatus] ?? 'Siga o fluxo da matrícula atual.') : 'Iniciar nova aplicação.'}
             </Text>
-            <Text variant="caption">
-              Proposta aguardando aprovação:{' '}
-              {checkout?.state === 'blocked_waiting_approval' ? 'Sim' : 'Não'}
-            </Text>
-            <Text variant="caption">
-              Matrícula ativa: {activeEnrollment ? 'Sim' : 'Não'}
-            </Text>
-            <Text variant="caption">
-              Checkout disponível: {checkout?.state === 'available' ? 'Sim' : 'Não'}
-            </Text>
-            <Text variant="caption">
-              Pagamento pendente:{' '}
-              {checkout?.state === 'available' || checkout?.state === 'blocked_waiting_approval'
-                ? 'Sim'
-                : 'Não'}
-            </Text>
+            <Text variant="caption">Checkout: {checkout?.state ?? 'não disponível'}</Text>
             {activeEnrollment && (
               <>
                 <View className="h-px bg-border my-1" />

@@ -23,11 +23,26 @@ const enrollmentStatusLabel: Record<Enrollment['status'], string> = {
   partially_paid: 'Partially Paid',
   paid: 'Paid',
   confirmed: 'Confirmed',
+  enrolled: 'Enrolled',
   expired: 'Expired',
   rejected: 'Rejected',
   cancelled: 'Cancelada',
-  closed: 'Closed',
-  completed: 'Concluída',
+};
+
+const enrollmentNextStepLabel: Record<Enrollment['status'], string> = {
+  draft: 'Continuar aplicação',
+  started: 'Enviar aplicação',
+  awaiting_school_approval: 'Aguardar aprovação',
+  approved: 'Ir para checkout',
+  checkout_available: 'Pagar entrada',
+  payment_pending: 'Concluir pagamento',
+  partially_paid: 'Pagar saldo',
+  paid: 'Aguardar confirmação',
+  confirmed: 'Aguardando ativação',
+  enrolled: 'Fluxo concluído',
+  expired: 'Reiniciar fluxo',
+  rejected: 'Refazer aplicação',
+  cancelled: 'Nova matrícula',
 };
 
 function formatDate(value?: string | null) {
@@ -100,6 +115,7 @@ export default function AcademicJourneyScreen() {
                     Acomodação: {activeEnrollment.accommodation ? activeEnrollment.accommodation.title : 'Sem acomodação'}
                   </Text>
                   <Text variant="caption">Status: {enrollmentStatusLabel[activeEnrollment.status]}</Text>
+                  <Text variant="caption">Próximo passo: {enrollmentNextStepLabel[activeEnrollment.status]}</Text>
                   <Text variant="caption">Criada em: {formatDate(activeEnrollment.createdAt)}</Text>
                   <Button
                     className="mt-3"
@@ -123,6 +139,7 @@ export default function AcademicJourneyScreen() {
                     Acomodação: {activeEnrollment.accommodation ? activeEnrollment.accommodation.title : 'Sem acomodação'}
                   </Text>
                   <Text variant="caption">Status: {enrollmentStatusLabel[activeEnrollment.status]}</Text>
+                  <Text variant="caption">Próximo passo: {enrollmentNextStepLabel[activeEnrollment.status]}</Text>
                   <Button
                     className="mt-2"
                     onPress={() => navigation.navigate(StackRoutes.ENROLLMENT_DETAIL, { enrollmentId: activeEnrollment.id })}

@@ -167,53 +167,21 @@ Compatibilidade mobile:
 - O mobile normaliza esse contrato na camada `services/api/mappers/catalogMappers.ts`, convertendo para `camelCase` antes de chegar nas telas/hooks.
 - O vínculo `course.school_id` permanece ativo para não quebrar a navegação/listagem no app.
 
-### Intenção de Matrícula (Step A)
+### Matrícula Única + Operação Financeira
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| `POST` | `/enrollment-intents` | Cria intenção de matrícula para aluno |
-| `GET` | `/enrollment-intents` | Lista intenções (`?studentId=&status=&studentStatus=&institutionId=&schoolId=`) |
-| `GET` | `/enrollment-intents/recommended-accommodations?courseId=...` | Lista acomodações recomendadas para o contexto do curso |
-| `GET` | `/enrollment-intents/recommended-accommodations?intentId=...` | Lista acomodações recomendadas para a escola da intenção |
-| `GET` | `/enrollment-intents/:id` | Detalhe da intenção |
-| `PATCH` | `/enrollment-intents/:id` | Edita curso/turma/período da intenção pendente |
-| `PATCH` | `/enrollment-intents/:id/accommodation` | Seleciona/troca/remove acomodação da intenção |
-| `PATCH` | `/enrollment-intents/:id/status` | Atualiza status operacional (`pending`, `cancelled`, `denied`) |
-
-Payload de criação:
-
-```json
-{
-  "studentId": "uuid",
-  "courseId": "uuid",
-  "classGroupId": "uuid",
-  "academicPeriodId": "uuid"
-}
-```
-
-Regras:
-- valida a cadeia `course -> class_group -> academic_period`
-- permite apenas 1 intenção **pendente** por aluno (validação de serviço)
-- `accommodation` é opcional na intenção
-- quando informada, deve ser uma acomodação ativa; recomendação por escola atua como prioridade de sugestão (não bloqueio)
-- atualiza `users.student_status` no fluxo: `lead -> application_started -> pending_enrollment`
-- histórico de intenções é preservado (`pending`, `converted`, `cancelled`, `denied`)
-
-### Matrícula Confirmada + Operação Financeira (Step B+)
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `POST` | `/enrollments/from-intent/:intentId` | Converte intenção pendente em matrícula real |
+| `POST` | `/enrollments/start` | Cria ou continua a matrícula ativa do aluno |
 | `GET` | `/enrollments` | Lista matrículas (`?studentId=&status=&institutionId=&schoolId=&accommodationStatus=`) |
 | `GET` | `/enrollments/active?studentId=...` | Retorna matrícula ativa do aluno (ou `null`) |
-| `GET` | `/enrollments/journey/:studentId` | Retorna visão consolidada: intenção pendente, matrícula ativa e históricos |
+| `GET` | `/enrollments/journey/:studentId` | Retorna visão consolidada: matrícula ativa e histórico |
 | `GET` | `/enrollments/:id/timeline` | Timeline consolidada da matrícula (status, docs, mensagens) |
 | `GET` | `/enrollments/:id/package-summary` | Resumo financeiro consolidado do pacote (matrícula + acomodação) |
 | `GET` | `/enrollments/:id` | Detalhe de matrícula |
 | `PATCH` | `/enrollments/:id` | Atualiza status e/ou pricing (`basePrice`, `fees`, `discounts`, `currency`) |
 | `PATCH` | `/enrollments/:id/accommodation` | Seleciona/troca/remove acomodação da matrícula |
 | `PATCH` | `/enrollments/:id/accommodation-workflow` | Atualiza workflow operacional da acomodação (`not_selected`, `selected`, `approved`, `denied`, `closed`) |
-| `PATCH` | `/enrollments/:id/status` | Atualização legada apenas de status |
+| `PATCH` | `/enrollments/:id/status` | Atualiza status via máquina de estados (com validação de transição) |
 | `GET` | `/enrollment-documents` | Lista documentos (`?enrollmentId=`) |
 | `POST` | `/enrollment-documents` | Adiciona documento da matrícula |
 | `PATCH` | `/enrollment-documents/:id` | Aprova/rejeita/atualiza documento |
@@ -234,19 +202,22 @@ Regras:
 | `GET` | `/accommodation-pricing/resolve?accommodationId=...&periodOption=...&startDate=...&endDate=...` | Resolve preço ativo e valor calculado para o período selecionado |
 | `POST` | `/quotes` | Gera quote consolidada do pacote (curso, acomodação opcional, entrada, saldo, comissão) |
 | `GET` | `/quotes/:id` | Retorna detalhe da quote |
-| `GET` | `/quotes/by-intent/:intentId` | Retorna a quote mais recente associada à intenção |
+| `GET` | `/quotes/by-enrollment/:enrollmentId` | Retorna a quote mais recente associada à matrícula |
 | `GET` | `/recommendations/accommodations?courseId=...` | Lista recomendações de acomodação por contexto do curso (máx. 3) |
 
 Regras:
-- intenção pode ser editada apenas enquanto `status = pending`
-- uma intenção pode ser confirmada no máximo uma vez
-- confirmação valida novamente a cadeia acadêmica completa
-- confirmação cria matrícula com status inicial `application_started`
-- confirmação carrega a acomodação selecionada na intenção (quando existir)
+- matrícula é a entidade central de fluxo (sem `enrollment_intent`)
+- existe no máximo 1 matrícula ativa por aluno
+- início: `draft -> started`
+- envio:
+  - `started -> awaiting_school_approval` (autoApprove=false)
+  - `started -> checkout_available` (autoApprove=true)
+- aprovação: `awaiting_school_approval -> approved|rejected`
+- checkout: `approved -> checkout_available -> payment_pending -> partially_paid|paid`
+- confirmação: `paid -> confirmed -> enrolled`
+- finais: `cancelled` e `expired`
 - acomodação possui workflow operacional no contexto da matrícula: `not_selected -> selected -> approved|denied -> closed`
 - após `accommodationStatus = closed`, troca/remoção de acomodação é bloqueada
-- confirmação marca intenção como `converted` (`converted_at` preenchido)
-- intenção pendente só pode ser criada/alterada com preço ativo de curso para `course + academicPeriod`
 - cursos suportam `period_type`:
   - `weekly`: validação por múltiplos de 7 dias com datas de domingo a domingo
   - `fixed`: datas dentro da janela do período acadêmico
@@ -275,23 +246,26 @@ Regras:
   - `startDate` / `endDate`
   - `amount` / `commissionAmount`
 - `student_status` global do aluno prioriza matrícula ativa (qualquer estágio ativo do workflow)
-- mudanças de status em intenção/matrícula recalculam `users.student_status` automaticamente:
-  - matrícula com status final (`enrolled`/`active`) -> `enrolled`
-  - matrícula operacional em andamento ou intenção pendente -> `pending_enrollment`
+- mudanças de status em matrícula recalculam `users.student_status` automaticamente:
+  - matrícula ativa em qualquer estágio -> `enrolled`
+  - sem matrícula ativa e com histórico -> `pending_enrollment`
   - histórico sem pendência ativa -> `application_started`
   - sem histórico -> `lead`
 
 Status operacionais de matrícula:
-- `application_started`
-- `documents_pending`
-- `under_review`
+- `draft`
+- `started`
+- `awaiting_school_approval`
 - `approved`
+- `checkout_available`
+- `payment_pending`
+- `partially_paid`
+- `paid`
+- `confirmed`
 - `enrolled`
 - `rejected`
 - `cancelled`
-
-Status legados ainda aceitos para compatibilidade:
-- `active`, `completed`, `denied`
+- `expired`
 
 Distinção conceitual:
 - `institution`: escopo administrativo do cliente no SaaS.

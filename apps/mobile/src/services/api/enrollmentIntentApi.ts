@@ -29,7 +29,7 @@ function mapEnrollmentStatusToIntentStatus(
       'partially_paid',
       'paid',
       'confirmed',
-      'completed',
+      'enrolled',
     ].includes(status)
   ) {
     return 'converted';

@@ -27,11 +27,11 @@ export class PaymentService {
   }
 
   private isRejectedStatus(status: string): boolean {
-    return ['rejected', 'cancelled', 'expired', 'closed'].includes(status);
+    return ['rejected', 'cancelled', 'expired'].includes(status);
   }
 
   private isApprovalReadyStatus(status: string): boolean {
-    return ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'confirmed', 'completed'].includes(status);
+    return ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'confirmed', 'enrolled'].includes(status);
   }
 
   private async reconcileInvoiceStatus(invoiceId?: string | null) {
@@ -280,17 +280,36 @@ export class PaymentService {
         },
       });
 
-      if (!['paid', 'confirmed', 'completed'].includes(context.enrollment.status)) {
-        const nextStatus = 'paid';
+      if (!['paid', 'confirmed', 'enrolled'].includes(context.enrollment.status)) {
+        let currentStatus = context.enrollment.status;
+
+        // Checkout aberto passa por payment_pending antes de paid.
+        if (['approved', 'checkout_available'].includes(currentStatus)) {
+          await tx.enrollment.update({
+            where: { id: enrollmentId },
+            data: { status: 'payment_pending' },
+          });
+          await tx.enrollmentStatusHistory.create({
+            data: {
+              enrollmentId,
+              fromStatus: currentStatus,
+              toStatus: 'payment_pending',
+              reason: 'Pagamento iniciado',
+              changedById: null,
+            },
+          });
+          currentStatus = 'payment_pending';
+        }
+
         await tx.enrollment.update({
           where: { id: enrollmentId },
-          data: { status: nextStatus },
+          data: { status: 'paid' },
         });
         await tx.enrollmentStatusHistory.create({
           data: {
             enrollmentId,
-            fromStatus: context.enrollment.status,
-            toStatus: nextStatus,
+            fromStatus: currentStatus,
+            toStatus: 'paid',
             reason: 'Pagamento de entrada confirmado (fake checkout)',
             changedById: null,
           },

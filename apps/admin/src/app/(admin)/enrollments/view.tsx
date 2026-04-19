@@ -152,11 +152,10 @@ export function EnrollmentView({
               { label: 'partially_paid', value: 'partially_paid' },
               { label: 'paid', value: 'paid' },
               { label: 'confirmed', value: 'confirmed' },
+              { label: 'enrolled', value: 'enrolled' },
               { label: 'expired', value: 'expired' },
               { label: 'rejected', value: 'rejected' },
               { label: 'cancelled', value: 'cancelled' },
-              { label: 'closed', value: 'closed' },
-              { label: 'completed', value: 'completed' },
             ],
           },
           {

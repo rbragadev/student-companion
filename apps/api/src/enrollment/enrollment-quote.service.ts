@@ -228,7 +228,7 @@ export class EnrollmentQuoteService {
       };
     }
 
-    if (['cancelled', 'rejected', 'expired', 'closed'].includes(enrollmentStatus ?? '')) {
+    if (['cancelled', 'rejected', 'expired'].includes(enrollmentStatus ?? '')) {
       return {
         packageStatus: 'cancelled',
         nextStep: 'Pacote cancelado/negado. Ajuste itens e reenvie se necessário.',
@@ -238,7 +238,7 @@ export class EnrollmentQuoteService {
     if (enrollmentStatus) {
       const approvalReady =
         autoApproveIntent === true ||
-        ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'confirmed', 'completed'].includes(
+        ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'confirmed', 'enrolled'].includes(
           enrollmentStatus,
         );
       if (!approvalReady) {
@@ -945,6 +945,7 @@ export class EnrollmentQuoteService {
             'partially_paid',
             'paid',
             'confirmed',
+            'enrolled',
           ],
         },
       },

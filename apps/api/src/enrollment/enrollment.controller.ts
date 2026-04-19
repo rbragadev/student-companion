@@ -93,7 +93,7 @@ export class EnrollmentController {
 
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: UpdateEnrollmentStatusDto) {
-    return this.enrollmentService.updateStatus(id, dto.status);
+    return this.enrollmentService.updateStatus(id, dto.status, dto.reason, dto.changedById);
   }
 
   @Get(':id')

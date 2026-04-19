@@ -5,6 +5,8 @@ import {
   ENROLLMENT_ACCOMMODATION_STATUSES,
   ACTIVE_ENROLLMENT_STATUSES,
   ENROLLMENT_STATUSES,
+  getAllowedEnrollmentTransitions,
+  validateEnrollmentTransition,
   type EnrollmentAccommodationStatus,
   type EnrollmentStatus,
 } from './enrollment.constants';
@@ -38,7 +40,7 @@ export class EnrollmentService {
     institution: { select: { id: true, name: true } },
     school: { select: { id: true, name: true } },
     unit: { select: { id: true, name: true, code: true } },
-    course: { select: { id: true, program_name: true } },
+    course: { select: { id: true, program_name: true, auto_approve_intent: true } },
     classGroup: { select: { id: true, name: true, code: true } },
     academicPeriod: {
       select: {
@@ -153,6 +155,38 @@ export class EnrollmentService {
     }
   }
 
+  private assertCanTransition(
+    currentStatus: EnrollmentStatus,
+    nextStatus: EnrollmentStatus,
+    context: {
+      autoApproveIntent?: boolean;
+    } = {},
+  ) {
+    if (currentStatus === nextStatus) return;
+
+    if (currentStatus === 'started') {
+      if (nextStatus === 'checkout_available' && context.autoApproveIntent !== true) {
+        throw new BadRequestException(
+          'Transição inválida: started → checkout_available exige autoApprove=true no curso',
+        );
+      }
+      if (nextStatus === 'awaiting_school_approval' && context.autoApproveIntent === true) {
+        throw new BadRequestException(
+          'Transição inválida: started → awaiting_school_approval não se aplica com autoApprove=true',
+        );
+      }
+    }
+
+    if (!validateEnrollmentTransition(currentStatus, nextStatus)) {
+      const allowed = getAllowedEnrollmentTransitions(currentStatus);
+      throw new BadRequestException(
+        `Transição inválida: ${currentStatus} -> ${nextStatus}. Permitidas: ${
+          allowed.length ? allowed.join(', ') : 'nenhuma'
+        }`,
+      );
+    }
+  }
+
   private assertValidAccommodationStatus(
     status: string,
   ): asserts status is EnrollmentAccommodationStatus {
@@ -179,6 +213,19 @@ export class EnrollmentService {
       where: { id: studentId },
       data: { studentStatus: nextStatus },
     });
+  }
+
+  private mapStatusToTimelineTitle(status: string): string {
+    const map: Record<string, string> = {
+      started: 'application_started',
+      awaiting_school_approval: 'approval_requested',
+      approved: 'approved',
+      checkout_available: 'checkout_available',
+      payment_pending: 'payment_started',
+      paid: 'payment_completed',
+      enrolled: 'enrolled',
+    };
+    return map[status] ?? `status:${status}`;
   }
 
   private async registerStatusHistory(
@@ -553,7 +600,7 @@ export class EnrollmentService {
       id: item.id,
       type: 'status_changed',
       occurredAt: item.createdAt,
-      title: `Status alterado para ${item.toStatus}`,
+      title: this.mapStatusToTimelineTitle(item.toStatus),
       description: item.reason ?? null,
       fromStatus: item.fromStatus,
       toStatus: item.toStatus,
@@ -628,6 +675,10 @@ export class EnrollmentService {
   ) {
     this.assertValidStatus(status);
     const enrollment = await this.findOne(id);
+    this.assertValidStatus(enrollment.status);
+    this.assertCanTransition(enrollment.status, status, {
+      autoApproveIntent: enrollment.course?.auto_approve_intent,
+    });
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.enrollment.update({
@@ -664,7 +715,7 @@ export class EnrollmentService {
       });
     }
 
-    if (status === 'rejected' || status === 'cancelled' || status === 'expired' || status === 'closed') {
+    if (status === 'rejected' || status === 'cancelled' || status === 'expired') {
       await this.notificationService.create({
         userId: enrollment.student.id,
         type: 'proposal_rejected',
@@ -699,6 +750,10 @@ export class EnrollmentService {
 
     if (dto.status) {
       this.assertValidStatus(dto.status);
+      this.assertValidStatus(enrollment.status);
+      this.assertCanTransition(enrollment.status, dto.status, {
+        autoApproveIntent: enrollment.course?.auto_approve_intent,
+      });
     }
 
     const updatedEnrollment = await this.prisma.$transaction(async (tx) => {
@@ -764,8 +819,7 @@ export class EnrollmentService {
       if (
         requestedStatus === 'rejected' ||
         requestedStatus === 'cancelled' ||
-        requestedStatus === 'expired' ||
-        requestedStatus === 'closed'
+        requestedStatus === 'expired'
       ) {
         await this.notificationService.create({
           userId: enrollment.student.id,

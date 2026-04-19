@@ -120,8 +120,8 @@ apps/admin/
     │       ├── class-groups/   # Operação interna de turmas (admin)
     │       ├── academic-periods/ # Operação interna de períodos (admin)
     │       ├── academic-structure/ # Consulta relacional com filtros encadeados
-    │       ├── enrollment-intents/ # Lista e detalhe de intenções de matrícula
     │       ├── enrollments/    # Lista e detalhe operacional/financeiro das matrículas
+    │       ├── orders/         # Vendas/Orders de curso, acomodação e pacote
     │       ├── accommodation-operations/ # Fechamento/faturamento de acomodação por matrícula
     │       ├── commission-config/ # Configuração de comissão por instituição/curso
     │       ├── financial-overview/ # Visão financeira inicial das comissões geradas
@@ -205,17 +205,10 @@ Busca contagens reais em paralelo via `Promise.all` nos endpoints `/school`, `/c
   Consulta operacional da cadeia acadêmica com filtros dependentes:
   instituição -> escola -> unidade -> curso -> turma.
   Exibe de forma consolidada escolas, unidades, cursos, turmas e períodos relacionados.
-- `/enrollment-intents`, `/enrollment-intents/[id]`
-  Lista e detalhe das intenções de matrícula com filtros por status do aluno, instituição e escola.
-  Inclui busca por aluno/e-mail/curso e breadcrumbs nas páginas internas.
-- `/enrollment-intents/[id]/edit`
-  Página dedicada para alterar curso/turma/período e acomodação da intenção pendente.
-- `/enrollment-intents/[id]/confirm`
-  Página dedicada para confirmar matrícula (conversão da intenção), podendo selecionar/trocar/remover acomodação antes da efetivação.
 - `/students/[id]`
-  Jornada acadêmica do aluno com intenção pendente, matrícula ativa e histórico completo.
+  Jornada acadêmica do aluno com matrícula ativa e histórico completo.
 - `/enrollments`, `/enrollments/[id]`
-  Lista e detalhe de matrículas com workflow operacional (`application_started`, `documents_pending`, `under_review`, `approved`, `enrolled`, `rejected`, `cancelled`), pricing de pacote (matrícula + acomodação), comissão, documentos, mensagens e timeline.
+  Lista e detalhe de matrículas com máquina de estados única (`draft`, `started`, `awaiting_school_approval`, `approved`, `checkout_available`, `payment_pending`, `partially_paid`, `paid`, `confirmed`, `enrolled`, `rejected`, `cancelled`, `expired`), pricing de pacote (matrícula + acomodação), comissão, documentos, mensagens e timeline.
   Inclui busca por aluno/e-mail/curso e breadcrumbs nas páginas internas.
 - `/accommodation-operations`
   Operação dedicada para fechamento de acomodação e faturamento no contexto da matrícula (status da acomodação + acesso rápido ao detalhe da matrícula).
@@ -240,11 +233,11 @@ Status da integração mobile (escopo acadêmico já coberto):
 - `school`: mobile consome `GET /school` real.
 - `course`: mobile consome `GET /course` e `GET /course/:id` reais.
 - Normalização de contrato (`snake_case` -> `camelCase`) ocorre no mobile em `services/api/mappers/catalogMappers.ts`, sem duplicar domínio no backend.
-- Step A monetização: mobile cria intenção real em `POST /enrollment-intents` com seleção de curso + datas/oferta; turma/período são resolvidos internamente.
-- Step B monetização: confirmação via SaaS usa `POST /enrollments/from-intent/:intentId`, converte intenção para matrícula real e inicia workflow operacional.
+- Step A monetização: mobile cria/continua matrícula única via `POST /enrollments/start` com seleção de curso + datas/oferta; turma/período são resolvidos internamente.
+- Step B monetização: fechamento do pacote atualiza status da própria matrícula (sem entidade de intenção separada) e inicia workflow operacional.
 - O mobile reflete matrícula ativa via `GET /enrollments/active?studentId=...`.
 - O mobile usa `GET /enrollments/journey/:studentId` como índice da jornada e abre contexto completo por matrícula em tela dedicada (`GET /enrollments/:id`, `/enrollments/:id/timeline`, `/enrollment-documents`, `/enrollment-messages`).
-- Ao iniciar nova intenção, o mobile verifica e exibe em tela se já existe intenção pendente ou matrícula ativa, sem uso de alert nesse fluxo.
+- Ao iniciar novo pacote, o mobile verifica e exibe em tela se já existe matrícula ativa, sem uso de alert nesse fluxo.
 - O mobile exibe na jornada: timeline (`GET /enrollments/:id/timeline`), documentos (`GET/POST /enrollment-documents`) e mensagens (`GET/POST /enrollment-messages`) com dados reais do backend.
 - O mobile exibe indicador de mensagens não lidas via `GET /enrollment-messages/unread-count?studentId=...` e sincroniza leitura com `PATCH /enrollment-messages/read`.
 - O mobile exibe notificações reais via `GET /notifications?userId=...` e `GET /notifications/unread-count?userId=...`, com marcação de leitura por `PATCH /notifications/:id/read`.
@@ -261,20 +254,19 @@ Status da integração mobile (escopo acadêmico já coberto):
   - relatórios básicos: `GET /reports`.
 - Aprovação operacional manual:
   - quando `autoApproveIntent=false`, checkout fica bloqueado até status da matrícula `approved`;
-  - ao aprovar/rejeitar proposta, backend cria notificação para o aluno com metadado da matrícula/intenção.
-- Upload de documentos no mobile fica visível apenas em status compatível com etapa documental (`documents_pending`, `under_review`).
+  - ao aprovar/rejeitar proposta, backend cria notificação para o aluno com metadado da matrícula.
+- Upload de documentos no mobile segue regra de etapa operacional atual da matrícula (sem status legado dedicado).
 - Upsell de acomodação da matrícula usa dados reais com contexto da escola (`GET /accommodation/upsell/enrollment/:enrollmentId`), mostrando apenas acomodações recomendadas para a escola da matrícula com badge configurado no SaaS.
 - Acomodação também opera como produto standalone:
   - fechamento sem curso no app (quote `accommodation_only`);
   - listagem operacional por quote no backend (`GET /quotes?type=accommodation_only`);
   - visualização no SaaS em acomodações e financeiro (invoices/pagamentos com contexto de quote mesmo sem matrícula).
   - no app, o fechamento de acomodação também pode adicionar item ao pacote atual do aluno (quando houver curso em aberto), com recálculo completo do quote.
-- No fluxo de intenção/matrícula:
-  - mobile consome `GET /enrollment-intents/recommended-accommodations?courseId=...` para mostrar acomodação elegível no momento de iniciar a intenção;
-  - intenção aceita seleção/troca/remoção de acomodação via `PATCH /enrollment-intents/:id/accommodation`;
+- No fluxo de matrícula:
+  - mobile consome recomendação por escola/curso para mostrar acomodação elegível no pacote;
   - matrícula aceita seleção/troca/remoção de acomodação via `PATCH /enrollments/:id/accommodation`;
   - financeiro consolidado do pacote é exposto por `GET /enrollments/:id/package-summary` e refletido no SaaS/mobile.
-  - quote consolidada é gerada por `POST /quotes` e consultada por `GET /quotes/by-intent/:intentId`.
+  - quote consolidada é gerada por `POST /quotes` e consultada por `GET /quotes/by-enrollment/:enrollmentId`.
   - pricing de curso/acomodação pode ser resolvido com datas (`startDate`/`endDate`) para cálculo dinâmico durante seleção no app.
   - resolução de pricing de acomodação (`GET /accommodation-pricing/resolve`) é estrita por pricing ativa (sem fallback para preço base da acomodação).
   - resumo financeiro da matrícula (`GET /enrollments/:id/package-summary`) não aplica fallback implícito de valor de acomodação quando não houver quote/pricing válido.
@@ -302,7 +294,7 @@ Status da integração mobile (escopo acadêmico já coberto):
 - Cadastro e Configuração
   Acomodações → Lugares
 - Operação
-  Alunos → Intenções de Matrícula → Matrículas → Fechamento Acomodação
+  Alunos → Matrículas → Fechamento Acomodação
 - Acesso e Segurança
   Usuários Admin → Perfis → Permissões
 - Financeiro
@@ -340,7 +332,7 @@ Regras de exposição no menu:
 - Mobile:
   - perfil separado por seções de dados pessoais, jornada e preferências;
   - edição de preferências usa backend real (sem opções hardcoded no app para selects centrais);
-  - jornada mostra claramente: intenção em aberto, proposta aguardando aprovação, matrícula ativa, checkout e estado de pagamento.
+  - jornada mostra claramente: proposta aguardando aprovação, matrícula ativa, checkout e estado de pagamento.
 - SaaS (detalhe do aluno):
   - seção de preferências editável no contexto do aluno;
   - seção de jornada operacional com estado atual e histórico.

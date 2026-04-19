@@ -25,12 +25,58 @@ const enrollmentStatusLabel: Record<Enrollment['status'], string> = {
   partially_paid: 'Partially Paid',
   paid: 'Paid',
   confirmed: 'Confirmed',
+  enrolled: 'Enrolled',
   expired: 'Expired',
   rejected: 'Rejected',
   cancelled: 'Cancelada',
-  closed: 'Closed',
-  completed: 'Concluída',
 };
+
+const enrollmentNextStepLabel: Record<Enrollment['status'], string> = {
+  draft: 'Complete os itens do pacote para iniciar.',
+  started: 'Envie a aplicação para análise.',
+  awaiting_school_approval: 'Aguarde aprovação da escola.',
+  approved: 'Siga para checkout.',
+  checkout_available: 'Pagamento da entrada disponível.',
+  payment_pending: 'Conclua o pagamento pendente.',
+  partially_paid: 'Pague o saldo restante.',
+  paid: 'Pagamento confirmado. Aguarde confirmação.',
+  confirmed: 'Matrícula confirmada. Preparando ativação.',
+  enrolled: 'Matrícula ativa e concluída.',
+  expired: 'Matrícula expirada. Inicie um novo fluxo.',
+  rejected: 'Revisar proposta e reenviar.',
+  cancelled: 'Fluxo cancelado.',
+};
+
+type PrimaryEnrollmentAction =
+  | { label: string; route: typeof StackRoutes.PACKAGE_CART | typeof StackRoutes.ENROLLMENT_CHECKOUT }
+  | { label: string; disabled: true };
+
+function getPrimaryActionForStatus(status: Enrollment['status']): PrimaryEnrollmentAction {
+  switch (status) {
+    case 'draft':
+    case 'started':
+      return { label: 'Continuar aplicação', route: StackRoutes.PACKAGE_CART };
+    case 'approved':
+    case 'checkout_available':
+    case 'payment_pending':
+    case 'partially_paid':
+      return { label: 'Continuar para pagamento', route: StackRoutes.ENROLLMENT_CHECKOUT };
+    case 'awaiting_school_approval':
+      return { label: 'Aguardando aprovação da escola', disabled: true };
+    case 'paid':
+      return { label: 'Entrada já confirmada', disabled: true };
+    case 'confirmed':
+      return { label: 'Matrícula confirmada. Aguardando ativação', disabled: true };
+    case 'enrolled':
+      return { label: 'Matrícula ativa', disabled: true };
+    case 'rejected':
+    case 'cancelled':
+    case 'expired':
+      return { label: 'Iniciar nova matrícula', route: StackRoutes.PACKAGE_CART };
+    default:
+      return { label: 'Sem ação disponível', disabled: true };
+  }
+}
 
 const DOCUMENT_STAGE_STATUSES: Enrollment['status'][] = [];
 
@@ -221,6 +267,13 @@ export default function EnrollmentDetailScreen() {
   const isAccommodationClosed = enrollment?.accommodationStatus === 'closed';
   const isCheckoutPaid = checkoutQuery.data?.state === 'paid';
   const isAccommodationLocked = isAccommodationClosed || isCheckoutPaid;
+  const primaryAction = enrollment ? getPrimaryActionForStatus(enrollment.status) : null;
+  const isCheckoutCtaBlocked =
+    !enrollment ||
+    ['awaiting_school_approval', 'paid', 'confirmed', 'enrolled', 'rejected', 'cancelled', 'expired'].includes(
+      enrollment.status,
+    ) ||
+    checkoutQuery.data?.state === 'paid';
 
   React.useEffect(() => {
     setSelectedAccommodationId(enrollment?.accommodation?.id ?? '');
@@ -273,8 +326,28 @@ export default function EnrollmentDetailScreen() {
                 <Text variant="caption">Turma: {enrollment.classGroup.name} ({enrollment.classGroup.code})</Text>
                 <Text variant="caption">Período: {enrollment.academicPeriod.name}</Text>
                 <Text variant="caption">Status atual: {enrollmentStatusLabel[enrollment.status]}</Text>
+                <Text variant="caption">Próximo passo: {enrollmentNextStepLabel[enrollment.status]}</Text>
                 <Text variant="caption">Atualizado em: {formatDate(enrollment.createdAt)}</Text>
               </View>
+              {primaryAction ? (
+                <View className="mt-3">
+                  {'route' in primaryAction ? (
+                    <Button
+                      onPress={() => {
+                        if (primaryAction.route === StackRoutes.ENROLLMENT_CHECKOUT) {
+                          navigation.navigate(StackRoutes.ENROLLMENT_CHECKOUT, { enrollmentId });
+                          return;
+                        }
+                        navigation.navigate(StackRoutes.PACKAGE_CART);
+                      }}
+                    >
+                      {primaryAction.label}
+                    </Button>
+                  ) : (
+                    <Button disabled={true}>{primaryAction.label}</Button>
+                  )}
+                </View>
+              ) : null}
             </Card>
 
             <Card>
@@ -339,9 +412,9 @@ export default function EnrollmentDetailScreen() {
                     onPress={() =>
                       navigation.navigate(StackRoutes.ENROLLMENT_CHECKOUT, { enrollmentId })
                     }
-                    disabled={checkoutQuery.data.state === 'paid'}
+                    disabled={isCheckoutCtaBlocked}
                   >
-                    {checkoutQuery.data.state === 'paid' ? 'Checkout concluído' : 'Ir para checkout'}
+                    {isCheckoutCtaBlocked ? 'Checkout indisponível' : 'Ir para checkout'}
                   </Button>
                 </View>
               )}

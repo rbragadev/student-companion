@@ -26,22 +26,45 @@ import {
   updateEnrollmentWorkflowAction,
 } from '../actions';
 
-const STATUS_OPTIONS = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'started', label: 'Started' },
-  { value: 'awaiting_school_approval', label: 'Awaiting School Approval' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'checkout_available', label: 'Checkout Available' },
-  { value: 'payment_pending', label: 'Payment Pending' },
-  { value: 'partially_paid', label: 'Partially Paid' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'expired', label: 'Expired' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'closed', label: 'Closed' },
-  { value: 'completed', label: 'Completed' },
-];
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  started: 'Started',
+  awaiting_school_approval: 'Awaiting School Approval',
+  approved: 'Approved',
+  checkout_available: 'Checkout Available',
+  payment_pending: 'Payment Pending',
+  partially_paid: 'Partially Paid',
+  paid: 'Paid',
+  confirmed: 'Confirmed',
+  enrolled: 'Enrolled',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+  expired: 'Expired',
+};
+
+function getNextEnrollmentStatuses(
+  currentStatus: string,
+  autoApproveIntent: boolean,
+): string[] {
+  const map: Record<string, string[]> = {
+    draft: ['started', 'cancelled', 'expired'],
+    started: autoApproveIntent
+      ? ['checkout_available', 'cancelled', 'expired']
+      : ['awaiting_school_approval', 'cancelled', 'expired'],
+    awaiting_school_approval: ['approved', 'rejected', 'cancelled', 'expired'],
+    approved: ['checkout_available', 'cancelled', 'expired'],
+    checkout_available: ['payment_pending', 'cancelled', 'expired'],
+    payment_pending: ['partially_paid', 'paid', 'cancelled', 'expired'],
+    partially_paid: ['paid', 'cancelled', 'expired'],
+    paid: ['confirmed', 'cancelled', 'expired'],
+    confirmed: ['enrolled', 'cancelled', 'expired'],
+    enrolled: ['cancelled', 'expired'],
+    rejected: [],
+    cancelled: [],
+    expired: [],
+  };
+  return [currentStatus, ...(map[currentStatus] ?? [])];
+}
 
 const ACCOMMODATION_STATUS_OPTIONS = [
   { value: 'not_selected', label: 'Não selecionada' },
@@ -58,7 +81,7 @@ function formatDateTime(value?: string | null) {
 
 function toneByStatus(status?: string | null) {
   const value = String(status ?? '').toLowerCase();
-  if (value.includes('paid') || value === 'confirmed' || value === 'closed' || value === 'completed') {
+  if (value.includes('paid') || value === 'confirmed' || value === 'closed' || value === 'enrolled') {
     return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   }
   if (value.includes('await') || value.includes('pending') || value === 'started' || value === 'approved') {
@@ -109,6 +132,17 @@ export default async function EnrollmentDetailPage({
     (message) => message.channel === 'accommodation',
   );
   const isAccommodationClosed = enrollment.accommodationStatus === 'closed';
+  const statusOptions = getNextEnrollmentStatuses(
+    enrollment.status,
+    Boolean(enrollment.course.auto_approve_intent),
+  );
+  const quickActionTargets = [
+    { status: 'approved', label: 'Aprovar' },
+    { status: 'rejected', label: 'Rejeitar' },
+    { status: 'checkout_available', label: 'Liberar checkout' },
+    { status: 'paid', label: 'Confirmar pagamento' },
+    { status: 'cancelled', label: 'Cancelar' },
+  ].filter((item) => statusOptions.includes(item.status) && item.status !== enrollment.status);
 
   return (
     <div className="flex flex-col gap-6">
@@ -295,13 +329,24 @@ export default async function EnrollmentDetailPage({
         <article className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="text-sm font-semibold text-slate-900">Workflow da Matrícula</h2>
           <p className="mt-1 text-xs text-slate-500">Atualize o progresso operacional da matrícula.</p>
+          {quickActionTargets.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {quickActionTargets.map((action) => (
+                <form key={action.status} action={updateEnrollmentWorkflowAction}>
+                  <input type="hidden" name="enrollmentId" value={enrollment.id} />
+                  <input type="hidden" name="status" value={action.status} />
+                  <Button type="submit" size="sm" variant="outline">{action.label}</Button>
+                </form>
+              ))}
+            </div>
+          ) : null}
           <form action={updateEnrollmentWorkflowAction} className="mt-4 grid gap-3">
             <input type="hidden" name="enrollmentId" value={enrollment.id} />
             <label className="text-xs font-medium text-slate-600">
               Status
               <select name="status" defaultValue={enrollment.status} className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>{STATUS_LABELS[status] ?? status}</option>
                 ))}
               </select>
             </label>
