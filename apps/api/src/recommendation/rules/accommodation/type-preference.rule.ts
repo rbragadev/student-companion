@@ -10,7 +10,12 @@ export class AccommodationTypePreferenceRule extends BaseScoringRule<Accommodati
   }
 
   calculate(context: ScoringContext<Accommodation, UserPreferences>): number {
-    const preferredTypes = context.userPreferences.preferredAccommodationTypes || [];
+    const preferredTypes = [
+      ...(context.userPreferences.preferredAccommodationTypes || []),
+      ...(context.userPreferences.accommodationTypePreference
+        ? [context.userPreferences.accommodationTypePreference]
+        : []),
+    ];
     
     if (preferredTypes.length === 0) {
       return 50; // Neutro se não houver preferência

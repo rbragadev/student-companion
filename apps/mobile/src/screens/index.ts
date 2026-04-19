@@ -12,4 +12,5 @@ export { default as NotificationsScreen } from './NotificationsScreen';
 export { default as PlacesScreen } from './PlacesScreen';
 export { default as PlaceDetailScreen } from './PlaceDetailScreen';
 export { default as ProfileScreen } from './ProfileScreen';
+export { default as SettingsScreen } from './SettingsScreen';
 export { default as LoginScreen } from './LoginScreen';

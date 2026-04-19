@@ -58,6 +58,26 @@ export class CreateUserPreferencesDto {
   @IsOptional()
   preferredAccommodationTypes?: string[];
 
+  @IsBoolean()
+  @IsOptional()
+  interestedInAccommodation?: boolean;
+
+  @IsString()
+  @IsOptional()
+  accommodationTypePreference?: string;
+
+  @IsString()
+  @IsOptional()
+  budgetPreference?: string;
+
+  @IsString()
+  @IsOptional()
+  locationPreference?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
   @IsInt()
   @Min(0)
   @IsOptional()

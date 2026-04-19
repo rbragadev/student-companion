@@ -3,7 +3,12 @@
  * All user-related API endpoints
  */
 
-import { UserProfile } from '../../types/user.types';
+import {
+  UserPreferenceOptions,
+  UserPreferences,
+  UserProfile,
+  UpdateUserPreferencesPayload,
+} from '../../types/user.types';
 import { apiClient } from './client';
 
 
@@ -14,6 +19,24 @@ export const userApi = {
   getProfile: async (userId: string): Promise<UserProfile> => {
     const { data } = await apiClient.get(`/users/${userId}`);
     return data;
+  },
+
+  getPreferences: async (userId: string): Promise<UserPreferences> => {
+    const { data } = await apiClient.get(`/user-preferences?userId=${userId}`);
+    return data as UserPreferences;
+  },
+
+  updatePreferences: async (
+    userId: string,
+    payload: UpdateUserPreferencesPayload,
+  ): Promise<UserPreferences> => {
+    const { data } = await apiClient.patch(`/user-preferences?userId=${userId}`, payload);
+    return data as UserPreferences;
+  },
+
+  getPreferenceOptions: async (): Promise<UserPreferenceOptions> => {
+    const { data } = await apiClient.get('/preferences/options');
+    return data as UserPreferenceOptions;
   },
 
   /**

@@ -17,6 +17,27 @@ export type UserWithPreferences = User & {
 export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private readonly defaultPreferences: Omit<CreateUserPreferencesDto, 'userId'> = {
+    destinationCity: 'Vancouver',
+    destinationCountry: 'Canada',
+    purpose: 'study',
+    budgetAccommodationMin: undefined,
+    budgetAccommodationMax: undefined,
+    budgetCourseMin: undefined,
+    budgetCourseMax: undefined,
+    englishLevel: undefined,
+    arrivalDate: undefined,
+    preferredAccommodationTypes: [],
+    interestedInAccommodation: true,
+    accommodationTypePreference: undefined,
+    budgetPreference: undefined,
+    locationPreference: undefined,
+    notes: undefined,
+    maxDistanceToSchool: undefined,
+    hasUnreadNotifications: false,
+    notificationCount: 0,
+  };
+
   private readonly adminUserInclude = {
     adminProfiles: {
       include: { profile: { select: { id: true, name: true, label: true } } },
@@ -24,13 +45,123 @@ export class UserService {
   } as const;
 
   async findById(id: string): Promise<UserWithPreferences> {
-    const user = await this.prisma.user.findUnique({
+    let user = await this.prisma.user.findUnique({
       where: { id },
       include: { preferences: true },
     });
 
     if (!user) throw new NotFoundException(`User with ID ${id} not found`);
+    if (!user.preferences) {
+      await this.ensurePreferences(id);
+      user = await this.prisma.user.findUnique({
+        where: { id },
+        include: { preferences: true },
+      });
+      if (!user) throw new NotFoundException(`User with ID ${id} not found`);
+    }
     return user;
+  }
+
+  async ensurePreferences(userId: string): Promise<UserPreferences> {
+    const userExists = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    if (!userExists) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    return this.prisma.userPreferences.upsert({
+      where: { userId },
+      create: {
+        userId,
+        ...this.defaultPreferences,
+      },
+      update: {},
+    });
+  }
+
+  async findPreferences(userId: string): Promise<UserPreferences> {
+    await this.ensurePreferences(userId);
+    const prefs = await this.prisma.userPreferences.findUnique({
+      where: { userId },
+    });
+    if (!prefs) {
+      throw new NotFoundException(`Preferences for user ${userId} not found`);
+    }
+    return prefs;
+  }
+
+  async updatePreferences(
+    userId: string,
+    data: Partial<CreateUserPreferencesDto>,
+  ): Promise<UserPreferences> {
+    await this.ensurePreferences(userId);
+
+    const payload: Record<string, unknown> = { ...data };
+    if (data.accommodationTypePreference) {
+      payload.preferredAccommodationTypes = [data.accommodationTypePreference];
+    }
+
+    return this.prisma.userPreferences.update({
+      where: { userId },
+      data: payload,
+    });
+  }
+
+  async getPreferenceOptions() {
+    const [accommodationTypes, schoolLocations, accommodationLocations] = await Promise.all([
+      this.prisma.accommodation.findMany({
+        where: { isActive: true },
+        distinct: ['accommodationType'],
+        select: { accommodationType: true },
+        orderBy: { accommodationType: 'asc' },
+      }),
+      this.prisma.school.findMany({
+        distinct: ['location'],
+        select: { location: true },
+        orderBy: { location: 'asc' },
+      }),
+      this.prisma.accommodation.findMany({
+        where: { isActive: true },
+        distinct: ['location'],
+        select: { location: true },
+        orderBy: { location: 'asc' },
+      }),
+    ]);
+
+    const locationSet = new Set<string>();
+    for (const item of schoolLocations) {
+      if (item.location) locationSet.add(item.location);
+    }
+    for (const item of accommodationLocations) {
+      if (item.location) locationSet.add(item.location);
+    }
+
+    return {
+      accommodationTypeOptions: accommodationTypes.map((item) => ({
+        value: item.accommodationType,
+        label: item.accommodationType,
+      })),
+      budgetOptions: [
+        { value: 'economy', label: 'Economy' },
+        { value: 'standard', label: 'Standard' },
+        { value: 'premium', label: 'Premium' },
+        { value: 'luxury', label: 'Luxury' },
+      ],
+      locationOptions: Array.from(locationSet)
+        .sort((a, b) => a.localeCompare(b))
+        .map((value) => ({ value, label: value })),
+      purposeOptions: [
+        { value: 'study', label: 'Study' },
+        { value: 'college', label: 'College' },
+        { value: 'language exchange', label: 'Language Exchange' },
+      ],
+      englishLevelOptions: [
+        { value: 'beginner', label: 'Beginner' },
+        { value: 'intermediate', label: 'Intermediate' },
+        { value: 'advanced', label: 'Advanced' },
+      ],
+    };
   }
 
   findAdminUsers() {
@@ -189,7 +320,11 @@ export class UserService {
     userId: string,
     data: CreateUserPreferencesDto,
   ): Promise<UserPreferences> {
-    return this.prisma.userPreferences.create({ data: { ...data, userId } });
+    return this.prisma.userPreferences.upsert({
+      where: { userId },
+      create: { ...this.defaultPreferences, ...data, userId },
+      update: data,
+    });
   }
 
   async update(id: string, data: UpdateUserDto): Promise<User> {

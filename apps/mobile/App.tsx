@@ -16,6 +16,7 @@ import {
   NotificationsScreen,
   PlaceDetailScreen,
   ProfileScreen,
+  SettingsScreen,
   LoginScreen,
 } from './src/screens';
 import { RootStackParamList, StackRoutes } from './src/types/navigation';
@@ -71,6 +72,11 @@ function MainStack() {
       <Stack.Screen
         name={StackRoutes.PROFILE}
         component={ProfileScreen}
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen
+        name={StackRoutes.SETTINGS}
+        component={SettingsScreen}
         options={{ presentation: 'card' }}
       />
     </Stack.Navigator>

@@ -10,7 +10,8 @@ export class SchoolLocationRule extends BaseScoringRule<School, UserPreferences>
   }
 
   calculate(context: ScoringContext<School, UserPreferences>): number {
-    const destinationCity = context.userPreferences.destinationCity;
+    const destinationCity =
+      context.userPreferences.locationPreference || context.userPreferences.destinationCity;
     
     if (!destinationCity) {
       return 50; // Neutro se usuário não tem destino definido

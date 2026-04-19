@@ -23,7 +23,28 @@ export class RecommendationService {
       include: { preferences: true },
     });
 
-    if (!user || !user.preferences) {
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const preferences =
+      user.preferences ??
+      (await this.prisma.userPreferences.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          destinationCity: 'Vancouver',
+          destinationCountry: 'Canada',
+          purpose: 'study',
+          preferredAccommodationTypes: [],
+          hasUnreadNotifications: false,
+          notificationCount: 0,
+          interestedInAccommodation: true,
+        },
+        update: {},
+      }));
+
+    if (!preferences) {
       throw new NotFoundException('User preferences not found');
     }
 
@@ -35,7 +56,7 @@ export class RecommendationService {
     const strategy = this.strategyFactory.getStrategy(type);
 
     // 3. Buscar entidades
-    const entities = await strategy.fetchEntities(user.preferences);
+    const entities = await strategy.fetchEntities(preferences);
 
     // 4. Aplicar scoring rules
     const rules = strategy.getScoringRules();
@@ -44,7 +65,7 @@ export class RecommendationService {
     for (const entity of entities) {
       const context: ScoringContext = {
         entity,
-        userPreferences: user.preferences,
+        userPreferences: preferences,
       };
 
       // Verificar elegibilidade

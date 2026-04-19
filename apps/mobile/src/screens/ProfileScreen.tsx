@@ -1,47 +1,116 @@
 import React from 'react';
-import { View, Image, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Image,
+  TouchableOpacity,
+  Alert,
+  TextInput,
+  Switch,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Screen, Text, Card, Button } from '../components';
-import { useUserInterests } from '../services/mockData';
 import { colorValues } from '../utils/design-tokens';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
-import { useUserProfile } from '../hooks/api/useUserProfile';
-import { useReviewsByUser } from '../hooks/api/useReviews';
+import { useUserProfile, userQueryKeys } from '../hooks/api/useUserProfile';
 import { useAuth } from '../contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
 import { enrollmentApi } from '../services/api/enrollmentApi';
+import { userApi } from '../services/api/userApi';
+import type { UpdateUserPreferencesPayload } from '../types/user.types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const studentStatusLabel: Record<string, string> = {
+  lead: 'Lead',
+  application_started: 'Application Started',
+  pending_enrollment: 'Pending Enrollment',
+  enrolled: 'Enrolled',
+};
+
+function formatMoney(value?: number) {
+  if (!value && value !== 0) return '-';
+  return `CAD ${Number(value).toFixed(0)}`;
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('pt-BR');
+}
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { userId, logout } = useAuth();
+  const queryClient = useQueryClient();
+
   const { data: user, isLoading: userLoading } = useUserProfile(userId ?? '');
-  const { interests, loading: interestsLoading } = useUserInterests();
-  const { data: reviews, isLoading: reviewsLoading } = useReviewsByUser(userId ?? '');
-  const { data: activeEnrollment } = useQuery({
-    queryKey: ['enrollment', 'active', userId],
-    queryFn: () => enrollmentApi.getActiveEnrollmentByStudent(userId ?? ''),
+
+  const { data: journey } = useQuery({
+    queryKey: ['enrollment', 'journey', userId],
+    queryFn: () => enrollmentApi.getStudentJourney(userId ?? ''),
     enabled: !!userId,
     refetchOnMount: true,
     refetchOnReconnect: true,
   });
 
-  const studentStatusLabel: Record<string, string> = {
-    lead: 'Lead',
-    application_started: 'Application Started',
-    pending_enrollment: 'Pending Enrollment',
-    enrolled: 'Enrolled',
-  };
+  const activeEnrollment = journey?.activeEnrollment ?? null;
 
-  const handleEditProfile = () => {
-    console.log('Edit profile');
-  };
+  const { data: checkout } = useQuery({
+    queryKey: ['enrollment', 'checkout', activeEnrollment?.id],
+    queryFn: () => enrollmentApi.getEnrollmentCheckout(activeEnrollment!.id),
+    enabled: !!activeEnrollment?.id,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+  });
 
-  const handleInterestPress = (id: string) => {
-    console.log('View interest:', id);
+  const { data: preferenceOptions } = useQuery({
+    queryKey: ['preferences', 'options'],
+    queryFn: () => userApi.getPreferenceOptions(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const [isEditingPreferences, setIsEditingPreferences] = React.useState(false);
+  const [prefForm, setPrefForm] = React.useState<UpdateUserPreferencesPayload>({});
+
+  React.useEffect(() => {
+    if (!user?.preferences) return;
+    const p = user.preferences;
+    setPrefForm({
+      destinationCity: p.destinationCity,
+      destinationCountry: p.destinationCountry,
+      purpose: p.purpose,
+      englishLevel: p.englishLevel,
+      budgetAccommodationMin: p.budgetAccommodationMin,
+      budgetAccommodationMax: p.budgetAccommodationMax,
+      budgetCourseMin: p.budgetCourseMin,
+      budgetCourseMax: p.budgetCourseMax,
+      interestedInAccommodation: p.interestedInAccommodation ?? true,
+      accommodationTypePreference: p.accommodationTypePreference,
+      budgetPreference: p.budgetPreference,
+      locationPreference: p.locationPreference,
+      notes: p.notes,
+      maxDistanceToSchool: p.maxDistanceToSchool,
+    });
+  }, [user?.preferences]);
+
+  const updatePreferencesMutation = useMutation({
+    mutationFn: (payload: UpdateUserPreferencesPayload) =>
+      userApi.updatePreferences(userId ?? '', payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId ?? '') });
+      setIsEditingPreferences(false);
+    },
+  });
+
+  const handleSavePreferences = () => {
+    const payload: UpdateUserPreferencesPayload = {
+      ...prefForm,
+      preferredAccommodationTypes: prefForm.accommodationTypePreference
+        ? [prefForm.accommodationTypePreference]
+        : [],
+    };
+    updatePreferencesMutation.mutate(payload);
   };
 
   const handleLogout = () => {
@@ -55,9 +124,7 @@ export default function ProfileScreen() {
     return (
       <Screen safeArea={true}>
         <View className="flex-1 items-center justify-center">
-          <Text variant="body" className="text-textSecondary">
-            Loading...
-          </Text>
+          <Text variant="body" className="text-textSecondary">Loading...</Text>
         </View>
       </Screen>
     );
@@ -71,42 +138,10 @@ export default function ProfileScreen() {
     );
   }
 
-  // Prioridade de exibição: matrícula ativa (estado operacional atual) > status global do aluno.
-  const effectiveStudentStatus = activeEnrollment?.status || user.studentStatus || 'lead';
-  const effectiveStudentStatusLabel =
-    studentStatusLabel[effectiveStudentStatus] ??
-    (activeEnrollment ? `Enrollment: ${activeEnrollment.status}` : effectiveStudentStatus);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'text-warning';
-      case 'contacted': return 'text-primary-500';
-      case 'closed': return 'text-textMuted';
-      default: return 'text-textSecondary';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Pending';
-      case 'contacted': return 'Contacted';
-      case 'closed': return 'Closed';
-      default: return status;
-    }
-  };
-
-  const getReviewableTypeName = (type: string) => {
-    switch (type) {
-      case 'COURSE': return 'Course';
-      case 'ACCOMMODATION': return 'Accommodation';
-      case 'PLACE': return 'Place';
-      default: return type;
-    }
-  };
+  const profileStatus = activeEnrollment?.status || user.studentStatus || 'lead';
 
   return (
     <Screen safeArea={true} scrollable={true}>
-      {/* Back Button */}
       <View className="px-4 pt-4 pb-2">
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -114,292 +149,188 @@ export default function ProfileScreen() {
           className="flex-row items-center gap-2"
         >
           <Ionicons name="arrow-back" size={24} color={colorValues.textPrimary} />
-          <Text variant="body" className="text-textPrimary font-medium">
-            Back
-          </Text>
+          <Text variant="body" className="text-textPrimary font-medium">Back</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Header */}
       <View className="px-4 pt-4 pb-6 gap-4">
-        {/* Avatar + Name */}
         <View className="items-center gap-3">
-          <View className="relative">
-            <Image
-              source={{ uri: user.avatar }}
-              className="w-24 h-24 rounded-full"
-            />
-            <TouchableOpacity
-              activeOpacity={0.7}
-              className="absolute bottom-0 right-0 bg-primary-500 p-2 rounded-full"
-              onPress={handleEditProfile}
-            >
-              <Ionicons name="pencil" size={16} color={colorValues.textInverse} />
-            </TouchableOpacity>
-          </View>
-
+          <Image source={{ uri: user.avatar ?? undefined }} className="w-24 h-24 rounded-full" />
           <View className="items-center">
-            <Text variant="h1" className="text-2xl font-bold">
-              {user.firstName} {user.lastName}
-            </Text>
-            <Text variant="body" className="text-textMuted">
-              {user.email}
-            </Text>
+            <Text variant="h1" className="text-2xl font-bold">{user.firstName} {user.lastName}</Text>
+            <Text variant="body" className="text-textMuted">{user.email}</Text>
           </View>
         </View>
-
-        {/* Edit Button */}
-        <Button variant="outline" onPress={handleEditProfile}>
-          <View className="flex-row items-center gap-2">
-            <Ionicons name="create-outline" size={20} color={colorValues.primary[500]} />
-            <Text variant="body" className="text-primary-500 font-semibold">
-              Edit Profile
-            </Text>
-          </View>
-        </Button>
       </View>
 
-      {/* Profile Info */}
       <View className="px-4 pb-4 gap-4">
-        <Text variant="h2" className="text-lg font-semibold">
-          Profile Information
-        </Text>
-
+        <Text variant="h2" className="text-lg font-semibold">Dados pessoais</Text>
         <Card>
-          <View className="gap-4">
-            {/* Phone */}
-            <View className="flex-row items-center gap-3">
-              <Ionicons name="call-outline" size={20} color={colorValues.primary[500]} />
-              <View className="flex-1">
-                <Text variant="caption" className="text-textMuted">
-                  Phone
-                </Text>
-                <Text variant="body" className="font-medium">
-                  {user.phone}
-                </Text>
-              </View>
-            </View>
-
+          <View className="gap-3">
+            <Text variant="caption" className="text-textMuted">Telefone</Text>
+            <Text variant="body" className="font-medium">{user.phone ?? '-'}</Text>
             <View className="h-px bg-border" />
-
-            {/* Destination */}
-            <View className="flex-row items-center gap-3">
-              <Ionicons name="location-outline" size={20} color={colorValues.primary[500]} />
-              <View className="flex-1">
-                <Text variant="caption" className="text-textMuted">
-                  Destination
-                </Text>
-                <Text variant="body" className="font-medium">
-                  {user.preferences.destinationCity}, {user.preferences.destinationCountry}
-                </Text>
-              </View>
-            </View>
-
-            <View className="h-px bg-border" />
-
-            {/* Purpose */}
-            <View className="flex-row items-center gap-3">
-              <Ionicons name="school-outline" size={20} color={colorValues.primary[500]} />
-              <View className="flex-1">
-                <Text variant="caption" className="text-textMuted">
-                  Purpose
-                </Text>
-                <Text variant="body" className="font-medium capitalize">
-                  {user.preferences.purpose}
-                </Text>
-              </View>
-            </View>
-
-            <View className="h-px bg-border" />
-            <View className="flex-row items-center gap-3">
-              <Ionicons name="pulse-outline" size={20} color={colorValues.primary[500]} />
-              <View className="flex-1">
-                <Text variant="caption" className="text-textMuted">
-                  Student Status
-                </Text>
-                <Text variant="body" className="font-medium">
-                  {effectiveStudentStatusLabel}
-                </Text>
-              </View>
-            </View>
-
-            {user.preferences.englishLevel && (
-              <>
-                <View className="h-px bg-border" />
-                <View className="flex-row items-center gap-3">
-                  <Ionicons name="language-outline" size={20} color={colorValues.primary[500]} />
-                  <View className="flex-1">
-                    <Text variant="caption" className="text-textMuted">
-                      English Level
-                    </Text>
-                    <Text variant="body" className="font-medium">
-                      {user.preferences.englishLevel}
-                    </Text>
-                  </View>
-                </View>
-              </>
-            )}
-
-            {user.preferences.arrivalDate && (
-              <>
-                <View className="h-px bg-border" />
-                <View className="flex-row items-center gap-3">
-                  <Ionicons name="calendar-outline" size={20} color={colorValues.primary[500]} />
-                  <View className="flex-1">
-                    <Text variant="caption" className="text-textMuted">
-                      Expected Arrival
-                    </Text>
-                    <Text variant="body" className="font-medium">
-                      {user.preferences.arrivalDate}
-                    </Text>
-                  </View>
-                </View>
-              </>
-            )}
-
-            {user.preferences.budgetAccommodationMax && (
-              <>
-                <View className="h-px bg-border" />
-                <View className="flex-row items-center gap-3">
-                  <Ionicons name="cash-outline" size={20} color={colorValues.primary[500]} />
-                  <View className="flex-1">
-                    <Text variant="caption" className="text-textMuted">
-                      Budget
-                    </Text>
-                    <Text variant="body" className="font-medium">
-                      Accommodation: {user.preferences.budgetAccommodationMax}
-                    </Text>
-                    {user.preferences.budgetCourseMax && (
-                      <Text variant="body" className="font-medium">
-                        Course: {user.preferences.budgetCourseMax}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              </>
-            )}
+            <Text variant="caption" className="text-textMuted">Status do aluno</Text>
+            <Text variant="body" className="font-medium">
+              {studentStatusLabel[profileStatus] ?? profileStatus}
+            </Text>
           </View>
         </Card>
 
-        {activeEnrollment && (
-          <Card className="border-green-200 bg-green-50">
-            <View className="gap-2">
-              <Text variant="h3" className="font-semibold text-green-800">
-                Matrícula ativa
-              </Text>
-              <Text variant="body" className="text-green-800">
-                {activeEnrollment.course.program_name}
-              </Text>
-              <Text variant="caption" className="text-green-700">
-                {activeEnrollment.institution.name} {'>'} {activeEnrollment.school.name} {'>'} {activeEnrollment.unit.name}
-              </Text>
-              <Text variant="caption" className="text-green-700">
-                Turma: {activeEnrollment.classGroup.name} ({activeEnrollment.classGroup.code}) • {activeEnrollment.academicPeriod.name}
-              </Text>
-            </View>
-          </Card>
-        )}
-
-        <Button
-          variant="outline"
-          onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
-        >
-          <View className="flex-row items-center gap-2">
-            <Ionicons name="book-outline" size={20} color={colorValues.primary[500]} />
-            <Text variant="body" className="text-primary-500 font-semibold">
-              Ver Jornada Acadêmica
+        <Text variant="h2" className="text-lg font-semibold">Minha Jornada</Text>
+        <Card>
+          <View className="gap-2">
+            <Text variant="body" className="font-semibold">Resumo da jornada atual</Text>
+            <Text variant="caption">
+              Intenção em aberto: {journey?.activeIntent ? 'Sim' : 'Não'}
             </Text>
+            <Text variant="caption">
+              Proposta aguardando aprovação:{' '}
+              {checkout?.state === 'blocked_waiting_approval' ? 'Sim' : 'Não'}
+            </Text>
+            <Text variant="caption">
+              Matrícula ativa: {activeEnrollment ? 'Sim' : 'Não'}
+            </Text>
+            <Text variant="caption">
+              Checkout disponível: {checkout?.state === 'available' ? 'Sim' : 'Não'}
+            </Text>
+            <Text variant="caption">
+              Pagamento pendente:{' '}
+              {checkout?.state === 'available' || checkout?.state === 'blocked_waiting_approval'
+                ? 'Sim'
+                : 'Não'}
+            </Text>
+            {activeEnrollment && (
+              <>
+                <View className="h-px bg-border my-1" />
+                <Text variant="caption">Curso: {activeEnrollment.course.program_name}</Text>
+                <Text variant="caption">Instituição: {activeEnrollment.institution.name}</Text>
+                <Text variant="caption">Escola: {activeEnrollment.school.name}</Text>
+                <Text variant="caption">Período: {activeEnrollment.academicPeriod.name}</Text>
+              </>
+            )}
+            <Button
+              className="mt-2"
+              variant="outline"
+              onPress={() => navigation.navigate(StackRoutes.ACADEMIC_JOURNEY)}
+            >
+              Abrir Minha Jornada
+            </Button>
           </View>
-        </Button>
+        </Card>
+
+        <Text variant="h2" className="text-lg font-semibold">Preferências</Text>
+        <Card>
+          <View className="gap-3">
+            <View className="flex-row items-center justify-between">
+              <Text variant="body" className="font-semibold">Contexto de recomendação</Text>
+              <Button variant="outline" onPress={() => setIsEditingPreferences((v) => !v)}>
+                {isEditingPreferences ? 'Cancelar' : 'Editar'}
+              </Button>
+            </View>
+
+            {!isEditingPreferences ? (
+              <>
+                <Text variant="caption">Destino: {user.preferences.destinationCity}, {user.preferences.destinationCountry}</Text>
+                <Text variant="caption">Objetivo: {user.preferences.purpose}</Text>
+                <Text variant="caption">Nível inglês: {user.preferences.englishLevel ?? '-'}</Text>
+                <Text variant="caption">Interesse em acomodação: {user.preferences.interestedInAccommodation ? 'Sim' : 'Não'}</Text>
+                <Text variant="caption">Tipo preferido: {user.preferences.accommodationTypePreference ?? '-'}</Text>
+                <Text variant="caption">Budget profile: {user.preferences.budgetPreference ?? '-'}</Text>
+                <Text variant="caption">Location preference: {user.preferences.locationPreference ?? '-'}</Text>
+                <Text variant="caption">Budget acomodação: {formatMoney(user.preferences.budgetAccommodationMin)} - {formatMoney(user.preferences.budgetAccommodationMax)}</Text>
+                <Text variant="caption">Budget curso: {formatMoney(user.preferences.budgetCourseMin)} - {formatMoney(user.preferences.budgetCourseMax)}</Text>
+                <Text variant="caption">Chegada prevista: {formatDate(user.preferences.arrivalDate)}</Text>
+                <Text variant="caption">Notas: {user.preferences.notes ?? '-'}</Text>
+              </>
+            ) : (
+              <View className="gap-2">
+                <Text variant="caption" className="text-textMuted">Destino (cidade)</Text>
+                <TextInput
+                  value={prefForm.destinationCity ?? ''}
+                  onChangeText={(text) => setPrefForm((prev) => ({ ...prev, destinationCity: text }))}
+                  className="rounded-lg border border-border px-3 py-2 text-textPrimary"
+                  placeholder="Cidade"
+                />
+
+                <Text variant="caption" className="text-textMuted">Destino (país)</Text>
+                <TextInput
+                  value={prefForm.destinationCountry ?? ''}
+                  onChangeText={(text) => setPrefForm((prev) => ({ ...prev, destinationCountry: text }))}
+                  className="rounded-lg border border-border px-3 py-2 text-textPrimary"
+                  placeholder="País"
+                />
+
+                <Text variant="caption" className="text-textMuted">Objetivo</Text>
+                <TextInput
+                  value={prefForm.purpose ?? ''}
+                  onChangeText={(text) => setPrefForm((prev) => ({ ...prev, purpose: text }))}
+                  className="rounded-lg border border-border px-3 py-2 text-textPrimary"
+                  placeholder="study / college"
+                />
+
+                <Text variant="caption" className="text-textMuted">Tipo de acomodação preferido</Text>
+                <TextInput
+                  value={prefForm.accommodationTypePreference ?? ''}
+                  onChangeText={(text) => setPrefForm((prev) => ({ ...prev, accommodationTypePreference: text }))}
+                  className="rounded-lg border border-border px-3 py-2 text-textPrimary"
+                  placeholder={preferenceOptions?.accommodationTypeOptions?.map((o) => o.label).join(', ') || 'Homestay'}
+                />
+
+                <Text variant="caption" className="text-textMuted">Budget profile</Text>
+                <TextInput
+                  value={prefForm.budgetPreference ?? ''}
+                  onChangeText={(text) => setPrefForm((prev) => ({ ...prev, budgetPreference: text }))}
+                  className="rounded-lg border border-border px-3 py-2 text-textPrimary"
+                  placeholder={preferenceOptions?.budgetOptions?.map((o) => o.label).join(', ') || 'Standard'}
+                />
+
+                <Text variant="caption" className="text-textMuted">Location preference</Text>
+                <TextInput
+                  value={prefForm.locationPreference ?? ''}
+                  onChangeText={(text) => setPrefForm((prev) => ({ ...prev, locationPreference: text }))}
+                  className="rounded-lg border border-border px-3 py-2 text-textPrimary"
+                  placeholder={preferenceOptions?.locationOptions?.slice(0, 3).map((o) => o.label).join(', ') || 'Downtown'}
+                />
+
+                <View className="flex-row items-center justify-between py-1">
+                  <Text variant="caption" className="text-textMuted">Interessado em acomodação</Text>
+                  <Switch
+                    value={prefForm.interestedInAccommodation ?? true}
+                    onValueChange={(value) =>
+                      setPrefForm((prev) => ({ ...prev, interestedInAccommodation: value }))
+                    }
+                  />
+                </View>
+
+                <Text variant="caption" className="text-textMuted">Notas</Text>
+                <TextInput
+                  value={prefForm.notes ?? ''}
+                  onChangeText={(text) => setPrefForm((prev) => ({ ...prev, notes: text }))}
+                  multiline
+                  numberOfLines={3}
+                  className="rounded-lg border border-border px-3 py-2 text-textPrimary"
+                  placeholder="Observações para operação"
+                />
+
+                <Button
+                  onPress={handleSavePreferences}
+                  disabled={updatePreferencesMutation.isPending}
+                  className="mt-2"
+                >
+                  {updatePreferencesMutation.isPending ? 'Salvando...' : 'Salvar preferências'}
+                </Button>
+              </View>
+            )}
+          </View>
+        </Card>
       </View>
 
-      {/* My Interests/Leads */}
-      {!interestsLoading && interests.length > 0 && (
-        <View className="px-4 pb-4 gap-3">
-          <Text variant="h2" className="text-lg font-semibold">
-            My Interests
-          </Text>
-
-          {interests.map((interest) => (
-            <TouchableOpacity
-              key={interest.id}
-              activeOpacity={0.7}
-              onPress={() => handleInterestPress(interest.id)}
-            >
-              <Card>
-                <View className="flex-row items-center gap-3">
-                  <View className={`p-3 rounded-full ${
-                    interest.type === 'accommodation' ? 'bg-primary-50' : 'bg-success/10'
-                  }`}>
-                    <Ionicons
-                      name={interest.type === 'accommodation' ? 'home' : 'school'}
-                      size={24}
-                      color={interest.type === 'accommodation' ? colorValues.primary[500] : colorValues.success}
-                    />
-                  </View>
-
-                  <View className="flex-1">
-                    <Text variant="body" className="font-semibold">
-                      {interest.title}
-                    </Text>
-                    <Text variant="caption" className="text-textMuted">
-                      {interest.subtitle}
-                    </Text>
-                  </View>
-
-                  <Text variant="caption" className={`font-medium ${getStatusColor(interest.status)}`}>
-                    {getStatusLabel(interest.status)}
-                  </Text>
-                </View>
-              </Card>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* My Reviews */}
-      {!reviewsLoading && reviews && reviews.length > 0 && (
-        <View className="px-4 pb-4 gap-3">
-          <Text variant="h2" className="text-lg font-semibold">
-            My Reviews
-          </Text>
-
-          {reviews.map((review) => (
-            <Card key={review.id}>
-              <View className="gap-2">
-                <View className="flex-row items-start justify-between">
-                  <View className="flex-1">
-                    <Text variant="body" className="font-semibold">
-                      {getReviewableTypeName(review.reviewableType)}
-                    </Text>
-                    <Text variant="caption" className="text-textMuted">
-                      {new Date(review.createdAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center gap-1">
-                    <Ionicons name="star" size={16} color={colorValues.warning} />
-                    <Text variant="body" className="font-semibold">
-                      {review.rating.toFixed(1)}
-                    </Text>
-                  </View>
-                </View>
-                <Text variant="body" className="text-textSecondary">
-                  {review.comment}
-                </Text>
-              </View>
-            </Card>
-          ))}
-        </View>
-      )}
-
-      {/* Logout */}
       <View className="px-4 pb-8">
         <Button variant="outline" onPress={handleLogout}>
           <View className="flex-row items-center gap-2">
             <Ionicons name="log-out-outline" size={20} color={colorValues.danger} />
-            <Text variant="body" className="text-danger font-semibold">
-              Logout
-            </Text>
+            <Text variant="body" className="text-danger font-semibold">Logout</Text>
           </View>
         </Button>
       </View>

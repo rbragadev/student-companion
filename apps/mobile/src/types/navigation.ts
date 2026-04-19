@@ -22,6 +22,7 @@ export enum StackRoutes {
   NOTIFICATIONS = 'Notifications',
   PLACE_DETAIL = 'PlaceDetail',
   PROFILE = 'Profile',
+  SETTINGS = 'Settings',
 }
 
 // Tabs do navegador principal
@@ -45,6 +46,7 @@ export type RootStackParamList = {
   [StackRoutes.NOTIFICATIONS]: undefined;
   [StackRoutes.PLACE_DETAIL]: { placeId: string };
   [StackRoutes.PROFILE]: undefined;
+  [StackRoutes.SETTINGS]: undefined;
 };
 
 declare global {

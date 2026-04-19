@@ -63,8 +63,7 @@ export default function HomeScreen() {
   }
 
   const handleSettingsPress = () => {
-    console.log('Settings pressed');
-    // TODO: Navegar para tela de configurações
+    navigation.navigate(StackRoutes.SETTINGS);
   };
 
   const handleNotificationsPress = () => {

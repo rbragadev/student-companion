@@ -324,6 +324,29 @@ Fluxo no SaaS:
   - `invoice_item` (course, accommodation, fee, discount)
 - Pagamentos agora podem vincular invoice (`payment.invoiceId`) e reconciliam status da invoice automaticamente conforme pagamentos recebidos.
 
+### Perfil/Jornada/Preferências (Aluno)
+
+- Backend:
+  - `user_preferences` evoluído com campos operacionais:
+    - `interestedInAccommodation`
+    - `accommodationTypePreference`
+    - `budgetPreference`
+    - `locationPreference`
+    - `notes`
+  - endpoints:
+    - `GET /user-preferences?userId=...`
+    - `PATCH /user-preferences?userId=...`
+    - `GET /preferences/options`
+  - lazy-create de preferências por usuário quando não existir registro.
+- Mobile:
+  - `ProfileScreen` refatorada com seções:
+    - dados pessoais
+    - minha jornada
+    - preferências editáveis
+  - remoção do bloco de interesses mockado na área de perfil para fluxo coberto.
+- SaaS:
+  - detalhe do aluno com seção de preferências editável no próprio contexto da jornada.
+
 ### Componentes genéricos prontos
 
 | Componente | Uso |

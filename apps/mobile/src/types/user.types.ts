@@ -11,12 +11,53 @@ export interface UserPreferences {
   englishLevel?: string;
   arrivalDate?: string;
   preferredAccommodationTypes: string[];
+  interestedInAccommodation?: boolean;
+  accommodationTypePreference?: string;
+  budgetPreference?: string;
+  locationPreference?: string;
+  notes?: string;
   maxDistanceToSchool?: number;
   hasUnreadNotifications: boolean;
   notificationCount: number;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PreferenceOption {
+  value: string;
+  label: string;
+}
+
+export interface UserPreferenceOptions {
+  accommodationTypeOptions: PreferenceOption[];
+  budgetOptions: PreferenceOption[];
+  locationOptions: PreferenceOption[];
+  purposeOptions: PreferenceOption[];
+  englishLevelOptions: PreferenceOption[];
+}
+
+export interface UpdateUserPreferencesPayload
+  extends Partial<
+    Pick<
+      UserPreferences,
+      | 'destinationCity'
+      | 'destinationCountry'
+      | 'budgetAccommodationMin'
+      | 'budgetAccommodationMax'
+      | 'budgetCourseMin'
+      | 'budgetCourseMax'
+      | 'purpose'
+      | 'englishLevel'
+      | 'arrivalDate'
+      | 'preferredAccommodationTypes'
+      | 'interestedInAccommodation'
+      | 'accommodationTypePreference'
+      | 'budgetPreference'
+      | 'locationPreference'
+      | 'notes'
+      | 'maxDistanceToSchool'
+    >
+  > {}
 
 export interface UserProfile {
   id: string;

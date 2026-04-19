@@ -318,3 +318,17 @@ Regras de exposição no menu:
 | Client Components | NavItem (`usePathname`), LoginForm, LogoutButton |
 | HTTP-only Cookie | Sessão do admin |
 | Edge Middleware + `jose` | Proteção de rotas |
+### Perfil, Jornada e Preferências (Aluno)
+
+- Fonte única de preferências no backend (`user_preferences`), com lazy-create por usuário.
+- Endpoints de preferências:
+  - `GET /user-preferences?userId=...`
+  - `PATCH /user-preferences?userId=...`
+  - `GET /preferences/options`
+- Mobile:
+  - perfil separado por seções de dados pessoais, jornada e preferências;
+  - edição de preferências usa backend real (sem opções hardcoded no app para selects centrais);
+  - jornada mostra claramente: intenção em aberto, proposta aguardando aprovação, matrícula ativa, checkout e estado de pagamento.
+- SaaS (detalhe do aluno):
+  - seção de preferências editável no contexto do aluno;
+  - seção de jornada operacional com estado atual e histórico.

@@ -252,6 +252,11 @@ model UserPreferences {
   englishLevel                String?
   arrivalDate                 DateTime?
   preferredAccommodationTypes String[]  @default([])
+  interestedInAccommodation   Boolean?  @default(true) @map("interested_in_accommodation")
+  accommodationTypePreference String?   @map("accommodation_type_preference") @db.VarChar(80)
+  budgetPreference            String?   @map("budget_preference") @db.VarChar(80)
+  locationPreference          String?   @map("location_preference") @db.VarChar(120)
+  notes                       String?
   maxDistanceToSchool         Int?
   hasUnreadNotifications      Boolean   @default(false)
   notificationCount           Int       @default(0)

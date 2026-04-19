@@ -96,6 +96,16 @@ export interface StudentAdmin {
     destinationCountry: string;
     purpose: string;
     englishLevel: string | null;
+    interestedInAccommodation?: boolean | null;
+    accommodationTypePreference?: string | null;
+    budgetPreference?: string | null;
+    locationPreference?: string | null;
+    notes?: string | null;
+    budgetAccommodationMin?: number | null;
+    budgetAccommodationMax?: number | null;
+    budgetCourseMin?: number | null;
+    budgetCourseMax?: number | null;
+    maxDistanceToSchool?: number | null;
   } | null;
 }
 
