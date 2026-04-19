@@ -21,6 +21,7 @@ import {
   BadgeCheck,
   CircleDollarSign,
   Wallet,
+  ShoppingCart,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import type { NavIconName } from '@/config/navigation';
@@ -44,6 +45,7 @@ const ICONS: Record<NavIconName, React.ElementType> = {
   BadgeCheck,
   CircleDollarSign,
   Wallet,
+  ShoppingCart,
 };
 
 interface NavItemProps {

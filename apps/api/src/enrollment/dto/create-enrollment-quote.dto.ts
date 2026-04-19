@@ -37,6 +37,10 @@ export class CreateEnrollmentQuoteItemDto {
 export class CreateEnrollmentQuoteDto {
   @IsOptional()
   @IsUUID()
+  userId?: string;
+
+  @IsOptional()
+  @IsUUID()
   enrollmentId?: string;
 
   @IsOptional()

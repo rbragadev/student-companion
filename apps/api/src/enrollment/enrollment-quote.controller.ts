@@ -42,11 +42,6 @@ export class EnrollmentQuoteController {
     });
   }
 
-  @Get('by-intent/:intentId')
-  findByIntent(@Param('intentId') intentId: string) {
-    return this.enrollmentQuoteService.findByIntent(intentId);
-  }
-
   @Get('by-enrollment/:enrollmentId')
   findByEnrollment(@Param('enrollmentId') enrollmentId: string) {
     return this.enrollmentQuoteService.findByEnrollment(enrollmentId);

@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { enrollmentApi } from '../services/api/enrollmentApi';
 import { userApi } from '../services/api/userApi';
 import type { UpdateUserPreferencesPayload } from '../types/user.types';
+import { apiClient } from '../services/api/client';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -68,6 +69,17 @@ export default function ProfileScreen() {
     queryKey: ['preferences', 'options'],
     queryFn: () => userApi.getPreferenceOptions(),
     staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ['orders', 'user', userId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/orders?userId=${userId}`);
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!userId,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
 
   const [isEditingPreferences, setIsEditingPreferences] = React.useState(false);
@@ -182,7 +194,11 @@ export default function ProfileScreen() {
           <View className="gap-2">
             <Text variant="body" className="font-semibold">Resumo da jornada atual</Text>
             <Text variant="caption">
-              Intenção em aberto: {journey?.activeIntent ? 'Sim' : 'Não'}
+              Matrícula em andamento:{' '}
+              {activeEnrollment &&
+              ['draft', 'started', 'awaiting_school_approval'].includes(activeEnrollment.status)
+                ? 'Sim'
+                : 'Não'}
             </Text>
             <Text variant="caption">
               Proposta aguardando aprovação:{' '}
@@ -216,6 +232,33 @@ export default function ProfileScreen() {
             >
               Abrir Minha Jornada
             </Button>
+          </View>
+        </Card>
+
+        <Card>
+          <View className="gap-2">
+            <Text variant="body" className="font-semibold">Reservas / Orders</Text>
+            <Text variant="caption">
+              Total de vendas vinculadas ao seu perfil: {orders.length}
+            </Text>
+            {orders.slice(0, 3).map((order: any) => (
+              <View key={order.id} className="rounded-lg border border-border bg-surfaceSecondary px-3 py-2">
+                <Text variant="caption" className="font-medium">
+                  {order.type === 'accommodation'
+                    ? 'Acomodação'
+                    : order.type === 'course'
+                      ? 'Curso'
+                      : 'Pacote'}
+                  {' • '}
+                  {Number(order.totalAmount ?? 0).toFixed(2)} {order.currency ?? 'CAD'}
+                </Text>
+                <Text variant="caption">Status: {order.status}</Text>
+                <Text variant="caption">Pagamento: {order.paymentStatus}</Text>
+              </View>
+            ))}
+            {orders.length === 0 ? (
+              <Text variant="caption">Nenhuma venda/reserva encontrada.</Text>
+            ) : null}
           </View>
         </Card>
 

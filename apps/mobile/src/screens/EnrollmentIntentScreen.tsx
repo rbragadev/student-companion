@@ -474,17 +474,20 @@ export default function EnrollmentIntentScreen() {
       if (currentQuoteId) {
         try {
           quote = await enrollmentIntentApi.recalculateQuote(currentQuoteId, {
+            userId: userId ?? undefined,
             downPaymentPercentage: 30,
             items,
           });
         } catch {
           quote = await enrollmentIntentApi.createQuote({
+            userId: userId ?? undefined,
             downPaymentPercentage: 30,
             items,
           });
         }
       } else {
         quote = await enrollmentIntentApi.createQuote({
+          userId: userId ?? undefined,
           downPaymentPercentage: 30,
           items,
         });
@@ -505,6 +508,7 @@ export default function EnrollmentIntentScreen() {
     accommodationEndDate,
     course?.periodType,
     selectedAccommodationId,
+    userId,
   ]);
 
   React.useEffect(() => {
@@ -585,6 +589,7 @@ export default function EnrollmentIntentScreen() {
       setAccommodationPricing(null);
 
       const quote = await enrollmentIntentApi.createQuote({
+        userId: userId ?? undefined,
         downPaymentPercentage: 30,
         items: [
           {

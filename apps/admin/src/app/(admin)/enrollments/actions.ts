@@ -133,6 +133,25 @@ export async function updateEnrollmentAccommodationAction(formData: FormData) {
   redirect(`/enrollments/${enrollmentId}`);
 }
 
+export async function updateEnrollmentAccommodationOrderAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const enrollmentId = getText(formData, 'enrollmentId');
+  const orderValue = formData.get('orderId');
+  const orderId =
+    typeof orderValue === 'string' && orderValue.trim() !== ''
+      ? orderValue.trim()
+      : null;
+
+  await apiFetch(`/enrollments/${enrollmentId}/accommodation-order`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      orderId,
+    }),
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}
+
 export async function updateEnrollmentAccommodationWorkflowAction(formData: FormData) {
   await assertActionPermission('users.write');
   const session = await requireSession();

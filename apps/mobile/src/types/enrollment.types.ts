@@ -113,16 +113,21 @@ export interface CreateEnrollmentIntentPayload {
 export interface Enrollment {
   id: string;
   status:
-    | 'application_started'
-    | 'documents_pending'
-    | 'under_review'
+    | 'draft'
+    | 'started'
+    | 'awaiting_school_approval'
     | 'approved'
-    | 'enrolled'
+    | 'checkout_available'
+    | 'payment_pending'
+    | 'partially_paid'
+    | 'paid'
+    | 'confirmed'
+    | 'expired'
     | 'rejected'
     | 'cancelled'
-    | 'active'
+    | 'closed'
     | 'completed'
-    | 'denied';
+    ;
   createdAt: string;
   accommodationStatus: 'not_selected' | 'selected' | 'approved' | 'denied' | 'closed';
   accommodationClosedAt?: string | null;
@@ -141,16 +146,13 @@ export interface Enrollment {
     priceUnit: string;
     score?: number | null;
   } | null;
-  enrollmentIntent?: { id: string; status: string; convertedAt?: string | null };
   pricing?: EnrollmentPricing | null;
   documents?: EnrollmentDocument[];
   messages?: EnrollmentMessage[];
 }
 
 export interface StudentAcademicJourney {
-  activeIntent: EnrollmentIntent | null;
   activeEnrollment: Enrollment | null;
-  intentHistory: EnrollmentIntent[];
   enrollmentHistory: Enrollment[];
 }
 
@@ -316,7 +318,6 @@ export interface NotificationItem {
   message: string;
   metadata?: {
     enrollmentId?: string;
-    enrollmentIntentId?: string;
     paymentId?: string;
     amount?: number;
     currency?: string;

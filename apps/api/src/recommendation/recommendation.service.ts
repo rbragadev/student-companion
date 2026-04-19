@@ -48,10 +48,10 @@ export class RecommendationService {
       throw new NotFoundException('User preferences not found');
     }
 
-    const activeIntent = await this.prisma.enrollment.findFirst({
+    const activeEnrollment = await this.prisma.enrollment.findFirst({
       where: {
         studentId: userId,
-        status: { in: ['draft', 'started', 'awaiting_school_approval', 'application_started', 'under_review'] },
+        status: { in: ['draft', 'started', 'awaiting_school_approval'] },
       },
       select: { courseId: true },
       orderBy: { createdAt: 'desc' },
@@ -100,10 +100,10 @@ export class RecommendationService {
       .toSorted((a, b) => b.score - a.score)
       .slice(0, limit);
 
-    if (type === RecommendationType.COURSE && activeIntent?.courseId) {
-      const selectedCourse = sorted.find((item) => item.id === activeIntent.courseId);
+    if (type === RecommendationType.COURSE && activeEnrollment?.courseId) {
+      const selectedCourse = sorted.find((item) => item.id === activeEnrollment.courseId);
       if (!selectedCourse) return sorted;
-      return [selectedCourse, ...sorted.filter((item) => item.id !== activeIntent.courseId)];
+      return [selectedCourse, ...sorted.filter((item) => item.id !== activeEnrollment.courseId)];
     }
 
     return sorted;

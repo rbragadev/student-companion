@@ -78,7 +78,7 @@ export default function PackageCartScreen() {
   ]);
 
   const openIntentQuery = useQuery({
-    queryKey: ['enrollment-intent', 'open', userId],
+    queryKey: ['enrollment', 'open', userId],
     queryFn: () => enrollmentIntentApi.getOpenIntentByStudent(userId ?? ''),
     enabled: Boolean(userId),
     refetchOnMount: true,

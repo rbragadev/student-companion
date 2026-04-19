@@ -14,15 +14,13 @@ const ENROLLMENT_PENDING_STATUSES = new Set([
   'draft',
   'started',
   'awaiting_school_approval',
-  'application_started',
-  'under_review',
 ]);
 
 function mapEnrollmentStatusToIntentStatus(
   status: string,
 ): EnrollmentIntent['status'] {
   if (status === 'cancelled' || status === 'expired') return 'cancelled';
-  if (status === 'rejected' || status === 'denied') return 'denied';
+  if (status === 'rejected') return 'denied';
   if (
     [
       'approved',
@@ -31,7 +29,6 @@ function mapEnrollmentStatusToIntentStatus(
       'partially_paid',
       'paid',
       'confirmed',
-      'enrolled',
       'completed',
     ].includes(status)
   ) {
@@ -45,7 +42,7 @@ function mapEnrollmentToIntentLike(entry: any): EnrollmentIntent {
     id: entry.id,
     status: mapEnrollmentStatusToIntentStatus(entry.status),
     deniedReason:
-      entry.status === 'rejected' || entry.status === 'denied'
+      entry.status === 'rejected'
         ? 'Negada na operação'
         : null,
     convertedAt:
@@ -120,6 +117,7 @@ export const enrollmentIntentApi = {
       })) ?? [];
 
     await enrollmentIntentApi.recalculateQuote(currentQuote.id, {
+      userId: payload.studentId,
       enrollmentId,
       fees: Number(currentQuote.fees ?? 0),
       discounts: Number(currentQuote.discounts ?? 0),
@@ -238,6 +236,7 @@ export const enrollmentIntentApi = {
   },
 
   createQuote: async (payload: {
+    userId?: string;
     enrollmentId?: string;
     coursePricingId?: string;
     accommodationPricingId?: string;
@@ -263,7 +262,7 @@ export const enrollmentIntentApi = {
 
   getQuoteByIntent: async (intentId: string): Promise<EnrollmentQuote | null> => {
     try {
-      const { data } = await apiClient.get(`/quotes/by-intent/${intentId}`);
+      const { data } = await apiClient.get(`/quotes/by-enrollment/${intentId}`);
       return data as EnrollmentQuote;
     } catch {
       return null;
@@ -287,6 +286,7 @@ export const enrollmentIntentApi = {
   recalculateQuote: async (
     quoteId: string,
     payload: {
+      userId?: string;
       enrollmentId?: string;
       items?: Array<{
         itemType: 'course' | 'accommodation';

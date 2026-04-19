@@ -6,7 +6,7 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import type { CourseAdmin, CoursePricingAdmin, SchoolAdmin } from '@/types/catalog.types';
+import type { CourseAdmin, CoursePricingAdmin, EnrollmentAdmin, SchoolAdmin } from '@/types/catalog.types';
 import type { AcademicPeriod, ClassGroup, Unit } from '@/types/structure.types';
 import { CourseHierarchyFields } from '../course-hierarchy-fields';
 import {
@@ -25,16 +25,23 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
   const session = await requirePermission('structure.read');
   const canWrite = session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
-  const [course, schools, units, pricingRows, classGroups, periods] = await Promise.all([
+  const [course, schools, units, pricingRows, classGroups, periods, linkedEnrollments] = await Promise.all([
     apiFetch<CourseAdmin>(`/course/${id}`).catch(() => null),
     apiFetch<SchoolAdmin[]>('/school').catch(() => []),
     apiFetch<Unit[]>('/unit').catch(() => []),
     apiFetch<CoursePricingAdmin[]>(`/course-pricing?courseId=${id}`).catch(() => []),
     apiFetch<ClassGroup[]>(`/class-group?courseId=${id}`).catch(() => []),
     apiFetch<AcademicPeriod[]>('/academic-period').catch(() => []),
+    apiFetch<EnrollmentAdmin[]>(`/enrollments?courseId=${id}`).catch(() => []),
   ]);
 
   if (!course) notFound();
+  const linkedStudentsCount = linkedEnrollments.length;
+  const linkedRevenue = linkedEnrollments.reduce(
+    (total, enrollment) =>
+      total + Number(enrollment.pricing?.packageTotalAmount ?? enrollment.pricing?.totalAmount ?? 0),
+    0,
+  );
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumbs
@@ -210,6 +217,35 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
           <Link href="/class-groups">
             <Button variant="outline" size="sm">Gerenciar turmas</Button>
           </Link>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-slate-900">Matrículas vinculadas</h2>
+        <p className="mt-1 text-xs text-slate-500">Operação: acompanhe alunos usando este curso e acesse a matrícula direto.</p>
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+          <p>Alunos vinculados: <strong>{linkedStudentsCount}</strong></p>
+          <p>Receita estimada (pacotes): <strong>{linkedRevenue.toFixed(2)} CAD</strong></p>
+        </div>
+        <div className="mt-3 space-y-2">
+          {linkedEnrollments.map((enrollment) => (
+            <Link
+              key={enrollment.id}
+              href={`/enrollments/${enrollment.id}`}
+              className="block rounded-lg border border-slate-200 p-3 hover:bg-slate-50"
+            >
+              <p className="text-sm font-medium text-slate-900">
+                {enrollment.student.firstName} {enrollment.student.lastName}
+              </p>
+              <p className="text-xs text-slate-500">
+                {enrollment.academicPeriod.name} • {enrollment.status}
+                {enrollment.accommodation ? ` • com ${enrollment.accommodation.title}` : ' • sem acomodação'}
+              </p>
+            </Link>
+          ))}
+          {linkedEnrollments.length === 0 && (
+            <p className="text-xs text-slate-500">Nenhuma matrícula vinculada a este curso.</p>
+          )}
         </div>
       </section>
     </div>

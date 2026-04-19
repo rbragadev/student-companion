@@ -8,29 +8,26 @@ import { Button, Card, Screen, Text } from '../components';
 import { useAuth } from '../contexts/AuthContext';
 import { enrollmentApi } from '../services/api/enrollmentApi';
 import { colorValues } from '../utils/design-tokens';
-import type { Enrollment, EnrollmentIntent } from '../types/enrollment.types';
+import type { Enrollment } from '../types/enrollment.types';
 import { RootStackParamList, StackRoutes } from '../types/navigation';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const intentStatusLabel: Record<EnrollmentIntent['status'], string> = {
-  pending: 'Pendente',
-  converted: 'Convertida',
-  cancelled: 'Cancelada',
-  denied: 'Negada',
-};
-
 const enrollmentStatusLabel: Record<Enrollment['status'], string> = {
-  application_started: 'Application Started',
-  documents_pending: 'Documents Pending',
-  under_review: 'Under Review',
+  draft: 'Draft',
+  started: 'Started',
+  awaiting_school_approval: 'Awaiting School Approval',
   approved: 'Approved',
-  enrolled: 'Enrolled',
+  checkout_available: 'Checkout Available',
+  payment_pending: 'Payment Pending',
+  partially_paid: 'Partially Paid',
+  paid: 'Paid',
+  confirmed: 'Confirmed',
+  expired: 'Expired',
   rejected: 'Rejected',
   cancelled: 'Cancelada',
-  active: 'Ativa',
+  closed: 'Closed',
   completed: 'Concluída',
-  denied: 'Negada',
 };
 
 function formatDate(value?: string | null) {
@@ -59,9 +56,7 @@ export default function AcademicJourneyScreen() {
     }, [queryClient, userId]),
   );
 
-  const activeIntent = data?.activeIntent ?? null;
   const activeEnrollment = data?.activeEnrollment ?? null;
-  const intentHistory = data?.intentHistory ?? [];
   const enrollmentHistory = data?.enrollmentHistory ?? [];
 
   return (
@@ -96,25 +91,25 @@ export default function AcademicJourneyScreen() {
           <>
             <Card>
               <Text variant="h3" className="font-semibold">Em andamento</Text>
-              {activeIntent ? (
+              {activeEnrollment ? (
                 <View className="mt-3 gap-1">
-                  <Text variant="body" className="font-medium">{activeIntent.course?.program_name ?? 'Curso'}</Text>
-                  <Text variant="caption">Turma: {activeIntent.classGroup?.name ?? '-'} ({activeIntent.classGroup?.code ?? '-'})</Text>
-                  <Text variant="caption">Período: {activeIntent.academicPeriod?.name ?? '-'}</Text>
+                  <Text variant="body" className="font-medium">{activeEnrollment.course.program_name}</Text>
+                  <Text variant="caption">Turma: {activeEnrollment.classGroup.name} ({activeEnrollment.classGroup.code})</Text>
+                  <Text variant="caption">Período: {activeEnrollment.academicPeriod.name}</Text>
                   <Text variant="caption">
-                    Acomodação: {activeIntent.accommodation ? activeIntent.accommodation.title : 'Sem acomodação'}
+                    Acomodação: {activeEnrollment.accommodation ? activeEnrollment.accommodation.title : 'Sem acomodação'}
                   </Text>
-                  <Text variant="caption">Status: {intentStatusLabel[activeIntent.status]}</Text>
-                  <Text variant="caption">Criada em: {formatDate(activeIntent.createdAt)}</Text>
+                  <Text variant="caption">Status: {enrollmentStatusLabel[activeEnrollment.status]}</Text>
+                  <Text variant="caption">Criada em: {formatDate(activeEnrollment.createdAt)}</Text>
                   <Button
                     className="mt-3"
-                    onPress={() => navigation.navigate(StackRoutes.ENROLLMENT_INTENT, { courseId: activeIntent.courseId })}
+                    onPress={() => navigation.navigate(StackRoutes.ENROLLMENT_DETAIL, { enrollmentId: activeEnrollment.id })}
                   >
-                    Ver intenção em aberto
+                    Abrir matrícula em andamento
                   </Button>
                 </View>
               ) : (
-                <Text variant="caption" className="mt-2">Nenhuma intenção pendente.</Text>
+                <Text variant="caption" className="mt-2">Nenhuma matrícula em andamento.</Text>
               )}
             </Card>
 
@@ -163,24 +158,6 @@ export default function AcademicJourneyScreen() {
               </View>
             </Card>
 
-            <Card>
-              <Text variant="h3" className="font-semibold">Histórico de intenções</Text>
-              <View className="mt-3 gap-3">
-                {intentHistory.length === 0 && <Text variant="caption">Sem histórico de intenções.</Text>}
-                {intentHistory.map((intent) => (
-                  <View key={intent.id} className="rounded-lg border border-border px-3 py-2">
-                    <Text variant="body" className="font-medium">{intent.course?.program_name ?? 'Curso'}</Text>
-                    <Text variant="caption">Status: {intentStatusLabel[intent.status]}</Text>
-                    {intent.status === 'denied' && intent.deniedReason && (
-                      <Text variant="caption">Motivo da negativa: {intent.deniedReason}</Text>
-                    )}
-                    <Text variant="caption">Período: {intent.academicPeriod?.name ?? '-'}</Text>
-                    <Text variant="caption">Acomodação: {intent.accommodation ? intent.accommodation.title : 'Sem acomodação'}</Text>
-                    <Text variant="caption">Criada em: {formatDate(intent.createdAt)}</Text>
-                  </View>
-                ))}
-              </View>
-            </Card>
           </>
         )}
       </View>

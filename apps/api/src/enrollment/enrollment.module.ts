@@ -22,6 +22,8 @@ import { InvoiceService } from './invoice.service';
 import { InvoiceController } from './invoice.controller';
 import { FinancialService } from './financial.service';
 import { FinancialController } from './financial.controller';
+import { OrderService } from './order.service';
+import { OrderController } from './order.controller';
 
 @Module({
   imports: [PrismaModule, NotificationModule],
@@ -37,6 +39,7 @@ import { FinancialController } from './financial.controller';
     PaymentController,
     InvoiceController,
     FinancialController,
+    OrderController,
   ],
   providers: [
     EnrollmentService,
@@ -49,7 +52,8 @@ import { FinancialController } from './financial.controller';
     PaymentService,
     InvoiceService,
     FinancialService,
+    OrderService,
   ],
-  exports: [CommissionConfigService, EnrollmentQuoteService],
+  exports: [CommissionConfigService, EnrollmentQuoteService, OrderService],
 })
 export class EnrollmentModule {}

@@ -12,11 +12,13 @@ import type {
   PaymentAdmin,
   EnrollmentQuoteAdmin,
   EnrollmentTimelineEventAdmin,
+  OrderAdmin,
 } from '@/types/catalog.types';
 import {
   confirmEnrollmentFakePaymentAction,
   createEnrollmentDocumentAction,
   updateEnrollmentAccommodationAction,
+  updateEnrollmentAccommodationOrderAction,
   updateEnrollmentAccommodationWorkflowAction,
   createEnrollmentMessageAction,
   updateEnrollmentDocumentAction,
@@ -27,9 +29,6 @@ import {
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
   { value: 'started', label: 'Started' },
-  { value: 'application_started', label: 'Application Started' },
-  { value: 'documents_pending', label: 'Documents Pending' },
-  { value: 'under_review', label: 'Under Review' },
   { value: 'awaiting_school_approval', label: 'Awaiting School Approval' },
   { value: 'approved', label: 'Approved' },
   { value: 'checkout_available', label: 'Checkout Available' },
@@ -37,13 +36,11 @@ const STATUS_OPTIONS = [
   { value: 'partially_paid', label: 'Partially Paid' },
   { value: 'paid', label: 'Paid' },
   { value: 'confirmed', label: 'Confirmed' },
-  { value: 'enrolled', label: 'Enrolled' },
   { value: 'expired', label: 'Expired' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'cancelled', label: 'Cancelled' },
-  { value: 'active', label: 'Active (legacy)' },
-  { value: 'completed', label: 'Completed (legacy)' },
-  { value: 'denied', label: 'Denied (legacy)' },
+  { value: 'closed', label: 'Closed' },
+  { value: 'completed', label: 'Completed' },
 ];
 
 const ACCOMMODATION_STATUS_OPTIONS = [
@@ -86,6 +83,9 @@ export default async function EnrollmentDetailPage({
     score?: number | null;
     recommendationBadge?: string | null;
   }>>(`/accommodation/recommended/school/${enrollment.school.id}`).catch(() => []);
+  const accommodationOrders = await apiFetch<OrderAdmin[]>(
+    `/orders?userId=${enrollment.student.id}&type=accommodation`,
+  ).catch(() => []);
 
   const pricing = enrollment.pricing;
   const enrollmentMessages = (enrollment.messages ?? []).filter(
@@ -121,6 +121,9 @@ export default async function EnrollmentDetailPage({
           <p className="mt-2 text-sm text-slate-700">{enrollment.student.firstName} {enrollment.student.lastName}</p>
           <p className="text-xs text-slate-500">{enrollment.student.email}</p>
           <p className="mt-1 text-xs text-slate-500">Status aluno (global): {enrollment.student.studentStatus}</p>
+          <Link href={`/students/${enrollment.student.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
+            Abrir aluno
+          </Link>
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">
@@ -133,6 +136,9 @@ export default async function EnrollmentDetailPage({
           <h2 className="text-sm font-semibold text-slate-900">Curso e Turma</h2>
           <p className="mt-2 text-sm text-slate-700">{enrollment.course.program_name}</p>
           <p className="text-xs text-slate-500">{enrollment.classGroup.name} ({enrollment.classGroup.code})</p>
+          <Link href={`/courses/${enrollment.course.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
+            Abrir curso
+          </Link>
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">
@@ -142,6 +148,10 @@ export default async function EnrollmentDetailPage({
             {new Date(enrollment.academicPeriod.startDate).toLocaleDateString('pt-BR')} - {new Date(enrollment.academicPeriod.endDate).toLocaleDateString('pt-BR')}
           </p>
           <p className="mt-1 text-xs text-slate-500">Status matrícula: {enrollment.status}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Tipo de fluxo: <strong>{quote?.type ?? (enrollment.accommodation ? 'course_with_accommodation' : 'course_only')}</strong>
+          </p>
+          {quote?.nextStep ? <p className="mt-1 text-xs text-slate-500">Próximo passo: {quote.nextStep}</p> : null}
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
@@ -176,6 +186,11 @@ export default async function EnrollmentDetailPage({
               Atual: {enrollment.accommodation.title} • {(enrollment.accommodation.priceInCents / 100).toFixed(2)} {enrollment.accommodation.priceUnit}
             </p>
           )}
+          {enrollment.accommodation ? (
+            <Link href={`/accommodations/${enrollment.accommodation.id}`} className="mt-1 inline-block text-xs text-blue-600 hover:underline">
+              Abrir acomodação
+            </Link>
+          ) : null}
           <p className="mt-1 text-xs text-slate-500">
             Status operacional da acomodação: <strong>{enrollment.accommodationStatus}</strong>
             {enrollment.accommodationClosedAt ? ` • Fechada em ${formatDateTime(enrollment.accommodationClosedAt)}` : ''}
@@ -185,6 +200,43 @@ export default async function EnrollmentDetailPage({
               Acomodação fechada. Troca/remoção bloqueada para preservar fechamento e faturamento.
             </p>
           )}
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
+          <h2 className="text-sm font-semibold text-slate-900">Order de acomodação vinculada</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            A matrícula pode apontar para uma venda standalone de acomodação.
+          </p>
+          <form action={updateEnrollmentAccommodationOrderAction} className="mt-3 flex flex-wrap items-end gap-2">
+            <input type="hidden" name="enrollmentId" value={enrollment.id} />
+            <label className="min-w-[320px] flex-1 text-xs font-medium text-slate-600">
+              Order de acomodação
+              <select
+                name="orderId"
+                defaultValue={enrollment.accommodationOrder?.id ?? ''}
+                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              >
+                <option value="">Sem order vinculada</option>
+                {accommodationOrders.map((order) => {
+                  const item = order.items.find((entry) => entry.itemType === 'accommodation');
+                  const title = item?.accommodation?.title ?? 'Acomodação';
+                  return (
+                    <option key={order.id} value={order.id}>
+                      {title} • {Number(order.totalAmount).toFixed(2)} {order.currency} • {order.status}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <Button type="submit" size="sm" variant="outline">
+              Vincular order
+            </Button>
+          </form>
+          {enrollment.accommodationOrder ? (
+            <Link href={`/orders/${enrollment.accommodationOrder.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
+              Abrir order vinculada
+            </Link>
+          ) : null}
         </article>
       </section>
 
@@ -291,7 +343,7 @@ export default async function EnrollmentDetailPage({
         <article className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="text-sm font-semibold text-slate-900">Quote do pacote</h2>
           {!quote ? (
-            <p className="mt-2 text-xs text-slate-500">Nenhuma quote associada à intenção de origem.</p>
+            <p className="mt-2 text-xs text-slate-500">Nenhuma quote associada à matrícula.</p>
           ) : (
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
               <p>Tipo: <strong>{quote.type}</strong></p>

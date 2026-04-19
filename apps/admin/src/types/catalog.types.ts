@@ -109,77 +109,24 @@ export interface StudentAdmin {
   } | null;
 }
 
-export interface EnrollmentIntentAdmin {
-  id: string;
-  status: 'pending' | 'converted' | 'cancelled' | 'denied';
-  deniedReason?: string | null;
-  convertedAt: string | null;
-  createdAt: string;
-  student: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    studentStatus: 'lead' | 'application_started' | 'pending_enrollment' | 'enrolled';
-  };
-  course: {
-    id: string;
-    program_name: string;
-    school?: {
-      id: string;
-      name: string;
-      institution?: { id: string; name: string };
-    };
-  };
-  classGroup: {
-    id: string;
-    name: string;
-    code: string;
-  };
-  academicPeriod: {
-    id: string;
-    name: string;
-    startDate: string;
-    endDate: string;
-    status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
-  };
-  accommodation?: {
-    id: string;
-    title: string;
-    accommodationType: string;
-    location: string;
-    priceInCents: number;
-    priceUnit: string;
-    score?: number | null;
-  } | null;
-  enrollment?: {
-    id: string;
-    status: string;
-  } | null;
-}
-
 export interface EnrollmentAdmin {
   id: string;
   status:
     | 'draft'
     | 'started'
     | 'awaiting_school_approval'
+    | 'approved'
     | 'checkout_available'
     | 'payment_pending'
     | 'partially_paid'
     | 'paid'
     | 'confirmed'
     | 'expired'
-    | 'application_started'
-    | 'documents_pending'
-    | 'under_review'
-    | 'approved'
-    | 'enrolled'
     | 'rejected'
     | 'cancelled'
-    | 'active'
+    | 'closed'
     | 'completed'
-    | 'denied';
+    ;
   createdAt: string;
   accommodationStatus: 'not_selected' | 'selected' | 'approved' | 'denied' | 'closed';
   accommodationClosedAt?: string | null;
@@ -205,7 +152,30 @@ export interface EnrollmentAdmin {
     priceUnit: string;
     score?: number | null;
   } | null;
-  enrollmentIntent?: { id: string; status: string; convertedAt: string | null } | null;
+  accommodationOrder?: {
+    id: string;
+    type: string;
+    status: string;
+    totalAmount: number;
+    currency: string;
+    paymentStatus: string;
+    items: Array<{
+      id: string;
+      itemType: string;
+      startDate: string;
+      endDate: string;
+      amount: number;
+      accommodation?: {
+        id: string;
+        title: string;
+        accommodationType: string;
+        location: string;
+        priceInCents: number;
+        priceUnit: string;
+        score?: number | null;
+      } | null;
+    }>;
+  } | null;
   pricing?: EnrollmentPricingAdmin | null;
   documents?: EnrollmentDocumentAdmin[];
   messages?: EnrollmentMessageAdmin[];
@@ -213,9 +183,7 @@ export interface EnrollmentAdmin {
 }
 
 export interface StudentAcademicJourneyAdmin {
-  activeIntent: EnrollmentIntentAdmin | null;
   activeEnrollment: EnrollmentAdmin | null;
-  intentHistory: EnrollmentIntentAdmin[];
   enrollmentHistory: EnrollmentAdmin[];
 }
 
@@ -478,6 +446,42 @@ export interface EnrollmentQuoteAdmin {
     currency: string;
     paidAt?: string | null;
     createdAt: string;
+  }>;
+}
+
+export interface OrderAdmin {
+  id: string;
+  userId: string;
+  enrollmentId?: string | null;
+  enrollmentQuoteId?: string | null;
+  type: 'course' | 'accommodation' | 'package' | string;
+  status: string;
+  totalAmount: number;
+  currency: string;
+  paymentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  enrollment?: {
+    id: string;
+    status: string;
+    school?: { id: string; name: string };
+    institution?: { id: string; name: string };
+  } | null;
+  items: Array<{
+    id: string;
+    itemType: 'course' | 'accommodation' | string;
+    referenceId: string;
+    startDate: string;
+    endDate: string;
+    amount: number;
+    course?: { id: string; program_name: string } | null;
+    accommodation?: { id: string; title: string; accommodationType: string } | null;
   }>;
 }
 

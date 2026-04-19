@@ -16,7 +16,8 @@ export type NavIconName =
   | 'FileBadge2'
   | 'BadgeCheck'
   | 'CircleDollarSign'
-  | 'Wallet';
+  | 'Wallet'
+  | 'ShoppingCart';
 
 export type NavDependency = 'institutions' | 'schools' | 'units' | 'courses';
 
@@ -41,7 +42,7 @@ export const navigationGroups: NavGroup[] = [
     ],
   },
   {
-    title: 'Cadastro e Configuração',
+    title: 'Configuração',
     items: [
       { label: 'Instituições', href: '/institutions', icon: 'University', permission: 'structure.read' },
       {
@@ -71,11 +72,6 @@ export const navigationGroups: NavGroup[] = [
         icon: 'Network',
         permission: 'structure.read',
       },
-    ],
-  },
-  {
-    title: 'Cadastro e Configuração',
-    items: [
       { label: 'Acomodações', href: '/accommodations', icon: 'Home', permission: 'structure.read' },
       { label: 'Lugares', href: '/places', icon: 'MapPin', permission: 'structure.read' },
     ],
@@ -85,6 +81,7 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { label: 'Alunos', href: '/students', icon: 'Users', permission: 'users.read' },
       { label: 'Matrículas', href: '/enrollments', icon: 'BadgeCheck', permission: 'users.read' },
+      { label: 'Vendas / Orders', href: '/orders', icon: 'ShoppingCart', permission: 'users.read' },
       { label: 'Fechamento Acomodação', href: '/accommodation-operations', icon: 'Home', permission: 'users.read' },
     ],
   },

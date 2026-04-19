@@ -60,6 +60,36 @@ export class EnrollmentService {
         score: true,
       },
     },
+    accommodationOrder: {
+      select: {
+        id: true,
+        type: true,
+        status: true,
+        totalAmount: true,
+        currency: true,
+        paymentStatus: true,
+        items: {
+          select: {
+            id: true,
+            itemType: true,
+            startDate: true,
+            endDate: true,
+            amount: true,
+            accommodation: {
+              select: {
+                id: true,
+                title: true,
+                accommodationType: true,
+                location: true,
+                priceInCents: true,
+                priceUnit: true,
+                score: true,
+              },
+            },
+          },
+        },
+      },
+    },
     pricing: true,
   } as const;
 
@@ -143,11 +173,7 @@ export class EnrollmentService {
       }),
     ]);
 
-    const nextStatus = ongoingEnrollment
-      ? 'enrolled'
-      : anyJourney
-        ? 'application_started'
-        : 'lead';
+    const nextStatus = ongoingEnrollment ? 'enrolled' : anyJourney ? 'pending_enrollment' : 'lead';
 
     await tx.user.update({
       where: { id: studentId },
@@ -294,58 +320,6 @@ export class EnrollmentService {
     });
   }
 
-  async createFromIntent(intentId: string) {
-    const existingEnrollment = await this.prisma.enrollment.findUnique({
-      where: { id: intentId },
-      include: this.includeDetailGraph,
-    });
-
-    if (existingEnrollment) {
-      if (['cancelled', 'denied', 'rejected', 'expired'].includes(existingEnrollment.status)) {
-        throw new BadRequestException('Matrícula cancelada/negada não pode ser confirmada');
-      }
-
-      if (['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'enrolled'].includes(existingEnrollment.status)) {
-        return existingEnrollment;
-      }
-
-      const updatedEnrollment = await this.prisma.$transaction(async (tx) => {
-        const updated = await tx.enrollment.update({
-          where: { id: existingEnrollment.id },
-          data: {
-            status: 'approved',
-          },
-          include: this.includeDetailGraph,
-        });
-
-        await this.registerStatusHistory(
-          tx,
-          updated.id,
-          existingEnrollment.status,
-          'approved',
-          'Matrícula aprovada a partir do fluxo legado de confirmação',
-          null,
-        );
-
-        return updated;
-      });
-
-      await this.notificationService.create({
-        userId: updatedEnrollment.student.id,
-        type: 'proposal_approved',
-        title: 'Proposta aprovada',
-        message:
-          'Sua proposta foi aprovada pela operação. O checkout já está liberado para pagamento da entrada.',
-        metadata: {
-          enrollmentId: updatedEnrollment.id,
-        },
-      });
-
-      return updatedEnrollment;
-    }
-    throw new NotFoundException(`Matrícula ${intentId} não encontrada`);
-  }
-
   async start(dto: StartEnrollmentDto) {
     const [course, classGroup, academicPeriod, accommodation] = await Promise.all([
       this.prisma.course.findUnique({
@@ -397,7 +371,7 @@ export class EnrollmentService {
 
     const activeEnrollment = await this.findActiveByStudent(dto.studentId);
     if (activeEnrollment) {
-      if (['draft', 'started', 'application_started'].includes(activeEnrollment.status)) {
+      if (['draft', 'started'].includes(activeEnrollment.status)) {
         return this.prisma.enrollment.update({
           where: { id: activeEnrollment.id },
           data: {
@@ -463,6 +437,8 @@ export class EnrollmentService {
     status?: string;
     institutionId?: string;
     schoolId?: string;
+    courseId?: string;
+    accommodationId?: string;
     accommodationStatus?: string;
   }) {
     return this.prisma.enrollment.findMany({
@@ -471,6 +447,8 @@ export class EnrollmentService {
         status: filters?.status,
         institutionId: filters?.institutionId,
         schoolId: filters?.schoolId,
+        courseId: filters?.courseId,
+        accommodationId: filters?.accommodationId,
         accommodationStatus: filters?.accommodationStatus,
       },
       orderBy: { createdAt: 'desc' },
@@ -503,37 +481,6 @@ export class EnrollmentService {
       throw new BadRequestException('studentId é obrigatório');
     }
 
-    const mapEnrollmentToIntentView = (entry: {
-      id: string;
-      createdAt: Date;
-      status: string;
-      course: unknown;
-      classGroup: unknown;
-      academicPeriod: unknown;
-      accommodation: unknown;
-    }) => {
-      const intentStatus =
-        ['cancelled', 'expired'].includes(entry.status)
-          ? 'cancelled'
-          : ['rejected', 'denied'].includes(entry.status)
-            ? 'denied'
-            : ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'confirmed', 'enrolled'].includes(entry.status)
-              ? 'converted'
-              : 'pending';
-
-      return {
-        id: entry.id,
-        status: intentStatus,
-        deniedReason: intentStatus === 'denied' ? 'Negada na operação' : null,
-        convertedAt: intentStatus === 'converted' ? entry.createdAt : null,
-        createdAt: entry.createdAt,
-        course: entry.course,
-        classGroup: entry.classGroup,
-        academicPeriod: entry.academicPeriod,
-        accommodation: entry.accommodation,
-      };
-    };
-
     const [activeEnrollment, enrollmentHistory] = await Promise.all([
       this.findActiveByStudent(studentId),
       this.prisma.enrollment.findMany({
@@ -543,18 +490,8 @@ export class EnrollmentService {
       }),
     ]);
 
-    const activeIntent =
-      enrollmentHistory.find((item) =>
-        ['draft', 'started', 'awaiting_school_approval', 'application_started', 'under_review'].includes(
-          item.status,
-        ),
-      ) ?? null;
-    const intentHistory = enrollmentHistory.map((item) => mapEnrollmentToIntentView(item));
-
     return {
-      activeIntent: activeIntent ? mapEnrollmentToIntentView(activeIntent) : null,
       activeEnrollment,
-      intentHistory,
       enrollmentHistory,
     };
   }
@@ -727,7 +664,7 @@ export class EnrollmentService {
       });
     }
 
-    if (status === 'rejected' || status === 'denied' || status === 'cancelled') {
+    if (status === 'rejected' || status === 'cancelled' || status === 'expired' || status === 'closed') {
       await this.notificationService.create({
         userId: enrollment.student.id,
         type: 'proposal_rejected',
@@ -824,7 +761,12 @@ export class EnrollmentService {
         });
       }
 
-      if (requestedStatus === 'rejected' || requestedStatus === 'denied' || requestedStatus === 'cancelled') {
+      if (
+        requestedStatus === 'rejected' ||
+        requestedStatus === 'cancelled' ||
+        requestedStatus === 'expired' ||
+        requestedStatus === 'closed'
+      ) {
         await this.notificationService.create({
           userId: enrollment.student.id,
           type: 'proposal_rejected',
@@ -906,6 +848,49 @@ export class EnrollmentService {
         include: this.includeDetailGraph,
       });
 
+      if (nextAccommodationId) {
+        const accommodation = await tx.accommodation.findUnique({
+          where: { id: nextAccommodationId },
+          select: { id: true, priceInCents: true },
+        });
+        if (!accommodation) {
+          throw new NotFoundException(`Acomodação ${nextAccommodationId} não encontrada`);
+        }
+        const amount = Number((accommodation.priceInCents / 100).toFixed(2));
+        const linkedOrder = await tx.order.create({
+          data: {
+            userId: enrollment.student.id,
+            enrollmentId: enrollment.id,
+            type: 'accommodation',
+            status: 'submitted',
+            totalAmount: amount,
+            currency: 'CAD',
+            paymentStatus: hasConfirmedDownPayment ? 'paid' : 'pending',
+            items: {
+              create: {
+                itemType: 'accommodation',
+                referenceId: nextAccommodationId,
+                startDate: enrollment.academicPeriod.startDate,
+                endDate: enrollment.academicPeriod.endDate,
+                amount,
+                accommodationId: nextAccommodationId,
+              },
+            },
+          },
+          select: { id: true },
+        });
+
+        await tx.enrollment.update({
+          where: { id: enrollment.id },
+          data: { accommodationOrderId: linkedOrder.id },
+        });
+      } else {
+        await tx.enrollment.update({
+          where: { id: enrollment.id },
+          data: { accommodationOrderId: null },
+        });
+      }
+
       const nextStatus = updated.accommodationStatus;
       if (nextStatus !== enrollment.accommodationStatus) {
         await this.registerAccommodationStatusHistory(
@@ -945,6 +930,67 @@ export class EnrollmentService {
         where: { id },
         include: this.includeDetailGraph,
       });
+    });
+  }
+
+  async setAccommodationOrder(id: string, orderId?: string | null) {
+    const enrollment = await this.findOne(id);
+    const hasConfirmedDownPayment = await this.prisma.payment.findFirst({
+      where: {
+        enrollmentId: id,
+        type: 'down_payment',
+        status: 'paid',
+      },
+      select: { id: true },
+    });
+
+    if (hasConfirmedDownPayment) {
+      throw new BadRequestException(
+        'Pagamento de entrada já confirmado. Não é possível alterar order de acomodação.',
+      );
+    }
+
+    if (!orderId) {
+      return this.prisma.enrollment.update({
+        where: { id },
+        data: {
+          accommodationOrderId: null,
+          accommodationId: null,
+          accommodationStatus: 'not_selected',
+          accommodationClosedAt: null,
+        },
+        include: this.includeDetailGraph,
+      });
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: {
+          where: { itemType: 'accommodation' },
+          include: { accommodation: { select: { id: true } } },
+        },
+      },
+    });
+    if (!order) {
+      throw new NotFoundException(`Order ${orderId} não encontrada`);
+    }
+    if (order.userId !== enrollment.student.id) {
+      throw new BadRequestException('Order de acomodação pertence a outro aluno');
+    }
+    const accommodationItem = order.items.find((item) => item.accommodationId);
+    if (!accommodationItem?.accommodationId) {
+      throw new BadRequestException('Order não possui item de acomodação');
+    }
+
+    return this.prisma.enrollment.update({
+      where: { id },
+      data: {
+        accommodationOrderId: order.id,
+        accommodationId: accommodationItem.accommodationId,
+        accommodationStatus: enrollment.accommodationStatus === 'not_selected' ? 'selected' : enrollment.accommodationStatus,
+      },
+      include: this.includeDetailGraph,
     });
   }
 
@@ -1058,7 +1104,19 @@ export class EnrollmentService {
       institution: enrollment.institution,
       school: enrollment.school,
       course: enrollment.course,
-      accommodation: enrollment.accommodation,
+      accommodation:
+        enrollment.accommodationOrder?.items.find((item) => item.itemType === 'accommodation')
+          ?.accommodation ?? enrollment.accommodation,
+      accommodationOrder: enrollment.accommodationOrder
+        ? {
+            id: enrollment.accommodationOrder.id,
+            type: enrollment.accommodationOrder.type,
+            status: enrollment.accommodationOrder.status,
+            totalAmount: this.toNumber(enrollment.accommodationOrder.totalAmount),
+            currency: enrollment.accommodationOrder.currency,
+            paymentStatus: enrollment.accommodationOrder.paymentStatus,
+          }
+        : null,
       accommodationStatus: enrollment.accommodationStatus,
       accommodationClosedAt: enrollment.accommodationClosedAt,
       pricing: pricingSummary,

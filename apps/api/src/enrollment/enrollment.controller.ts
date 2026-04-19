@@ -5,15 +5,11 @@ import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { SetEnrollmentAccommodationDto } from './dto/set-enrollment-accommodation.dto';
 import { UpdateEnrollmentAccommodationWorkflowDto } from './dto/update-enrollment-accommodation-workflow.dto';
 import { StartEnrollmentDto } from './dto/start-enrollment.dto';
+import { SetEnrollmentAccommodationOrderDto } from './dto/set-enrollment-accommodation-order.dto';
 
 @Controller('enrollments')
 export class EnrollmentController {
   constructor(private readonly enrollmentService: EnrollmentService) {}
-
-  @Post('from-intent/:intentId')
-  createFromIntent(@Param('intentId') intentId: string) {
-    return this.enrollmentService.createFromIntent(intentId);
-  }
 
   @Post('start')
   start(@Body() dto: StartEnrollmentDto) {
@@ -26,6 +22,8 @@ export class EnrollmentController {
     @Query('status') status?: string,
     @Query('institutionId') institutionId?: string,
     @Query('schoolId') schoolId?: string,
+    @Query('courseId') courseId?: string,
+    @Query('accommodationId') accommodationId?: string,
     @Query('accommodationStatus') accommodationStatus?: string,
   ) {
     return this.enrollmentService.findAll({
@@ -33,6 +31,8 @@ export class EnrollmentController {
       status,
       institutionId,
       schoolId,
+      courseId,
+      accommodationId,
       accommodationStatus,
     });
   }
@@ -68,6 +68,14 @@ export class EnrollmentController {
     @Body() dto: SetEnrollmentAccommodationDto,
   ) {
     return this.enrollmentService.setAccommodation(id, dto.accommodationId);
+  }
+
+  @Patch(':id/accommodation-order')
+  setAccommodationOrder(
+    @Param('id') id: string,
+    @Body() dto: SetEnrollmentAccommodationOrderDto,
+  ) {
+    return this.enrollmentService.setAccommodationOrder(id, dto.orderId ?? null);
   }
 
   @Patch(':id/accommodation-workflow')

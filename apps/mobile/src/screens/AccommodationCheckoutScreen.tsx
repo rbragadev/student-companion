@@ -197,6 +197,7 @@ export default function AccommodationCheckoutScreen() {
       setError(null);
       setFeedback(null);
       const created = await enrollmentIntentApi.createQuote({
+        userId: userId ?? undefined,
         accommodationId,
         accommodationPricingId: selectedPricing.id,
         periodOption: selectedPricing.periodOption,
@@ -244,6 +245,7 @@ export default function AccommodationCheckoutScreen() {
       let recalculated: EnrollmentQuote;
       try {
         recalculated = await enrollmentIntentApi.recalculateQuote(currentQuote.id, {
+          userId: userId ?? undefined,
           items: [
             ...preservedItems,
             {
@@ -260,6 +262,7 @@ export default function AccommodationCheckoutScreen() {
         });
       } catch {
         recalculated = await enrollmentIntentApi.createQuote({
+          userId: userId ?? undefined,
           downPaymentPercentage: Number(currentQuote.downPaymentPercentage ?? 30),
           fees: Number(currentQuote.fees ?? 0),
           discounts: Number(currentQuote.discounts ?? 0),

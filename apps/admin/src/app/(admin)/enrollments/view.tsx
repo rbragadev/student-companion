@@ -3,24 +3,30 @@
 import { useMemo, useState } from 'react';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { FilterBar } from '@/components/filters/filter-bar';
-import type { EnrollmentAdmin, SchoolAdmin } from '@/types/catalog.types';
+import type { AccommodationAdmin, CourseAdmin, EnrollmentAdmin, SchoolAdmin } from '@/types/catalog.types';
 import type { Institution } from '@/types/structure.types';
 
 interface EnrollmentViewProps {
   enrollments: EnrollmentAdmin[];
   institutions: Institution[];
   schools: SchoolAdmin[];
+  courses: CourseAdmin[];
+  accommodations: AccommodationAdmin[];
 }
 
 export function EnrollmentView({
   enrollments,
   institutions,
   schools,
+  courses,
+  accommodations,
 }: Readonly<EnrollmentViewProps>) {
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [institutionFilter, setInstitutionFilter] = useState('');
   const [schoolFilter, setSchoolFilter] = useState('');
+  const [courseFilter, setCourseFilter] = useState('');
+  const [accommodationFilter, setAccommodationFilter] = useState('');
   const [accommodationStatusFilter, setAccommodationStatusFilter] = useState('');
 
   const filteredSchools = useMemo(
@@ -34,6 +40,12 @@ export function EnrollmentView({
       const statusMatch = !statusFilter || enrollment.status === statusFilter;
       const institutionMatch = !institutionFilter || enrollment.institution.id === institutionFilter;
       const schoolMatch = !schoolFilter || enrollment.school.id === schoolFilter;
+      const courseMatch = !courseFilter || enrollment.course.id === courseFilter;
+      const accommodationMatch =
+        !accommodationFilter ||
+        (accommodationFilter === '__without__'
+          ? !enrollment.accommodation
+          : enrollment.accommodation?.id === accommodationFilter);
       const accommodationStatusMatch =
         !accommodationStatusFilter || enrollment.accommodationStatus === accommodationStatusFilter;
       const searchMatch =
@@ -41,13 +53,23 @@ export function EnrollmentView({
         `${enrollment.student.firstName} ${enrollment.student.lastName}`.toLowerCase().includes(search) ||
         enrollment.student.email.toLowerCase().includes(search) ||
         enrollment.course.program_name.toLowerCase().includes(search);
-      return statusMatch && institutionMatch && schoolMatch && accommodationStatusMatch && searchMatch;
+      return (
+        statusMatch &&
+        institutionMatch &&
+        schoolMatch &&
+        courseMatch &&
+        accommodationMatch &&
+        accommodationStatusMatch &&
+        searchMatch
+      );
     });
   }, [
     enrollments,
     statusFilter,
     institutionFilter,
     schoolFilter,
+    courseFilter,
+    accommodationFilter,
     accommodationStatusFilter,
     searchFilter,
   ]);
@@ -73,6 +95,12 @@ export function EnrollmentView({
       key: 'classGroup',
       label: 'Turma/Período',
       render: (item) => `${item.classGroup.name} (${item.classGroup.code}) / ${item.academicPeriod.name}`,
+    },
+    {
+      key: 'packageType',
+      label: 'Tipo do pacote',
+      render: (item) =>
+        item.accommodation ? 'course_with_accommodation' : 'course_only',
     },
     {
       key: 'status',
@@ -115,16 +143,37 @@ export function EnrollmentView({
             value: statusFilter,
             onChange: setStatusFilter,
             options: [
-              { label: 'application_started', value: 'application_started' },
-              { label: 'documents_pending', value: 'documents_pending' },
-              { label: 'under_review', value: 'under_review' },
+              { label: 'draft', value: 'draft' },
+              { label: 'started', value: 'started' },
+              { label: 'awaiting_school_approval', value: 'awaiting_school_approval' },
               { label: 'approved', value: 'approved' },
-              { label: 'enrolled', value: 'enrolled' },
+              { label: 'checkout_available', value: 'checkout_available' },
+              { label: 'payment_pending', value: 'payment_pending' },
+              { label: 'partially_paid', value: 'partially_paid' },
+              { label: 'paid', value: 'paid' },
+              { label: 'confirmed', value: 'confirmed' },
+              { label: 'expired', value: 'expired' },
               { label: 'rejected', value: 'rejected' },
               { label: 'cancelled', value: 'cancelled' },
-              { label: 'active (legacy)', value: 'active' },
-              { label: 'completed (legacy)', value: 'completed' },
-              { label: 'denied (legacy)', value: 'denied' },
+              { label: 'closed', value: 'closed' },
+              { label: 'completed', value: 'completed' },
+            ],
+          },
+          {
+            key: 'course',
+            label: 'Curso',
+            value: courseFilter,
+            onChange: setCourseFilter,
+            options: courses.map((course) => ({ label: course.program_name, value: course.id })),
+          },
+          {
+            key: 'accommodation',
+            label: 'Acomodação',
+            value: accommodationFilter,
+            onChange: setAccommodationFilter,
+            options: [
+              { label: 'Sem acomodação', value: '__without__' },
+              ...accommodations.map((item) => ({ label: item.title, value: item.id })),
             ],
           },
           {

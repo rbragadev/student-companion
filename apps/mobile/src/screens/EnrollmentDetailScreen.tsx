@@ -16,19 +16,23 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, typeof StackRoutes.ENROLLMENT_DETAIL>;
 
 const enrollmentStatusLabel: Record<Enrollment['status'], string> = {
-  application_started: 'Application Started',
-  documents_pending: 'Documents Pending',
-  under_review: 'Under Review',
+  draft: 'Draft',
+  started: 'Started',
+  awaiting_school_approval: 'Awaiting School Approval',
   approved: 'Approved',
-  enrolled: 'Enrolled',
+  checkout_available: 'Checkout Available',
+  payment_pending: 'Payment Pending',
+  partially_paid: 'Partially Paid',
+  paid: 'Paid',
+  confirmed: 'Confirmed',
+  expired: 'Expired',
   rejected: 'Rejected',
   cancelled: 'Cancelada',
-  active: 'Ativa',
+  closed: 'Closed',
   completed: 'Concluída',
-  denied: 'Negada',
 };
 
-const DOCUMENT_STAGE_STATUSES: Enrollment['status'][] = ['documents_pending', 'under_review'];
+const DOCUMENT_STAGE_STATUSES: Enrollment['status'][] = [];
 
 function formatDate(value?: string | null) {
   if (!value) return '-';

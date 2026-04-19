@@ -133,13 +133,20 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
         </select>
         <select name="status" defaultValue={status} className="rounded border border-slate-300 px-3 py-2 text-sm">
           <option value="">Status comercial</option>
-          <option value="application_started">application_started</option>
-          <option value="documents_pending">documents_pending</option>
-          <option value="under_review">under_review</option>
+          <option value="draft">draft</option>
+          <option value="started">started</option>
+          <option value="awaiting_school_approval">awaiting_school_approval</option>
           <option value="approved">approved</option>
-          <option value="enrolled">enrolled</option>
+          <option value="checkout_available">checkout_available</option>
+          <option value="payment_pending">payment_pending</option>
+          <option value="partially_paid">partially_paid</option>
+          <option value="paid">paid</option>
+          <option value="confirmed">confirmed</option>
+          <option value="expired">expired</option>
           <option value="cancelled">cancelled</option>
           <option value="rejected">rejected</option>
+          <option value="closed">closed</option>
+          <option value="completed">completed</option>
         </select>
         <select name="hasAccommodation" defaultValue={hasAccommodation} className="rounded border border-slate-300 px-3 py-2 text-sm">
           <option value="">Com/sem acomodação</option>

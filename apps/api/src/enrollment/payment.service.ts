@@ -27,11 +27,11 @@ export class PaymentService {
   }
 
   private isRejectedStatus(status: string): boolean {
-    return ['rejected', 'cancelled', 'denied'].includes(status);
+    return ['rejected', 'cancelled', 'expired', 'closed'].includes(status);
   }
 
   private isApprovalReadyStatus(status: string): boolean {
-    return ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'enrolled'].includes(status);
+    return ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'confirmed', 'completed'].includes(status);
   }
 
   private async reconcileInvoiceStatus(invoiceId?: string | null) {
@@ -63,6 +63,42 @@ export class PaymentService {
         data: { status },
       });
     }
+  }
+
+  private async reconcileOrderPaymentStatus(orderId?: string | null) {
+    if (!orderId) return;
+
+    const [order, paidResult, pendingCount] = await Promise.all([
+      this.prisma.order.findUnique({ where: { id: orderId }, select: { id: true, totalAmount: true } }),
+      this.prisma.payment.aggregate({
+        where: { orderId, status: 'paid' },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.count({
+        where: { orderId, status: 'pending' },
+      }),
+    ]);
+    if (!order) return;
+
+    const paidAmount = this.toNumber(paidResult._sum.amount);
+    const totalAmount = this.toNumber(order.totalAmount);
+    const paymentStatus =
+      paidAmount >= totalAmount && totalAmount > 0
+        ? 'paid'
+        : paidAmount > 0
+          ? 'partially_paid'
+          : pendingCount > 0
+            ? 'pending'
+            : 'pending';
+    const status = paymentStatus === 'paid' ? 'paid' : 'submitted';
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus,
+        status,
+      },
+    });
   }
 
   private async resolveCheckoutContext(enrollmentId: string) {
@@ -221,6 +257,12 @@ export class PaymentService {
         data: {
           enrollmentId,
           enrollmentQuoteId: context.quote?.id ?? null,
+          orderId: context.quote?.id
+            ? (await tx.order.findUnique({
+                where: { enrollmentQuoteId: context.quote.id },
+                select: { id: true },
+              }))?.id ?? null
+            : null,
           type: 'down_payment',
           amount,
           currency: context.financial.currency,
@@ -238,8 +280,8 @@ export class PaymentService {
         },
       });
 
-      if (!['enrolled', 'completed'].includes(context.enrollment.status)) {
-        const nextStatus = 'enrolled';
+      if (!['paid', 'confirmed', 'completed'].includes(context.enrollment.status)) {
+        const nextStatus = 'paid';
         await tx.enrollment.update({
           where: { id: enrollmentId },
           data: { status: nextStatus },
@@ -271,6 +313,8 @@ export class PaymentService {
         currency: payment.currency,
       },
     });
+
+    await this.reconcileOrderPaymentStatus(payment.orderId);
 
     return {
       payment,
@@ -378,6 +422,15 @@ export class PaymentService {
         invoiceId: dto.invoiceId ?? null,
         enrollmentId: dto.enrollmentId ?? invoice?.enrollmentId ?? null,
         enrollmentQuoteId: dto.enrollmentQuoteId ?? invoice?.enrollmentQuoteId ?? null,
+        orderId:
+          (
+            await this.prisma.order.findFirst({
+              where: {
+                enrollmentQuoteId: dto.enrollmentQuoteId ?? invoice?.enrollmentQuoteId ?? undefined,
+              },
+              select: { id: true },
+            })
+          )?.id ?? null,
         type: dto.type ?? 'down_payment',
         amount: dto.amount,
         currency: dto.currency ?? invoice?.currency ?? 'CAD',
@@ -410,6 +463,7 @@ export class PaymentService {
     });
 
     await this.reconcileInvoiceStatus(created.invoiceId);
+    await this.reconcileOrderPaymentStatus(created.orderId);
     return created;
   }
 
@@ -453,6 +507,7 @@ export class PaymentService {
     });
 
     await this.reconcileInvoiceStatus(updated.invoiceId);
+    await this.reconcileOrderPaymentStatus(updated.orderId);
     return updated;
   }
 

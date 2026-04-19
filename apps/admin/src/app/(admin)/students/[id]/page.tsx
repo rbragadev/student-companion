@@ -8,33 +8,21 @@ import { requirePermission } from '@/lib/authorization';
 import type { StudentAdmin, StudentAcademicJourneyAdmin } from '@/types/catalog.types';
 import { updateStudentPreferencesAction } from '../actions';
 
-const intentStatusLabel = {
-  pending: 'Pendente',
-  converted: 'Convertida',
-  cancelled: 'Cancelada',
-  denied: 'Negada',
-} as const;
-
 const enrollmentStatusLabel = {
   draft: 'Draft',
   started: 'Started',
   awaiting_school_approval: 'Awaiting School Approval',
+  approved: 'Approved',
   checkout_available: 'Checkout Available',
   payment_pending: 'Payment Pending',
   partially_paid: 'Partially Paid',
   paid: 'Paid',
   confirmed: 'Confirmed',
   expired: 'Expired',
-  application_started: 'Application Started',
-  documents_pending: 'Documents Pending',
-  under_review: 'Under Review',
-  approved: 'Approved',
-  enrolled: 'Enrolled',
   rejected: 'Rejected',
-  active: 'Ativa',
+  closed: 'Closed',
   completed: 'Concluída',
   cancelled: 'Cancelada',
-  denied: 'Negada',
 } as const;
 
 function formatDate(value?: string | null) {
@@ -66,7 +54,7 @@ export default async function StudentDetailPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Jornada Acadêmica do Aluno"
-        description="Visão operacional de intenção pendente, matrícula ativa e histórico completo."
+        description="Visão operacional da matrícula ativa, histórico e preferências."
         actions={(
           <Link href="/students">
             <Button size="sm" variant="outline"><ArrowLeft size={14} />Voltar</Button>
@@ -80,20 +68,6 @@ export default async function StudentDetailPage({
           <p className="mt-2 text-sm text-slate-700">{student.firstName} {student.lastName}</p>
           <p className="text-xs text-slate-500">{student.email}</p>
           <p className="mt-1 text-xs text-slate-500">Status atual: {student.studentStatus ?? 'lead'}</p>
-        </article>
-
-        <article className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Intenção em andamento</h2>
-          {journey.activeIntent ? (
-            <>
-              <p className="mt-2 text-sm text-slate-700">{journey.activeIntent.course.program_name}</p>
-              <p className="text-xs text-slate-500">Turma: {journey.activeIntent.classGroup.name} ({journey.activeIntent.classGroup.code})</p>
-              <p className="text-xs text-slate-500">Período: {journey.activeIntent.academicPeriod.name}</p>
-              <p className="text-xs text-slate-500">Status: {intentStatusLabel[journey.activeIntent.status]}</p>
-            </>
-          ) : (
-            <p className="mt-2 text-xs text-slate-500">Nenhuma intenção pendente.</p>
-          )}
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
@@ -272,25 +246,6 @@ export default async function StudentDetailPage({
             <Button type="submit" size="sm">Salvar preferências</Button>
           </div>
         </form>
-      </section>
-
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-slate-900">Histórico de Intenções</h2>
-        <div className="mt-3 space-y-2">
-          {journey.intentHistory.length === 0 && <p className="text-xs text-slate-500">Sem histórico.</p>}
-          {journey.intentHistory.map((intent) => (
-            <div key={intent.id} className="rounded border border-slate-200 p-3 text-xs text-slate-600">
-              <p className="font-medium text-slate-800">{intent.course.program_name}</p>
-              <p>Turma: {intent.classGroup.name} ({intent.classGroup.code})</p>
-              <p>Período: {intent.academicPeriod.name}</p>
-              <p>Status: {intentStatusLabel[intent.status]}</p>
-              {intent.status === 'denied' && intent.deniedReason && (
-                <p>Motivo da negativa: {intent.deniedReason}</p>
-              )}
-              <p>Criada em: {formatDate(intent.createdAt)}</p>
-            </div>
-          ))}
-        </div>
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-4">

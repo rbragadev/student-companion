@@ -2,23 +2,17 @@ export const ENROLLMENT_STATUSES = [
   'draft',
   'started',
   'awaiting_school_approval',
+  'approved',
   'checkout_available',
   'payment_pending',
   'partially_paid',
   'paid',
   'confirmed',
-  'expired',
-  'application_started',
-  'documents_pending',
-  'under_review',
-  'approved',
-  'enrolled',
   'rejected',
   'cancelled',
-  // Backward-compatible values used in older data/contracts
-  'active',
+  'expired',
+  'closed',
   'completed',
-  'denied',
 ] as const;
 
 export type EnrollmentStatus = (typeof ENROLLMENT_STATUSES)[number];
@@ -27,22 +21,16 @@ export const ACTIVE_ENROLLMENT_STATUSES: EnrollmentStatus[] = [
   'draft',
   'started',
   'awaiting_school_approval',
+  'approved',
   'checkout_available',
   'payment_pending',
   'partially_paid',
-  'application_started',
-  'documents_pending',
-  'under_review',
-  'approved',
-  'enrolled',
-  'active',
+  'paid',
+  'confirmed',
 ];
 
 export const ENROLLMENT_DOCUMENT_STATUSES = ['pending', 'approved', 'rejected'] as const;
 export type EnrollmentDocumentStatus = (typeof ENROLLMENT_DOCUMENT_STATUSES)[number];
-
-export const ENROLLMENT_INTENT_STATUSES = ['pending', 'converted', 'cancelled', 'denied'] as const;
-export type EnrollmentIntentStatus = (typeof ENROLLMENT_INTENT_STATUSES)[number];
 
 export const ENROLLMENT_ACCOMMODATION_STATUSES = [
   'not_selected',

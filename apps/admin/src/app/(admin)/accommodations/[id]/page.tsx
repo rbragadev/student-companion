@@ -10,6 +10,7 @@ import { requirePermission } from '@/lib/authorization';
 import type {
   AccommodationAdmin,
   AccommodationPricingAdmin,
+  EnrollmentAdmin,
   SchoolAccommodationRecommendationAdmin,
   SchoolAdmin,
 } from '@/types/catalog.types';
@@ -30,15 +31,22 @@ export default async function AccommodationDetailPage({ params }: Readonly<PageP
   const canWrite =
     session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
-  const [accommodation, pricingRows, schools] = await Promise.all([
+  const [accommodation, pricingRows, schools, linkedEnrollments] = await Promise.all([
     apiFetch<AccommodationAdmin>(`/accommodation/${id}`).catch(() => null),
     apiFetch<AccommodationPricingAdmin[]>(`/accommodation-pricing?accommodationId=${id}`).catch(
       () => [],
     ),
     apiFetch<SchoolAdmin[]>('/school').catch(() => []),
+    apiFetch<EnrollmentAdmin[]>(`/enrollments?accommodationId=${id}`).catch(() => []),
   ]);
 
   if (!accommodation) notFound();
+  const linkedStudentsCount = linkedEnrollments.length;
+  const linkedRevenue = linkedEnrollments.reduce(
+    (total, enrollment) =>
+      total + Number(enrollment.pricing?.accommodationAmount ?? 0),
+    0,
+  );
 
   const recommendationEntries = await Promise.all(
     schools.map(async (school) => {
@@ -359,6 +367,36 @@ export default async function AccommodationDetailPage({ params }: Readonly<PageP
           })}
           {schools.length === 0 && (
             <p className="text-xs text-slate-500">Cadastre escolas para configurar recomendações.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-slate-900">Matrículas vinculadas</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Operação: veja em quais matrículas esta acomodação está no pacote.
+        </p>
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+          <p>Alunos vinculados: <strong>{linkedStudentsCount}</strong></p>
+          <p>Receita estimada da acomodação: <strong>{linkedRevenue.toFixed(2)} CAD</strong></p>
+        </div>
+        <div className="mt-3 space-y-2">
+          {linkedEnrollments.map((enrollment) => (
+            <Link
+              key={enrollment.id}
+              href={`/enrollments/${enrollment.id}`}
+              className="block rounded-lg border border-slate-200 p-3 hover:bg-slate-50"
+            >
+              <p className="text-sm font-medium text-slate-900">
+                {enrollment.student.firstName} {enrollment.student.lastName}
+              </p>
+              <p className="text-xs text-slate-500">
+                {enrollment.course.program_name} • {enrollment.academicPeriod.name} • {enrollment.status}
+              </p>
+            </Link>
+          ))}
+          {linkedEnrollments.length === 0 && (
+            <p className="text-xs text-slate-500">Nenhuma matrícula vinculada a esta acomodação.</p>
           )}
         </div>
       </section>

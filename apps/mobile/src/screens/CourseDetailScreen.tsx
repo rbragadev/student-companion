@@ -41,8 +41,12 @@ export default function CourseDetailScreen() {
       }
       try {
         const journey = await enrollmentApi.getStudentJourney(userId);
-        setHasOpenIntent(!!journey.activeIntent);
-        setHasActiveEnrollment(!!journey.activeEnrollment);
+        const activeEnrollment = journey.activeEnrollment;
+        setHasOpenIntent(
+          !!activeEnrollment &&
+            ['draft', 'started', 'awaiting_school_approval'].includes(activeEnrollment.status),
+        );
+        setHasActiveEnrollment(!!activeEnrollment);
       } catch {
         setHasOpenIntent(false);
         setHasActiveEnrollment(false);
