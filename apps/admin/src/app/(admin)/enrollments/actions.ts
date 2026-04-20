@@ -3,7 +3,6 @@
 import { redirect } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { assertActionPermission } from '@/lib/authorization';
-import { requireSession } from '@/lib/session';
 
 function getText(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -73,7 +72,7 @@ export async function createEnrollmentFromAdminAction(formData: FormData) {
         courseId,
         classGroupId,
         academicPeriodId,
-        ...(isPackage && accommodationId ? { accommodationId } : {}),
+        ...(accommodationId ? { accommodationId } : {}),
       }),
     });
 
@@ -211,6 +210,26 @@ export async function createEnrollmentInvoiceAction(formData: FormData) {
     method: 'POST',
     body: JSON.stringify({
       enrollmentId,
+      status: 'pending',
+    }),
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}
+
+export async function createEnrollmentInvoiceFromQuoteAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const enrollmentId = getText(formData, 'enrollmentId');
+  const quoteId = getOptionalText(formData, 'quoteId');
+  if (!quoteId) {
+    throw new Error('Selecione uma quote para gerar a invoice.');
+  }
+
+  await apiFetch('/invoices', {
+    method: 'POST',
+    body: JSON.stringify({
+      enrollmentId,
+      enrollmentQuoteId: quoteId,
       status: 'pending',
     }),
   });

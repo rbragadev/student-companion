@@ -152,7 +152,7 @@ export class PaymentService {
       reason = 'A proposta foi rejeitada/cancelada e o checkout está bloqueado.';
     } else if (!order) {
       state = 'blocked_missing_quote';
-      reason = 'Ainda não há order comercial válida vinculada a esta matrícula.';
+      reason = 'Ainda não foi gerada a order comercial (fluxo manual).';
     } else if (
       !enrollment.course.auto_approve_intent &&
       !this.isApprovalReadyStatus(enrollment.status)

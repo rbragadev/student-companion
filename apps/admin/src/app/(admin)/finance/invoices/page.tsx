@@ -2,6 +2,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { PageHeader } from '@/components/ui/page-header';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr } from '@/lib/date';
 import type { InstitutionAdmin, InvoiceAdmin } from '@/types/catalog.types';
 import { createInvoiceAction, updateInvoiceStatusAction } from './actions';
 
@@ -40,7 +41,7 @@ export default async function FinanceInvoicesPage({ searchParams }: Readonly<Pag
       render: (row) => (
         <div>
           <p className="font-medium text-slate-900">{row.number}</p>
-          <p className="text-xs text-slate-500">Vencimento: {new Date(row.dueDate).toLocaleDateString('pt-BR')}</p>
+          <p className="text-xs text-slate-500">Vencimento: {formatDatePtBr(row.dueDate)}</p>
         </div>
       ),
     },
@@ -120,7 +121,7 @@ export default async function FinanceInvoicesPage({ searchParams }: Readonly<Pag
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Invoices"
-        description="Gestão de faturamento por pacote (curso e/ou acomodação)."
+        description="Gestão de faturamento por item de venda (curso e/ou acomodação)."
       />
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">

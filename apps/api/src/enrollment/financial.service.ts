@@ -119,10 +119,9 @@ export class FinancialService {
           },
         },
         orders: {
-          where: { type: 'package' },
           orderBy: { createdAt: 'desc' },
           take: 1,
-          select: { id: true },
+          select: { id: true, type: true },
         },
         payments: {
           orderBy: { createdAt: 'desc' },
@@ -170,6 +169,7 @@ export class FinancialService {
         commercialStatus: item.status,
         financialStatus: latestInvoice?.status ?? 'not_invoiced',
         packageOrderId: item.orders[0]?.id ?? null,
+        packageOrderType: item.orders[0]?.type ?? null,
         totalAmount: total,
         downPaymentAmount: this.toNumber(latestQuote?.downPaymentAmount),
         remainingAmount:

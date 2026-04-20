@@ -5,6 +5,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr } from '@/lib/date';
 import type { Institution } from '@/types/structure.types';
 
 const columns: Column<Institution>[] = [
@@ -26,7 +27,7 @@ const columns: Column<Institution>[] = [
   {
     key: 'updatedAt',
     label: 'Atualizada em',
-    render: (item) => new Date(item.updatedAt).toLocaleDateString('pt-BR'),
+    render: (item) => formatDatePtBr(item.updatedAt),
   },
 ];
 

@@ -6,6 +6,7 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
 import type { EnrollmentAdmin, OrderAdmin } from '@/types/catalog.types';
 import {
   sendAccommodationOrderMessageAction,
@@ -19,11 +20,6 @@ interface PageProps {
 
 function money(amount: number | undefined, currency: string) {
   return `${Number(amount ?? 0).toFixed(2)} ${currency}`;
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('pt-BR');
 }
 
 function toneByStatus(status?: string | null) {
@@ -62,7 +58,7 @@ export default async function AccommodationOperationDetailPage({ params }: Reado
     <div className="flex flex-col gap-6">
       <Breadcrumbs
         items={[
-          { label: 'Fechamento Acomodação', href: '/accommodation-operations' },
+          { label: 'Acomodação', href: '/accommodation-operations' },
           { label: accommodationItem.accommodation?.title ?? 'Acomodação' },
         ]}
       />
@@ -81,7 +77,7 @@ export default async function AccommodationOperationDetailPage({ params }: Reado
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Produto vendido</p>
           <p className="mt-2 text-sm font-semibold text-slate-900">{accommodationItem.accommodation?.title ?? 'Acomodação'}</p>
           <p className="text-xs text-slate-500">
-            {formatDate(accommodationItem.startDate)} - {formatDate(accommodationItem.endDate)}
+            {formatDatePtBr(accommodationItem.startDate)} - {formatDatePtBr(accommodationItem.endDate)}
           </p>
           <p className="mt-1 text-xs text-slate-700">
             Valor do item: <strong>{money(accommodationItem.amount, order.currency)}</strong>
@@ -111,7 +107,7 @@ export default async function AccommodationOperationDetailPage({ params }: Reado
             {accommodationItem.accommodation?.accommodationType ?? '-'} • {accommodationItem.accommodation?.location ?? '-'}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Estadia: {formatDate(accommodationItem.startDate)} - {formatDate(accommodationItem.endDate)}
+            Estadia: {formatDatePtBr(accommodationItem.startDate)} - {formatDatePtBr(accommodationItem.endDate)}
           </p>
           <p className="text-xs text-slate-500">
             Valor da acomodação: {money(accommodationItem.amount, order.currency)}
@@ -190,7 +186,7 @@ export default async function AccommodationOperationDetailPage({ params }: Reado
                 accommodationMessages.map((message) => (
                   <div key={message.id} className="rounded border border-slate-200 bg-white p-2">
                     <p className="text-xs font-medium text-slate-800">
-                      {message.sender?.firstName} {message.sender?.lastName} • {new Date(message.createdAt).toLocaleString('pt-BR')}
+                      {message.sender?.firstName} {message.sender?.lastName} • {formatDateTimePtBr(message.createdAt)}
                     </p>
                     <p className="text-xs text-slate-600">{message.message}</p>
                   </div>

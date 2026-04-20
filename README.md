@@ -12,6 +12,38 @@ student-companion/
 ├── docs/           # Documentação técnica
 ├── docker-compose.yml
 └── Makefile
+
+## Modelo de vendas (admin)
+
+- Curso e acomodação são **itens de venda independentes**.
+- A **matrícula** é o contexto operacional da operação do aluno.
+- Separação operacional foi adotada na navegação:
+  - `Curso` (item de curso)
+  - `Pacote` (curso + acomodação em um mesmo bundle comercial)
+  - `Acomodação` (item de acomodação)
+- A **matrícula** pode referenciar curso e/ou acomodação, mas ela não é o item financeiro.
+- A operação financeira é rastreada por `Order`:
+  - `course`
+  - `accommodation`
+  - `package`
+- A navegação "Operação" permite criar operação por contexto:
+  - `Curso`: gerar item financeiro independente (`order.type = course`) com curso e janela.
+  - `Pacote`: gerar a matrícula em contexto de pacote (curso + acomodação vinculados para o mesmo estudante), com rastreamento financeiro separado por item.
+  - `Acomodação`: gerar item financeiro independente (`order.type = accommodation`) com janela própria.
+- A **matrícula** pode referenciar curso e/ou acomodação, e isso organiza a operação comercial sem transformar matrícula em item financeiro.
+
+### Fluxo financeiro atual
+
+- Criação de matrícula não gera invoice/order automaticamente.
+- Gerar ordem/item de venda pode ser feito manualmente pela operação correspondente (`Curso`, `Pacote` ou `Acomodação`) ou pela tela da matrícula.
+- Após gerar a ordem, gerar invoice.
+- Registrar o pagamento via checkout/fake apenas quando estiver no fluxo pretendido.
+
+## Diretrizes de nomenclatura
+
+- Curso = item principal de venda.
+- Acomodação = item complementar de venda.
+- Vínculo = curso + acomodação quando comercializados juntos.
 ```
 
 ## Pré-requisitos

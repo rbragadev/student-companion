@@ -772,8 +772,6 @@ export class EnrollmentQuoteService {
       await this.syncEnrollmentPricingFromQuote(resolvedIntent.id, createdQuote);
     }
 
-    await this.syncOrderFromQuote(createdQuote.id);
-
     return createdQuote;
   }
 

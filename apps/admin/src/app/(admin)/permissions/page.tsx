@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr } from '@/lib/date';
 import type { Permission } from '@/types/auth.types';
 
 const columns: Column<Permission>[] = [
@@ -18,7 +19,7 @@ const columns: Column<Permission>[] = [
   {
     key: 'createdAt',
     label: 'Criada em',
-    render: (permission) => new Date(permission.createdAt).toLocaleDateString('pt-BR'),
+    render: (permission) => formatDatePtBr(permission.createdAt),
   },
 ];
 

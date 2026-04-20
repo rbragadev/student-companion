@@ -66,12 +66,15 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
           <p className="font-medium text-slate-900">{row.course.program_name}</p>
           <p className="text-xs text-slate-500">{row.institution.name} {'>'} {row.school.name}</p>
           <p className="text-xs text-slate-500">{row.accommodation?.title ?? 'Sem acomodação'}</p>
+          <p className="text-xs text-slate-500">
+            Ordem: {row.packageOrderType ? `${row.packageOrderType}` : 'Sem ordem'}
+          </p>
         </div>
       ),
     },
     {
       key: 'totals',
-      label: 'Pacote',
+      label: 'Composição',
       render: (row) => (
         <div>
           <p className="text-sm text-slate-700">Total: {money(row.totalAmount, row.currency)}</p>
@@ -110,8 +113,8 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Vendas / Pacotes"
-        description="Acompanhe pacotes vendidos, status comercial e status financeiro por matrícula."
+        title="Vendas / Itens"
+        description="Acompanhe vendas por matrícula com curso e/ou acomodação vinculados por ordem comercial."
       />
 
       <form className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-5">
@@ -161,13 +164,15 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
         columns={columns}
         data={sales}
         keyExtractor={(row) => row.id}
-        getRowHref={(row) => (row.packageOrderId ? `/orders/${row.packageOrderId}` : `/enrollments/${row.id}`)}
+        getRowHref={(row) =>
+          row.packageOrderId ? `/orders/${row.packageOrderId}` : `/enrollments/${row.id}`
+        }
         emptyTitle="Nenhuma venda encontrada"
-        emptyDescription="Ajuste os filtros ou avance no fluxo de matrícula para gerar pacotes."
+        emptyDescription="Ajuste os filtros ou avance no fluxo de matrícula para gerar vendas por item."
       />
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="text-base font-semibold text-slate-900">Pacotes standalone de acomodação</h2>
+        <h2 className="text-base font-semibold text-slate-900">Vendas standalone de acomodação</h2>
         <p className="mt-1 text-xs text-slate-500">
           Fechamentos sem matrícula (tipo <code>accommodation_only</code>).
         </p>
@@ -185,7 +190,7 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
             </div>
           ))}
           {standaloneQuotes.length === 0 && (
-            <p className="text-xs text-slate-500">Nenhum pacote standalone encontrado.</p>
+            <p className="text-xs text-slate-500">Nenhuma venda standalone de acomodação encontrada.</p>
           )}
         </div>
       </section>

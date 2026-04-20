@@ -32,7 +32,7 @@ export default async function AccommodationOperationsPage({
   const selectedStatus = params.status ?? '';
   const fromDate = params.fromDate ?? '';
   const toDate = params.toDate ?? '';
-  const includeDraft = params.includeDraft === '1';
+  const includeDraft = params.includeDraft !== '0';
 
   const [orders, students, accommodations, pricingRows, enrollments] = await Promise.all([
     (async () => {
@@ -102,7 +102,7 @@ export default async function AccommodationOperationsPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Fechamento de Acomodação"
+        title="Acomodação"
         description="Operação da venda de acomodação como produto independente, com vínculo opcional à matrícula."
       />
 

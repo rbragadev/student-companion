@@ -67,7 +67,7 @@ export default async function FinanceCommissionsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Comissões"
-        description="Comissão total e por item (curso/acomodação) para cada pacote vendido."
+        description="Comissão total e por item (curso/acomodação) para cada item vendido."
         actions={
           <Link
             href="/commission-config"

@@ -388,6 +388,7 @@ export interface AccommodationPricingAdmin {
 export interface EnrollmentQuoteAdmin {
   id: string;
   enrollmentId?: string | null;
+  userId?: string;
   coursePricingId?: string | null;
   accommodationPricingId?: string | null;
   courseAmount: number;
@@ -413,6 +414,14 @@ export interface EnrollmentQuoteAdmin {
     endDate: string;
     amount: number;
     commissionAmount: number;
+    coursePricing?: {
+      id: string;
+      course?: { id: string; program_name: string };
+    } | null;
+    accommodationPricing?: {
+      id: string;
+      accommodation?: { id: string; title: string; accommodationType: string };
+    } | null;
   }>;
   coursePricing?: {
     id: string;
@@ -426,6 +435,12 @@ export interface EnrollmentQuoteAdmin {
   enrollment?: {
     id: string;
     status: string;
+    student?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
   } | null;
   packageStatus?:
     | 'draft'
@@ -525,6 +540,7 @@ export interface SalesRowAdmin {
   course: EnrollmentAdmin['course'];
   accommodation: EnrollmentAdmin['accommodation'];
   packageOrderId?: string | null;
+  packageOrderType?: string | null;
   courseAmount?: number;
   accommodationAmount?: number;
   commercialStatus: string;

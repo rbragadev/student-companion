@@ -81,8 +81,7 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { label: 'Alunos', href: '/students', icon: 'Users', permission: 'users.read' },
       { label: 'Matrículas', href: '/enrollments', icon: 'BadgeCheck', permission: 'users.read' },
-      { label: 'Vendas / Orders', href: '/orders', icon: 'ShoppingCart', permission: 'users.read' },
-      { label: 'Fechamento Acomodação', href: '/accommodation-operations', icon: 'Home', permission: 'users.read' },
+      { label: 'Acomodação', href: '/accommodation-operations', icon: 'Home', permission: 'users.read' },
     ],
   },
   {

@@ -6,6 +6,7 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
 import type {
   EnrollmentAdmin,
   EnrollmentCheckoutAdmin,
@@ -17,7 +18,7 @@ import {
   confirmEnrollmentFakePaymentAction,
   createEnrollmentDocumentAction,
   syncEnrollmentOrderAction,
-  createEnrollmentInvoiceAction,
+  createEnrollmentInvoiceFromQuoteAction,
   updateEnrollmentAccommodationAction,
   updateEnrollmentAccommodationWorkflowAction,
   createEnrollmentMessageAction,
@@ -82,8 +83,7 @@ const ACCOMMODATION_EDITABLE_ENROLLMENT_STATUSES = new Set([
 ]);
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '-';
-  return new Date(value).toLocaleString('pt-BR');
+  return formatDateTimePtBr(value);
 }
 
 function toneByStatus(status?: string | null) {
@@ -98,6 +98,20 @@ function toneByStatus(status?: string | null) {
     return 'bg-rose-50 text-rose-700 border-rose-200';
   }
   return 'bg-slate-50 text-slate-700 border-slate-200';
+}
+
+function statusTooltip(status?: string | null) {
+  const value = String(status ?? '').toLowerCase();
+  if (value === 'draft') return 'Rascunho inicial da matrícula.';
+  if (value === 'started') return 'Cadastro iniciado, aguardando direcionamento comercial.';
+  if (value === 'awaiting_school_approval') return 'Aguardando aprovação operacional da escola.';
+  if (value === 'approved') return 'Comercial aprovado e pronto para checkout.';
+  if (value === 'checkout_available') return 'Checkout pode ser iniciado.';
+  if (value === 'payment_pending' || value === 'partially_paid') return 'Há pagamento em andamento.';
+  if (value === 'paid' || value === 'confirmed') return 'Fase de confirmação/operação.';
+  if (value === 'enrolled') return 'Matrícula concluída.';
+  if (value === 'cancelled' || value === 'rejected' || value === 'expired') return 'Fluxo encerrado sem venda concluída.';
+  return 'Status operacional atual.';
 }
 
 function formatMoney(value: number | undefined | null, currency: string) {
@@ -115,11 +129,48 @@ export default async function EnrollmentDetailPage({
     apiFetch<EnrollmentTimelineEventAdmin[]>(`/enrollments/${id}/timeline`).catch(() => []),
   ]);
   if (!enrollment) notFound();
-  const [quote, checkout, payments] = await Promise.all([
-    apiFetch<EnrollmentQuoteAdmin>(`/quotes/by-enrollment/${enrollment.id}`).catch(() => null),
+  const [quotes, checkout, payments] = await Promise.all([
+    apiFetch<EnrollmentQuoteAdmin[]>(`/quotes?enrollmentId=${enrollment.id}`).catch(() => []),
     apiFetch<EnrollmentCheckoutAdmin>(`/enrollments/${id}/checkout`).catch(() => null),
     apiFetch<PaymentAdmin[]>(`/payments?enrollmentId=${id}`).catch(() => []),
   ]);
+
+  const sortedQuotes = [...quotes].sort((a, b) => {
+    const left = Number(new Date(a.createdAt ?? 0).getTime());
+    const right = Number(new Date(b.createdAt ?? 0).getTime());
+    return right - left;
+  });
+  const latestQuote = sortedQuotes[0] ?? null;
+  const hasBundleQuote = sortedQuotes.some((item) => item.type === 'course_with_accommodation');
+
+  const quoteItemsSummary = sortedQuotes.reduce(
+    (acc, item) => ({
+      courseAmount: acc.courseAmount + Number(item.courseAmount ?? 0),
+      accommodationAmount: acc.accommodationAmount + Number(item.accommodationAmount ?? 0),
+      fees: acc.fees + Number(item.fees ?? 0),
+      discounts: acc.discounts + Number(item.discounts ?? 0),
+      totalAmount: acc.totalAmount + Number(item.totalAmount ?? 0),
+      downPaymentAmount: acc.downPaymentAmount + Number(item.downPaymentAmount ?? 0),
+      remainingAmount: acc.remainingAmount + Number(item.remainingAmount ?? 0),
+      commissionAmount: acc.commissionAmount + Number(item.commissionAmount ?? 0),
+      commissionCourseAmount: acc.commissionCourseAmount + Number(item.commissionCourseAmount ?? 0),
+      commissionAccommodationAmount:
+        acc.commissionAccommodationAmount + Number(item.commissionAccommodationAmount ?? 0),
+    }),
+    {
+      courseAmount: 0,
+      accommodationAmount: 0,
+      fees: 0,
+      discounts: 0,
+      totalAmount: 0,
+      downPaymentAmount: 0,
+      remainingAmount: 0,
+      commissionAmount: 0,
+      commissionCourseAmount: 0,
+      commissionAccommodationAmount: 0,
+    },
+  );
+  const quoteCurrency = sortedQuotes[0]?.currency ?? 'CAD';
 
   const recommendedAccommodations = await apiFetch<Array<{
     id: string;
@@ -184,23 +235,23 @@ export default async function EnrollmentDetailPage({
     { status: 'cancelled', label: 'Cancelar' },
   ].filter((item) => statusOptions.includes(item.status) && item.status !== enrollment.status);
 
-  const pricingFromQuote = quote
+  const pricingFromQuote = sortedQuotes.length
     ? {
-        basePrice: quote.courseAmount,
-        fees: quote.fees,
-        discounts: quote.discounts,
-        currency: quote.currency,
-        totalAmount: quote.totalAmount,
-        enrollmentAmount: quote.courseAmount,
-        accommodationAmount: quote.accommodationAmount,
-        packageTotalAmount: quote.totalAmount,
-        commissionAmount: quote.commissionAmount,
-        commissionPercentage: quote.commissionPercentage,
-        enrollmentCommissionAmount: quote.commissionCourseAmount,
-        enrollmentCommissionPercentage: quote.commissionPercentage,
-        accommodationCommissionAmount: quote.commissionAccommodationAmount,
+        basePrice: quoteItemsSummary.courseAmount,
+        fees: quoteItemsSummary.fees,
+        discounts: quoteItemsSummary.discounts,
+        currency: quoteCurrency,
+        totalAmount: quoteItemsSummary.totalAmount,
+        enrollmentAmount: quoteItemsSummary.courseAmount,
+        accommodationAmount: quoteItemsSummary.accommodationAmount,
+        packageTotalAmount: quoteItemsSummary.totalAmount,
+        commissionAmount: quoteItemsSummary.commissionAmount,
+        commissionPercentage: latestQuote?.commissionPercentage ?? 0,
+        enrollmentCommissionAmount: quoteItemsSummary.commissionCourseAmount,
+        enrollmentCommissionPercentage: latestQuote?.commissionPercentage ?? 0,
+        accommodationCommissionAmount: quoteItemsSummary.commissionAccommodationAmount,
         accommodationCommissionPercentage: 0,
-        totalCommissionAmount: quote.commissionAmount,
+        totalCommissionAmount: quoteItemsSummary.commissionAmount,
       }
     : null;
 
@@ -214,10 +265,13 @@ export default async function EnrollmentDetailPage({
     return hasPersistedValues ? pricing : pricingFromQuote ?? pricing;
   })();
 
-  const checkoutAmountCurrency = checkout?.financial.currency || quote?.currency || displayPricing?.currency || 'CAD';
-  const checkoutExpectedTotal = checkout?.financial.totalAmount ?? quote?.totalAmount ?? 0;
-  const checkoutDownPaymentAmount = checkout?.financial.downPaymentAmount ?? quote?.downPaymentAmount ?? 0;
-  const checkoutRemainingAmountFromCheckout = checkout?.financial.remainingAmount ?? quote?.remainingAmount ?? 0;
+  const checkoutAmountCurrency =
+    checkout?.financial.currency || quoteCurrency || displayPricing?.currency || 'CAD';
+  const checkoutExpectedTotal = checkout?.financial.totalAmount ?? quoteItemsSummary.totalAmount;
+  const checkoutDownPaymentAmount =
+    checkout?.financial.downPaymentAmount ?? quoteItemsSummary.downPaymentAmount;
+  const checkoutRemainingAmountFromCheckout =
+    checkout?.financial.remainingAmount ?? quoteItemsSummary.remainingAmount;
 
   const paidAmount = payments
     .filter((payment) => payment.status === 'paid')
@@ -242,7 +296,7 @@ export default async function EnrollmentDetailPage({
       />
       <PageHeader
         title="Detalhe da Matrícula"
-        description="Fluxo operacional, documentos, mensagens, timeline e pricing."
+        description="Fluxo operacional, documentos, mensagens, timeline, pricing e financeiro."
         actions={(
           <Link href="/enrollments">
             <Button size="sm" variant="outline"><ArrowLeft size={14} />Voltar</Button>
@@ -253,32 +307,42 @@ export default async function EnrollmentDetailPage({
       <section className="grid gap-3 md:grid-cols-3">
         <article className="rounded-lg border border-slate-200 bg-white p-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status da matrícula</p>
-          <p className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneByStatus(enrollment.status)}`}>
+          <p
+            title={statusTooltip(enrollment.status)}
+            className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneByStatus(enrollment.status)}`}
+          >
             {enrollment.status}
           </p>
-          <p className="mt-2 text-xs text-slate-500">Próximo passo operacional:</p>
-          <p className="text-xs text-slate-700">{quote?.nextStep ?? 'Sem próximo passo definido.'}</p>
+          <p className="mt-2 text-xs text-slate-500">Próximo passo comercial:</p>
+          <p className="text-xs text-slate-700">
+            {latestQuote?.nextStep ?? 'Sem próximo passo definido.'}
+          </p>
         </article>
         <article className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Composição do pacote</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Composição comercial</p>
           <p className="mt-2 text-sm font-semibold text-slate-800">
-            {quote?.type ?? (enrollment.accommodation ? 'course_with_accommodation' : 'course_only')}
+            {hasBundleQuote ? 'Item agregado (curso + acomodação)' : 'Itens separados'}
           </p>
-          <p className="mt-2 text-xs text-slate-500">Status do pacote:</p>
-          <p className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneByStatus(quote?.packageStatus ?? 'draft')}`}>
-            {quote?.packageStatus ?? 'draft'}
+          <p className="mt-2 text-xs text-slate-500">Status financeiro do vínculo:</p>
+          <p
+            title={statusTooltip(latestQuote?.packageStatus)}
+            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneByStatus(latestQuote?.packageStatus)}`}
+          >
+            {latestQuote?.packageStatus ?? 'draft'}
           </p>
         </article>
         <article className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Produto acomodação</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Acomodação</p>
           <p className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toneByStatus(enrollment.accommodationStatus)}`}>
             {enrollment.accommodationStatus}
           </p>
           <p className="mt-2 text-xs text-slate-700">
-            {enrollment.accommodation ? enrollment.accommodation.title : 'Sem acomodação no pacote.'}
+            {enrollment.accommodation ? enrollment.accommodation.title : 'Sem acomodação vinculada.'}
           </p>
           <p className="text-xs text-slate-500">
-            {enrollment.accommodationOrder?.id ? `Order vinculada: ${enrollment.accommodationOrder.id}` : 'Sem order vinculada'}
+            {enrollment.accommodationOrder?.id
+              ? `Order vinculada para esta acomodação: ${enrollment.accommodationOrder.id}`
+              : 'Sem order financeira vinculada'}
           </p>
         </article>
       </section>
@@ -313,19 +377,19 @@ export default async function EnrollmentDetailPage({
           <h2 className="text-sm font-semibold text-slate-900">Período e Estado Comercial</h2>
           <p className="mt-2 text-sm text-slate-700">{enrollment.academicPeriod.name}</p>
           <p className="text-xs text-slate-500">
-            {new Date(enrollment.academicPeriod.startDate).toLocaleDateString('pt-BR')} - {new Date(enrollment.academicPeriod.endDate).toLocaleDateString('pt-BR')}
+            {formatDatePtBr(enrollment.academicPeriod.startDate)} - {formatDatePtBr(enrollment.academicPeriod.endDate)}
           </p>
           <p className="mt-1 text-xs text-slate-500">Status matrícula: {enrollment.status}</p>
           <p className="mt-1 text-xs text-slate-500">
-            Tipo de fluxo: <strong>{quote?.type ?? (enrollment.accommodation ? 'course_with_accommodation' : 'course_only')}</strong>
+            Contexto de venda: <strong>{hasBundleQuote ? 'vínculo único' : 'itens separados'}</strong>
           </p>
-          {quote?.nextStep ? <p className="mt-1 text-xs text-slate-500">Próximo passo: {quote.nextStep}</p> : null}
+          {latestQuote?.nextStep ? <p className="mt-1 text-xs text-slate-500">Próximo passo: {latestQuote.nextStep}</p> : null}
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
-          <h2 className="text-sm font-semibold text-slate-900">Acomodação do pacote</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Acomodação da matrícula</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Selecione a acomodação da matrícula. O vínculo comercial com a order é automático no backend.
+            Selecione a acomodação da matrícula. A venda de cada item é gerada manualmente no fluxo financeiro.
           </p>
           <form action={updateEnrollmentAccommodationAction} className="mt-3 flex flex-wrap items-end gap-2">
             <input type="hidden" name="enrollmentId" value={enrollment.id} />
@@ -371,7 +435,7 @@ export default async function EnrollmentDetailPage({
                 .filter((item) => item.itemType === 'accommodation')
                 .map((item) => (
                   <p key={item.id}>
-                    Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} - {new Date(item.endDate).toLocaleDateString('pt-BR')} • Valor item:{' '}
+                    Período: {formatDatePtBr(item.startDate)} - {formatDatePtBr(item.endDate)} • Valor item:{' '}
                     {Number(item.amount).toFixed(2)} {enrollment.accommodationOrder?.currency}
                   </p>
                 ))}
@@ -447,7 +511,9 @@ export default async function EnrollmentDetailPage({
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="text-sm font-semibold text-slate-900">Pricing e Comissão</h2>
-          <p className="mt-1 text-xs text-slate-500">Valores definidos pelo SaaS e cálculo de comissão no backend.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Valores consolidados por item da matrícula (curso e acomodação). Não confundem com a operação do fluxo.
+          </p>
           <form action={updateEnrollmentPricingAction} className="mt-4 grid grid-cols-2 gap-3">
             <input type="hidden" name="enrollmentId" value={enrollment.id} />
             <label className="text-xs font-medium text-slate-600">
@@ -499,7 +565,7 @@ export default async function EnrollmentDetailPage({
                 Item acomodação: {formatMoney(displayPricing?.accommodationAmount ?? 0, displayPricing?.currency ?? 'CAD')}
               </span>
               <span>
-                Pacote (vínculo): {formatMoney(displayPricing?.packageTotalAmount ?? displayPricing?.totalAmount, displayPricing?.currency ?? 'CAD')}
+                Total consolidado: {formatMoney(displayPricing?.packageTotalAmount ?? displayPricing?.totalAmount, displayPricing?.currency ?? 'CAD')}
               </span>
               <span>
                 Comissão do item curso: {formatMoney(displayPricing?.enrollmentCommissionAmount, displayPricing?.currency ?? 'CAD')}
@@ -555,34 +621,41 @@ export default async function EnrollmentDetailPage({
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Quote do pacote</h2>
-          {!quote ? (
-            <p className="mt-2 text-xs text-slate-500">Nenhuma quote associada à matrícula.</p>
+          <h2 className="text-sm font-semibold text-slate-900">Itens de venda da matrícula</h2>
+          {!latestQuote ? (
+            <p className="mt-2 text-xs text-slate-500">Nenhum item comercial associado à matrícula.</p>
           ) : (
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
-              <p>Tipo: <strong>{quote.type}</strong></p>
-              <p>Status do pacote: <strong>{quote.packageStatus ?? 'draft'}</strong></p>
-              {quote.nextStep ? <p className="col-span-2">{quote.nextStep}</p> : null}
-              <p>Total: <strong>{Number(quote.totalAmount).toFixed(2)} {quote.currency}</strong></p>
-              <p>Curso: {Number(quote.courseAmount).toFixed(2)} {quote.currency}</p>
-              <p>Acomodação: {Number(quote.accommodationAmount).toFixed(2)} {quote.currency}</p>
-              <p>Entrada ({Number(quote.downPaymentPercentage).toFixed(2)}%): {Number(quote.downPaymentAmount).toFixed(2)} {quote.currency}</p>
-              <p>Saldo: {Number(quote.remainingAmount).toFixed(2)} {quote.currency}</p>
-              <p>Comissão curso: {Number(quote.commissionCourseAmount).toFixed(2)} {quote.currency}</p>
-              <p>Comissão acomodação: {Number(quote.commissionAccommodationAmount).toFixed(2)} {quote.currency}</p>
-              <p>Comissão total: {Number(quote.commissionAmount).toFixed(2)} {quote.currency}</p>
-              {(quote.items ?? []).length > 0 && (
-                <div className="col-span-2 mt-1 rounded border border-slate-200 bg-slate-50 p-2">
-                  <p className="text-[11px] font-semibold text-slate-700">Itens do pacote</p>
-                  <div className="mt-1 space-y-1">
-                    {quote.items?.map((item) => (
-                      <p key={item.id} className="text-[11px] text-slate-600">
-                        {item.itemType} • {new Date(item.startDate).toLocaleDateString('pt-BR')} - {new Date(item.endDate).toLocaleDateString('pt-BR')} • {Number(item.amount).toFixed(2)} {quote.currency} • comissão {Number(item.commissionAmount).toFixed(2)}
-                      </p>
-                    ))}
+            <div className="mt-3 space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <p className="font-semibold text-slate-700">Resumo consolidado</p>
+                <p>Curso: {formatMoney(quoteItemsSummary.courseAmount, quoteCurrency)}</p>
+                <p>Acomodação: {formatMoney(quoteItemsSummary.accommodationAmount, quoteCurrency)}</p>
+                <p>
+                  Total: {formatMoney(quoteItemsSummary.totalAmount, quoteCurrency)} • Entrada:{' '}
+                  {formatMoney(quoteItemsSummary.downPaymentAmount, quoteCurrency)} • Saldo:{' '}
+                  {formatMoney(quoteItemsSummary.remainingAmount, quoteCurrency)}
+                </p>
+                <p>Comissão total: {formatMoney(quoteItemsSummary.commissionAmount, quoteCurrency)}</p>
+              </div>
+              <div className="space-y-2">
+                {sortedQuotes.map((quoteItem) => (
+                  <div key={quoteItem.id} className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
+                    <p className="font-semibold text-slate-800">
+                      {quoteItem.type} • {quoteItem.createdAt ? formatDateTimePtBr(quoteItem.createdAt) : 'Sem data'}
+                    </p>
+                    <p>Status: {quoteItem.packageStatus ?? 'draft'} • {quoteItem.nextStep ?? ''}</p>
+                    <p>
+                      Total: {formatMoney(quoteItem.totalAmount, quoteItem.currency)} • Curso:{' '}
+                      {formatMoney(quoteItem.courseAmount, quoteItem.currency)} • Acomodação:{' '}
+                      {formatMoney(quoteItem.accommodationAmount, quoteItem.currency)}
+                    </p>
+                    <p>
+                      Entrada {Number(quoteItem.downPaymentPercentage).toFixed(2)}%:{' '}
+                      {formatMoney(quoteItem.downPaymentAmount, quoteItem.currency)}
+                    </p>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
         </article>
@@ -590,55 +663,39 @@ export default async function EnrollmentDetailPage({
         <article className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="text-sm font-semibold text-slate-900">Fluxo financeiro manual</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Hoje o financeiro é gerado apenas por ação da operação na matrícula.
+            Financeiro desacoplado: gere order e invoice por item da matrícula para controlar exatamente
+            o que foi orçado e cobrado.
           </p>
           <div className="mt-3 grid gap-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-            <span>
-              Valor a gerar (total): {formatMoney(checkoutExpectedTotal, checkoutAmountCurrency)}
-            </span>
-            <span>
-              Entrada esperada: {formatMoney(checkoutDownPaymentAmount, checkoutAmountCurrency)}
-            </span>
-            <span>
-              Saldo esperado: {formatMoney(checkoutRemainingAmountFromCheckout, checkoutAmountCurrency)}
-            </span>
-            <span>
-              Já pago (somente status paid): {formatMoney(paidAmount, checkoutAmountCurrency)}
-            </span>
-            <span>
-              Pendente (status pending): {formatMoney(pendingAmount, checkoutAmountCurrency)}
-            </span>
-            {failedAmount > 0 ? (
-              <span>
-                Falhas: {formatMoney(failedAmount, checkoutAmountCurrency)}
-              </span>
-            ) : null}
-            <span>
-              Falta receber: {formatMoney(outstandingAmount, checkoutAmountCurrency)} ({paymentCoveragePercent.toFixed(2)}%)
-            </span>
-            <span>
-              Checkout: {checkout?.state ?? 'indisponível'} •
-              orderStatus: {checkout?.state === 'paid' ? 'pago' : 'não pago'}
-            </span>
+            <span>Valor consolidado a gerar: {formatMoney(checkoutExpectedTotal, checkoutAmountCurrency)}</span>
+            <span>Entrada esperada: {formatMoney(checkoutDownPaymentAmount, checkoutAmountCurrency)}</span>
+            <span>Saldo esperado: {formatMoney(checkoutRemainingAmountFromCheckout, checkoutAmountCurrency)}</span>
+            <span>Já pago (somente status paid): {formatMoney(paidAmount, checkoutAmountCurrency)}</span>
+            <span>Pendente (status pending): {formatMoney(pendingAmount, checkoutAmountCurrency)}</span>
+            {failedAmount > 0 ? <span>Falhas: {formatMoney(failedAmount, checkoutAmountCurrency)}</span> : null}
+            <span>Falta receber: {formatMoney(outstandingAmount, checkoutAmountCurrency)} ({paymentCoveragePercent.toFixed(2)}%)</span>
+            <span>Checkout: {checkout?.state ?? 'indisponível'}</span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <form action={syncEnrollmentOrderAction}>
               <input type="hidden" name="enrollmentId" value={enrollment.id} />
-              <Button type="submit" size="sm" variant="outline" disabled={!quote}>
-                Gerar/Atualizar order da matrícula
+              <Button type="submit" size="sm" variant="outline" disabled={!latestQuote}>
+                Gerar/Atualizar ordem(s) da matrícula
               </Button>
             </form>
-            <form action={createEnrollmentInvoiceAction}>
-              <input type="hidden" name="enrollmentId" value={enrollment.id} />
-              <Button type="submit" size="sm" variant="outline" disabled={!quote}>
-                Gerar invoice
-              </Button>
-            </form>
+            {sortedQuotes.length > 0 &&
+              sortedQuotes.map((quoteItem) => (
+                <form key={`${quoteItem.id}-invoice`} action={createEnrollmentInvoiceFromQuoteAction}>
+                  <input type="hidden" name="enrollmentId" value={enrollment.id} />
+                  <input type="hidden" name="quoteId" value={quoteItem.id} />
+                  <Button type="submit" size="sm" variant="outline">
+                    Gerar invoice ({quoteItem.type})
+                  </Button>
+                </form>
+              ))}
           </div>
-          {!quote ? (
-            <p className="mt-2 text-xs text-amber-700">
-              Gere ou ajuste o pacote primeiro para habilitar a geração financeira.
-            </p>
+          {!latestQuote ? (
+            <p className="mt-2 text-xs text-amber-700">Gere o item comercial antes para habilitar geração financeira.</p>
           ) : null}
         </article>
 

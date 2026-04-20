@@ -5,10 +5,18 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr } from '@/lib/date';
 import type { OrderAdmin } from '@/types/catalog.types';
 
 function money(amount: number, currency: string) {
   return `${Number(amount ?? 0).toFixed(2)} ${currency}`;
+}
+
+function parentOperationPath(orderType: string) {
+  if (orderType === 'course') return '/course-operations';
+  if (orderType === 'accommodation') return '/accommodation-operations';
+  if (orderType === 'package') return '/package-operations';
+  return '/orders';
 }
 
 export default async function OrderDetailPage({
@@ -31,14 +39,15 @@ export default async function OrderDetailPage({
   const accommodationItems = order.items.filter((item) => item.itemType === 'accommodation');
   const hasAccommodationInEnrollmentOnly =
     accommodationItems.length === 0 && Boolean(enrollmentForContext?.accommodation?.id);
+  const operationBackHref = parentOperationPath(order.type);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Detalhe da Order"
-        description="Venda de curso/acomodação independente com vínculo opcional à matrícula."
+        title="Detalhe da operação"
+        description="Consulta técnica da operação de curso, pacote ou acomodação."
         actions={(
-          <Link href="/orders">
+          <Link href={operationBackHref}>
             <Button size="sm" variant="outline"><ArrowLeft size={14} />Voltar</Button>
           </Link>
         )}
@@ -92,8 +101,7 @@ export default async function OrderDetailPage({
                 <div key={item.id} className="rounded border border-slate-200 p-3 text-xs text-slate-600">
                   <p className="font-medium text-slate-800">{item.course?.program_name ?? enrollmentForContext?.course.program_name ?? 'Curso'}</p>
                   <p>
-                    Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} -{' '}
-                    {new Date(item.endDate).toLocaleDateString('pt-BR')}
+                    Período: {formatDatePtBr(item.startDate)} - {formatDatePtBr(item.endDate)}
                   </p>
                   <p>Valor: {money(item.amount, order.currency)}</p>
                   {order.enrollment?.id ? (
@@ -143,8 +151,7 @@ export default async function OrderDetailPage({
                 <div key={item.id} className="rounded border border-slate-200 p-3 text-xs text-slate-600">
                   <p className="font-medium text-slate-800">{item.accommodation?.title ?? 'Acomodação'}</p>
                   <p>
-                    Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} -{' '}
-                    {new Date(item.endDate).toLocaleDateString('pt-BR')}
+                    Período: {formatDatePtBr(item.startDate)} - {formatDatePtBr(item.endDate)}
                   </p>
                   <p>Valor: {money(item.amount, order.currency)}</p>
                   <Link
@@ -173,12 +180,11 @@ export default async function OrderDetailPage({
         <div className="mt-3 space-y-2">
           {order.items.map((item) => (
             <div key={item.id} className="rounded border border-slate-200 p-3 text-xs text-slate-600">
-              <p className="font-medium text-slate-800">
+                <p className="font-medium text-slate-800">
                 {item.itemType} • ref {item.referenceId}
               </p>
               <p>
-                Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} -{' '}
-                {new Date(item.endDate).toLocaleDateString('pt-BR')}
+                Período: {formatDatePtBr(item.startDate)} - {formatDatePtBr(item.endDate)}
               </p>
               <p>Valor: {money(item.amount, order.currency)}</p>
             </div>

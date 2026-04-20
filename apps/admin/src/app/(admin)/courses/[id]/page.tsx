@@ -6,6 +6,7 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { toDateInputValue } from '@/lib/date';
 import type { CourseAdmin, CoursePricingAdmin, EnrollmentAdmin, SchoolAdmin } from '@/types/catalog.types';
 import type { AcademicPeriod, ClassGroup, Unit } from '@/types/structure.types';
 import { CourseHierarchyFields } from '../course-hierarchy-fields';
@@ -152,21 +153,21 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
                     : ''}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Janela: {row.academicPeriod?.startDate ? new Date(row.academicPeriod.startDate).toISOString().slice(0, 10) : '-'} -{' '}
-                  {row.academicPeriod?.endDate ? new Date(row.academicPeriod.endDate).toISOString().slice(0, 10) : '-'}
+                  Janela: {row.academicPeriod?.startDate ? toDateInputValue(row.academicPeriod.startDate) : '-'} -{' '}
+                  {row.academicPeriod?.endDate ? toDateInputValue(row.academicPeriod.endDate) : '-'}
                 </p>
               </div>
               <input
                 name="startDate"
                 type="date"
-                defaultValue={row.academicPeriod?.startDate ? new Date(row.academicPeriod.startDate).toISOString().slice(0, 10) : ''}
+                defaultValue={row.academicPeriod?.startDate ? toDateInputValue(row.academicPeriod.startDate) : ''}
                 disabled={!canWrite}
                 className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100"
               />
               <input
                 name="endDate"
                 type="date"
-                defaultValue={row.academicPeriod?.endDate ? new Date(row.academicPeriod.endDate).toISOString().slice(0, 10) : ''}
+                defaultValue={row.academicPeriod?.endDate ? toDateInputValue(row.academicPeriod.endDate) : ''}
                 disabled={!canWrite}
                 className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100"
               />

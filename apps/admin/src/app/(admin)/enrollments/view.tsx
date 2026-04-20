@@ -98,9 +98,9 @@ export function EnrollmentView({
     },
     {
       key: 'packageType',
-      label: 'Tipo do pacote',
+      label: 'Composição',
       render: (item) =>
-        item.accommodation ? 'course_with_accommodation' : 'course_only',
+        item.accommodation ? 'Curso + Acomodação' : 'Só curso',
     },
     {
       key: 'status',
@@ -122,7 +122,7 @@ export function EnrollmentView({
     },
     {
       key: 'package',
-      label: 'Pacote',
+      label: 'Total consolidado',
       render: (item) =>
         item.pricing
           ? `${(Number(item.pricing.packageTotalAmount ?? item.pricing.totalAmount) || 0).toFixed(2)} ${item.pricing.currency}`

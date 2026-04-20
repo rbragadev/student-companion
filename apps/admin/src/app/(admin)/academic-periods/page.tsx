@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr } from '@/lib/date';
 import { RECORD_STATUS_LABEL } from '@/lib/structure';
 import type { AcademicPeriod } from '@/types/structure.types';
 
@@ -17,7 +18,7 @@ const columns: Column<AcademicPeriod>[] = [
       <div>
         <p className="font-medium text-slate-900">{item.name}</p>
         <p className="text-xs text-slate-500">
-          {new Date(item.startDate).toLocaleDateString('pt-BR')} - {new Date(item.endDate).toLocaleDateString('pt-BR')}
+          {formatDatePtBr(item.startDate)} - {formatDatePtBr(item.endDate)}
         </p>
       </div>
     ),

@@ -8,6 +8,7 @@ import type {
   EnrollmentAdmin,
   StudentAdmin,
 } from '@/types/catalog.types';
+import { toDateInputFromDate, toDateInputValue } from '@/lib/date';
 import { createStandaloneAccommodationOrderAction } from './actions';
 
 interface PricingPreview {
@@ -30,16 +31,6 @@ function toIsoDate(value: string) {
   return new Date(`${value}T00:00:00.000Z`).toISOString();
 }
 
-function todayDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function plusDaysDate(days: number) {
-  const base = new Date();
-  base.setDate(base.getDate() + days);
-  return base.toISOString().slice(0, 10);
-}
-
 export function NewAccommodationOrderForm({
   students,
   accommodations,
@@ -50,11 +41,12 @@ export function NewAccommodationOrderForm({
   const [selectedUserId, setSelectedUserId] = useState(students[0]?.id ?? '');
   const [selectedAccommodationId, setSelectedAccommodationId] = useState(accommodations[0]?.id ?? '');
   const [selectedPricingId, setSelectedPricingId] = useState<string>('');
-  const [startDate, setStartDate] = useState(todayDate());
-  const [endDate, setEndDate] = useState(plusDaysDate(28));
+  const [startDate, setStartDate] = useState(toDateInputFromDate());
+  const [endDate, setEndDate] = useState(toDateInputFromDate(new Date(Date.now() + 28 * 24 * 60 * 60 * 1000)));
   const [preview, setPreview] = useState<PricingPreview | null>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingError, setPricingError] = useState<string | null>(null);
+  const [autoDateSyncDateRange, setAutoDateSyncDateRange] = useState<{ start: string; end: string } | null>(null);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
   const accommodationPricing = useMemo(
@@ -88,6 +80,13 @@ export function NewAccommodationOrderForm({
     );
   }, [enrollments, selectedUserId]);
 
+  const academicStartDateFromActiveEnrollment = toDateInputValue(activeEnrollmentForUser?.academicPeriod?.startDate ?? '');
+  const academicEndDateFromActiveEnrollment = toDateInputValue(activeEnrollmentForUser?.academicPeriod?.endDate ?? '');
+
+  const isDateDifferentFromEnrollment =
+    Boolean(autoDateSyncDateRange) &&
+    (startDate !== autoDateSyncDateRange.start || endDate !== autoDateSyncDateRange.end);
+
   useEffect(() => {
     if (!accommodationPricing.length) {
       setSelectedPricingId('');
@@ -97,6 +96,20 @@ export function NewAccommodationOrderForm({
       setSelectedPricingId(accommodationPricing[0].id);
     }
   }, [accommodationPricing, selectedPricingId]);
+
+  useEffect(() => {
+    if (academicStartDateFromActiveEnrollment && academicEndDateFromActiveEnrollment) {
+      setStartDate(academicStartDateFromActiveEnrollment);
+      setEndDate(academicEndDateFromActiveEnrollment);
+      setAutoDateSyncDateRange({
+        start: academicStartDateFromActiveEnrollment,
+        end: academicEndDateFromActiveEnrollment,
+      });
+      return;
+    }
+
+    setAutoDateSyncDateRange(null);
+  }, [academicStartDateFromActiveEnrollment, academicEndDateFromActiveEnrollment]);
 
   useEffect(() => {
     if (!selectedAccommodationId || !selectedPricing?.periodOption || !startDate || !endDate) {
@@ -280,6 +293,11 @@ export function NewAccommodationOrderForm({
           />
         </label>
       </div>
+      {isDateDifferentFromEnrollment ? (
+        <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          As datas foram alteradas em relação à matrícula ativa.
+        </div>
+      ) : null}
 
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
         <p className="font-semibold text-slate-800">Prévia da reserva</p>

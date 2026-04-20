@@ -3,17 +3,17 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { PageHeader } from '@/components/ui/page-header';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr } from '@/lib/date';
 import type { OrderAdmin } from '@/types/catalog.types';
 
 function money(amount: number, currency: string) {
   return `${Number(amount ?? 0).toFixed(2)} ${currency}`;
 }
 
-export default async function OrdersPage({
+export default async function PackageOperationsPage({
   searchParams,
 }: Readonly<{
   searchParams?: Promise<{
-    type?: string;
     status?: string;
     fromDate?: string;
     toDate?: string;
@@ -21,15 +21,15 @@ export default async function OrdersPage({
   }>;
 }>) {
   await requirePermission('users.read');
+
   const params = (await searchParams) ?? {};
-  const selectedType = params.type ?? '';
   const selectedStatus = params.status ?? '';
   const fromDate = params.fromDate ?? '';
   const toDate = params.toDate ?? '';
   const includeDraft = params.includeDraft === '1';
 
   const qp = new URLSearchParams();
-  if (selectedType) qp.set('type', selectedType);
+  qp.set('type', 'package');
   if (selectedStatus) qp.set('status', selectedStatus);
   if (fromDate) qp.set('fromDate', fromDate);
   if (toDate) qp.set('toDate', toDate);
@@ -51,34 +51,54 @@ export default async function OrdersPage({
       ),
     },
     {
-      key: 'type',
-      label: 'Tipo',
-      render: (row) => row.type,
+      key: 'package_items',
+      label: 'Itens do pacote',
+      render: (row) => {
+        const courseItem = row.items.find((item) => item.itemType === 'course');
+        const accommodationItem = row.items.find((item) => item.itemType === 'accommodation');
+
+        if (!courseItem && !accommodationItem) {
+          return <p className="text-xs text-slate-500">Sem itens</p>;
+        }
+
+        return (
+          <div className="space-y-1">
+            {courseItem ? (
+              <p className="text-xs text-slate-700">{courseItem.course?.program_name ?? 'Curso'}</p>
+            ) : null}
+            {accommodationItem ? (
+              <p className="text-xs text-slate-700">{accommodationItem.accommodation?.title ?? 'Acomodação'}</p>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
-      key: 'createdAt',
-      label: 'Data',
-      render: (row) => new Date(row.createdAt).toLocaleDateString('pt-BR'),
-    },
-    {
-      key: 'items',
-      label: 'Itens',
-      render: (row) => (
-        <div className="space-y-1">
-          {row.items.map((item) => (
-            <p key={item.id} className="text-xs text-slate-600">
-              {item.itemType === 'course'
-                ? item.course?.program_name ?? 'Curso'
-                : item.accommodation?.title ?? 'Acomodação'}
-            </p>
-          ))}
-        </div>
-      ),
+      key: 'window',
+      label: 'Janela',
+      render: (row) => {
+        const courseItem = row.items.find((item) => item.itemType === 'course');
+        const accommodationItem = row.items.find((item) => item.itemType === 'accommodation');
+        const item = courseItem ?? accommodationItem;
+        if (!item) return <span className="text-xs text-slate-500">-</span>;
+
+        return (
+          <p className="text-xs text-slate-600">
+            {formatDatePtBr(item.startDate)} - {formatDatePtBr(item.endDate)}
+          </p>
+        );
+      },
     },
     {
       key: 'total',
-      label: 'Valor',
-      render: (row) => money(row.totalAmount, row.currency),
+      label: 'Composição financeira',
+      render: (row) => (
+        <div>
+          <p className="text-sm text-slate-700">Total: {money(row.totalAmount, row.currency)}</p>
+          <p className="text-xs text-slate-500">Curso: {money(row.courseAmount ?? 0, row.currency)}</p>
+          <p className="text-xs text-slate-500">Acomodação: {money(row.accommodationAmount ?? 0, row.currency)}</p>
+        </div>
+      ),
     },
     {
       key: 'status',
@@ -107,24 +127,11 @@ export default async function OrdersPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Vendas / Orders"
-        description="Curso e acomodação como produtos de venda independentes, com vínculo opcional à matrícula."
+        title="Pacote"
+        description="Operações de pacote (curso + acomodação) com vínculo para a matrícula."
       />
 
-      <form method="get" className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-5">
-        <label className="space-y-1 text-sm">
-          <span className="text-slate-600">Tipo</span>
-          <select
-            name="type"
-            defaultValue={selectedType}
-            className="w-full rounded border border-slate-200 px-3 py-2 text-sm"
-          >
-            <option value="">Todos</option>
-            <option value="course">Curso</option>
-            <option value="accommodation">Acomodação</option>
-            <option value="package">Pacote</option>
-          </select>
-        </label>
+      <form method="get" className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-4">
         <label className="space-y-1 text-sm">
           <span className="text-slate-600">Status</span>
           <input
@@ -163,7 +170,7 @@ export default async function OrdersPage({
         </label>
         <button
           type="submit"
-          className="rounded bg-slate-900 px-4 py-2 text-sm text-white"
+          className="rounded bg-slate-900 px-4 py-2 text-sm text-white sm:col-span-4 sm:w-40"
         >
           Filtrar
         </button>
@@ -173,9 +180,9 @@ export default async function OrdersPage({
         columns={columns}
         data={orders}
         keyExtractor={(item) => item.id}
-        getRowHref={(item) => `/orders/${item.id}`}
+        getRowHref={(item) => `/package-operations/${item.id}`}
         emptyTitle="Nenhuma order encontrada"
-        emptyDescription="As vendas de curso, acomodação e pacote aparecerão aqui."
+        emptyDescription="Pacotes de curso + acomodação aparecem aqui."
       />
     </div>
   );

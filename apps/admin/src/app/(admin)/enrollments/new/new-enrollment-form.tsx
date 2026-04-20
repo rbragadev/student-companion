@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { AccommodationAdmin, CourseAdmin, StudentAdmin } from '@/types/catalog.types';
+import { toDateInputValue } from '@/lib/date';
 import { createEnrollmentFromAdminAction } from '../actions';
 
 interface CourseOffer {
@@ -29,10 +30,12 @@ interface Props {
   courses: CourseAdmin[];
   accommodations: AccommodationAdmin[];
   offersByCourse: Record<string, CourseOffer[]>;
+  mode?: 'enrollment' | 'package';
+  showProposalActions?: boolean;
 }
 
 function toDateOnly(value: string) {
-  return value.slice(0, 10);
+  return toDateInputValue(value);
 }
 
 function toIsoDate(value: string) {
@@ -43,7 +46,15 @@ function formatMoney(value: number, currency: string) {
   return `${value.toFixed(2)} ${currency}`;
 }
 
-export function NewEnrollmentForm({ students, courses, accommodations, offersByCourse }: Readonly<Props>) {
+export function NewEnrollmentForm({
+  students,
+  courses,
+  accommodations,
+  offersByCourse,
+  mode = 'enrollment',
+  showProposalActions = true,
+}: Readonly<Props>) {
+  const isPackageMode = mode === 'package';
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id ?? '');
   const [selectedOfferId, setSelectedOfferId] = useState<string>('');
   const [selectedAccommodationId, setSelectedAccommodationId] = useState<string>('');
@@ -81,10 +92,15 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
   }, [selectedCourseId, selectedOffer?.id, offers]);
 
   useEffect(() => {
+    if (isPackageMode) {
+      setCreatePackage(true);
+      return;
+    }
+
     if (!selectedAccommodationId) {
       setCreatePackage(true);
     }
-  }, [selectedAccommodationId]);
+  }, [isPackageMode, selectedAccommodationId]);
 
   useEffect(() => {
     if (!selectedCourseId || !selectedOffer?.academicPeriodId || !courseStartDate || !courseEndDate) {
@@ -198,6 +214,11 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
   const totalAmount = courseAmount + accommodationAmount;
   const downPayment = totalAmount * 0.3;
   const remaining = totalAmount - downPayment;
+  const packageItemsLabel = isPackageMode
+    ? ' (contexto de pacote)'
+    : createPackage
+      ? ' (vínculo único)'
+      : ' (itens separados)';
 
   return (
     <form action={createEnrollmentFromAdminAction} className="grid gap-5 rounded-xl border border-slate-200 bg-white p-5">
@@ -327,16 +348,22 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
         </label>
 
         <label className="text-sm font-medium text-slate-700 md:col-span-3">
-          <input
-            type="checkbox"
-            name="isPackage"
-            checked={createPackage}
-            onChange={(event) => setCreatePackage(event.target.checked)}
-            disabled={!selectedAccommodationId}
-            className="mr-2"
-            value="on"
-          />
-          Tratar curso + acomodação como pacote único
+          {isPackageMode ? (
+            <input type="hidden" name="isPackage" value="on" />
+          ) : (
+            <>
+              <input
+                type="checkbox"
+                name="isPackage"
+                checked={createPackage}
+                onChange={(event) => setCreatePackage(event.target.checked)}
+                disabled={!selectedAccommodationId}
+                className="mr-2"
+                value="on"
+              />
+              Juntar curso + acomodação no mesmo vínculo de venda
+            </>
+          )}
         </label>
 
         <label className="text-sm font-medium text-slate-700">
@@ -362,20 +389,22 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
           />
         </label>
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-          {selectedAccommodationId && createPackage
-            ? 'Acomodação usa janela própria e será incluída no pacote da matrícula.'
-            : 'Acomodação é item comercial separado da matrícula. Sem vínculo de pacote, cada item gera sua ordem independente.'}
+          {isPackageMode
+            ? selectedAccommodationId
+              ? 'Acomodação agregada no pacote: o curso e a acomodação têm rastreamento financeiro independente.'
+              : 'Sem acomodação selecionada: pacote criado apenas com curso.'
+            : selectedAccommodationId
+              ? createPackage
+                ? 'Acomodação usa janela própria e será emitida junto do curso no mesmo vínculo comercial.'
+                : 'Acomodação é item comercial separado: curso e acomodação seguem com orçamentos independentes.'
+              : 'Acomodação não selecionada.'}
         </div>
       </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
         <p className="font-semibold text-slate-800">
           Itens de venda
-          {selectedAccommodationId
-            ? createPackage
-              ? ' (pacote)'
-              : ' (curso e acomodação separados)'
-            : ''}
+          {selectedAccommodationId ? packageItemsLabel : ''}
         </p>
         {pricingLoading ? (
           <p className="mt-2 text-slate-600">Calculando valores...</p>
@@ -383,19 +412,27 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
           <p className="mt-2 text-rose-600">{pricingError}</p>
         ) : (
           <div className="mt-2 grid gap-1">
-            <p className="font-medium">Pacote (vínculo): {formatMoney(totalAmount, previewCurrency)}</p>
+            <p className="font-medium">
+              Total consolidado: {formatMoney(totalAmount, previewCurrency)}
+            </p>
             <p className="font-semibold">Item curso: {formatMoney(courseAmount, previewCurrency)}</p>
             <p className={accommodationAmount > 0 ? 'font-semibold' : 'text-slate-500'}>
               Item acomodação: {formatMoney(accommodationAmount, previewCurrency)}
             </p>
             <p className="text-xs text-slate-500">
-              {coursePreview && accommodationPreview
-                ? 'Curso e acomodação estão como itens separados na mesma cotação.'
-                : coursePreview
-                  ? 'Somente item curso incluído.'
-                  : accommodationPreview
-                    ? 'Somente item acomodação incluído.'
-                  : 'Nenhum item selecionado.'}
+              {isPackageMode
+                ? selectedAccommodationId
+                  ? 'Curso + acomodação no contexto de pacote.'
+                  : 'Somente curso no pacote.'
+                : coursePreview && accommodationPreview
+                  ? createPackage
+                    ? 'Curso e acomodação no mesmo vínculo de pacote.'
+                    : 'Curso e acomodação como itens independentes.'
+                  : coursePreview
+                    ? 'Somente item curso incluído.'
+                    : accommodationPreview
+                      ? 'Somente item acomodação incluído.'
+                    : 'Nenhum item selecionado.'}
             </p>
             <p>Entrada (30%): {formatMoney(downPayment, previewCurrency)}</p>
             <p>Saldo: {formatMoney(remaining, previewCurrency)}</p>
@@ -405,11 +442,13 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" name="submitMode" value="draft">
-          Criar matrícula (rascunho)
+          {isPackageMode ? 'Criar pacote (matrícula)' : 'Criar matrícula (rascunho)'}
         </Button>
-        <Button type="submit" size="sm" variant="outline" name="submitMode" value="send">
-          Criar e enviar proposta
-        </Button>
+        {showProposalActions ? (
+          <Button type="submit" size="sm" variant="outline" name="submitMode" value="send">
+            {isPackageMode ? 'Criar pacote e enviar proposta' : 'Criar e enviar proposta'}
+          </Button>
+        ) : null}
       </div>
     </form>
   );

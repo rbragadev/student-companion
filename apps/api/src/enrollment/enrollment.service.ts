@@ -13,6 +13,7 @@ import {
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { CommissionConfigService } from './commission-config.service';
 import { EnrollmentQuoteService } from './enrollment-quote.service';
+import { EnrollmentSalesService } from './enrollment-sales.service';
 import { NotificationService } from '../notification/notification.service';
 import { StartEnrollmentDto } from './dto/start-enrollment.dto';
 
@@ -24,6 +25,7 @@ export class EnrollmentService {
     private readonly prisma: PrismaService,
     private readonly commissionConfigService: CommissionConfigService,
     private readonly enrollmentQuoteService: EnrollmentQuoteService,
+    private readonly enrollmentSalesService: EnrollmentSalesService,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -889,7 +891,7 @@ export class EnrollmentService {
 
   async syncOrder(id: string) {
     await this.findOne(id);
-    const syncedQuoteIds = await this.enrollmentQuoteService.syncOrderForEnrollment(id);
+    const syncedQuoteIds = await this.enrollmentSalesService.syncOrdersForEnrollment(id);
     return { syncedQuoteIds };
   }
 

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr } from '@/lib/date';
 import type {
   AccommodationAdmin,
   EnrollmentAdmin,
@@ -178,7 +179,7 @@ export default async function AccommodationsPage() {
         </p>
 
         <div className="mt-4 space-y-2">
-          {standaloneQuotes.map((quote) => {
+                {standaloneQuotes.map((quote) => {
             const accommodation =
               quote.accommodationPricing?.accommodation ??
               quote.items?.find((item) => item.itemType === 'accommodation');
@@ -192,9 +193,9 @@ export default async function AccommodationsPage() {
                 <p className="text-xs text-slate-500">
                   Tipo: {quote.type} • Total: {Number(quote.totalAmount).toFixed(2)} {quote.currency}
                 </p>
-                <p className="text-xs text-slate-500">
-                  Status do pacote: {quote.packageStatus ?? 'draft'}
-                </p>
+                    <p className="text-xs text-slate-500">
+                      Status do pacote: {quote.packageStatus ?? 'draft'}
+                    </p>
                 {quote.nextStep ? (
                   <p className="text-xs text-slate-500">Próximo passo: {quote.nextStep}</p>
                 ) : null}
@@ -206,8 +207,7 @@ export default async function AccommodationsPage() {
                   .filter((item) => item.itemType === 'accommodation')
                   .map((item) => (
                     <p key={item.id} className="text-xs text-slate-500">
-                      Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} -{' '}
-                      {new Date(item.endDate).toLocaleDateString('pt-BR')}
+                      Período: {formatDatePtBr(item.startDate)} - {formatDatePtBr(item.endDate)}
                     </p>
                   ))}
               </div>

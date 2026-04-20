@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
+import { formatDatePtBr } from '@/lib/date';
 import type { StudentAdmin, StudentAcademicJourneyAdmin } from '@/types/catalog.types';
 import { updateStudentPreferencesAction } from '../actions';
 
@@ -25,8 +26,7 @@ const enrollmentStatusLabel = {
 } as const;
 
 function formatDate(value?: string | null) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('pt-BR');
+  return formatDatePtBr(value);
 }
 
 export default async function StudentDetailPage({

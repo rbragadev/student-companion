@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FilterBar, type FilterOption } from '@/components/filters/filter-bar';
+import { formatDatePtBr } from '@/lib/date';
 import type { Institution, Unit, AcademicPeriod, ClassGroup } from '@/types/structure.types';
 import type { SchoolAdmin, CourseAdmin } from '@/types/catalog.types';
 
@@ -19,7 +20,7 @@ interface AcademicStructureViewProps {
 }
 
 function formatDateRange(startDate: string, endDate: string) {
-  return `${new Date(startDate).toLocaleDateString('pt-BR')} - ${new Date(endDate).toLocaleDateString('pt-BR')}`;
+  return `${formatDatePtBr(startDate)} - ${formatDatePtBr(endDate)}`;
 }
 
 function buildOptions<T>(items: T[], getLabel: (item: T) => string, getValue: (item: T) => string): FilterOption[] {
