@@ -195,6 +195,42 @@ export class EnrollmentService {
     }
   }
 
+  private async cancelPendingPaymentsForEnrollment(
+    tx: TransactionClient,
+    enrollmentId: string,
+  ) {
+    const hasPaidPayment = await tx.payment.findFirst({
+      where: {
+        status: 'paid',
+        OR: [{ enrollmentId }, { enrollmentQuote: { enrollmentId } }],
+      },
+      select: { id: true },
+    });
+
+    if (hasPaidPayment) {
+      return;
+    }
+
+    await tx.payment.updateMany({
+      where: {
+        OR: [{ enrollmentId }, { enrollmentQuote: { enrollmentId } }],
+        status: { not: 'paid' },
+      },
+      data: {
+        status: 'cancelled',
+        paidAt: null,
+      },
+    });
+
+    await tx.order.updateMany({
+      where: { enrollmentId },
+      data: {
+        status: 'cancelled',
+        paymentStatus: 'cancelled',
+      },
+    });
+  }
+
   private async recalculateStudentStatus(tx: TransactionClient, studentId: string) {
     const [ongoingEnrollment, anyJourney] = await Promise.all([
       tx.enrollment.findFirst({
@@ -723,11 +759,17 @@ export class EnrollmentService {
         message: reason?.trim()
           ? `Sua proposta foi rejeitada: ${reason.trim()}`
           : 'Sua proposta foi rejeitada/cancelada pela operação.',
-          metadata: {
-            enrollmentId: id,
-            status,
-          },
-        });
+        metadata: {
+          enrollmentId: id,
+          status,
+        },
+      });
+    }
+
+    if (status === 'cancelled' || status === 'rejected') {
+      await this.prisma.$transaction(async (tx) => {
+        await this.cancelPendingPaymentsForEnrollment(tx, id);
+      });
     }
 
     return updated;
@@ -836,7 +878,19 @@ export class EnrollmentService {
       }
     }
 
+    if (requestedStatus === 'cancelled' || requestedStatus === 'rejected') {
+      await this.prisma.$transaction(async (tx) => {
+        await this.cancelPendingPaymentsForEnrollment(tx, id);
+      });
+    }
+
     return updatedEnrollment;
+  }
+
+  async syncOrder(id: string) {
+    await this.findOne(id);
+    const syncedQuoteIds = await this.enrollmentQuoteService.syncOrderForEnrollment(id);
+    return { syncedQuoteIds };
   }
 
   private async validateAccommodationForSchool(

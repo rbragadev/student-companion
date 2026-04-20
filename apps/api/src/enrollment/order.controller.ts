@@ -20,6 +20,9 @@ export class OrderController {
     @Query('enrollmentId') enrollmentId?: string,
     @Query('accommodationId') accommodationId?: string,
     @Query('courseId') courseId?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('excludeDraft') excludeDraft?: string,
   ) {
     return this.orderService.findAll({
       userId,
@@ -28,6 +31,9 @@ export class OrderController {
       enrollmentId,
       accommodationId,
       courseId,
+      fromDate,
+      toDate,
+      excludeDraft: excludeDraft === 'true',
     });
   }
 
@@ -41,4 +47,3 @@ export class OrderController {
     return this.orderService.updateStatus(id, dto);
   }
 }
-

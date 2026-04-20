@@ -17,21 +17,38 @@ function money(value?: number, currency = 'CAD') {
 
 export default async function AccommodationOperationsPage({
   searchParams,
-}: Readonly<{ searchParams?: Promise<{ error?: string }> }>) {
+}: Readonly<{
+  searchParams?: Promise<{
+    error?: string;
+    status?: string;
+    fromDate?: string;
+    toDate?: string;
+    includeDraft?: string;
+  }>;
+}>) {
   await requirePermission('users.read');
 
+  const params = (await searchParams) ?? {};
+  const selectedStatus = params.status ?? '';
+  const fromDate = params.fromDate ?? '';
+  const toDate = params.toDate ?? '';
+  const includeDraft = params.includeDraft === '1';
+
   const [orders, students, accommodations, pricingRows, enrollments] = await Promise.all([
-    apiFetch<OrderAdmin[]>('/orders').catch(() => []),
+    (async () => {
+      const qp = new URLSearchParams();
+      qp.set('type', 'accommodation');
+      if (selectedStatus) qp.set('status', selectedStatus);
+      if (fromDate) qp.set('fromDate', fromDate);
+      if (toDate) qp.set('toDate', toDate);
+      if (!includeDraft) qp.set('excludeDraft', 'true');
+      return apiFetch<OrderAdmin[]>(`/orders?${qp.toString()}`).catch(() => []);
+    })(),
     apiFetch<StudentAdmin[]>('/users/student').catch(() => []),
     apiFetch<AccommodationAdmin[]>('/accommodation').catch(() => []),
     apiFetch<AccommodationPricingAdmin[]>('/accommodation-pricing').catch(() => []),
     apiFetch<EnrollmentAdmin[]>('/enrollments').catch(() => []),
   ]);
-  const params = (await searchParams) ?? {};
-  const rows = orders.filter((order) =>
-    order.items.some((item) => item.itemType === 'accommodation'),
-  );
-
   const columns: Column<OrderAdmin>[] = [
     {
       key: 'student',
@@ -95,6 +112,51 @@ export default async function AccommodationOperationsPage({
         </div>
       ) : null}
 
+      <form method="get" className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-4">
+        <label className="space-y-1 text-sm">
+          <span className="text-slate-600">Status</span>
+          <input
+            name="status"
+            defaultValue={selectedStatus}
+            placeholder="submitted"
+            className="w-full rounded border border-slate-200 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="space-y-1 text-sm">
+          <span className="text-slate-600">De</span>
+          <input
+            name="fromDate"
+            type="date"
+            defaultValue={fromDate}
+            className="w-full rounded border border-slate-200 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="space-y-1 text-sm">
+          <span className="text-slate-600">Até</span>
+          <input
+            name="toDate"
+            type="date"
+            defaultValue={toDate}
+            className="w-full rounded border border-slate-200 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            name="includeDraft"
+            value="1"
+            defaultChecked={includeDraft}
+          />
+          <span>Incluir rascunhos</span>
+        </label>
+        <button
+          type="submit"
+          className="rounded bg-slate-900 px-4 py-2 text-sm text-white sm:col-span-4 sm:w-40"
+        >
+          Filtrar
+        </button>
+      </form>
+
       <NewAccommodationOrderForm
         students={students}
         accommodations={accommodations}
@@ -104,7 +166,7 @@ export default async function AccommodationOperationsPage({
 
       <DataTable<OrderAdmin>
         columns={columns}
-        data={rows}
+        data={orders}
         keyExtractor={(order) => order.id}
         getRowHref={(order) => `/accommodation-operations/${order.id}`}
         emptyTitle="Nenhuma operação de acomodação encontrada"

@@ -16,6 +16,8 @@ import type {
 import {
   confirmEnrollmentFakePaymentAction,
   createEnrollmentDocumentAction,
+  syncEnrollmentOrderAction,
+  createEnrollmentInvoiceAction,
   updateEnrollmentAccommodationAction,
   updateEnrollmentAccommodationWorkflowAction,
   createEnrollmentMessageAction,
@@ -96,6 +98,10 @@ function toneByStatus(status?: string | null) {
     return 'bg-rose-50 text-rose-700 border-rose-200';
   }
   return 'bg-slate-50 text-slate-700 border-slate-200';
+}
+
+function formatMoney(value: number | undefined | null, currency: string) {
+  return `${Number(value ?? 0).toFixed(2)} ${currency}`;
 }
 
 export default async function EnrollmentDetailPage({
@@ -207,6 +213,23 @@ export default async function EnrollmentDetailPage({
         Number(pricing.basePrice ?? 0) > 0);
     return hasPersistedValues ? pricing : pricingFromQuote ?? pricing;
   })();
+
+  const checkoutAmountCurrency = checkout?.financial.currency || quote?.currency || displayPricing?.currency || 'CAD';
+  const checkoutExpectedTotal = checkout?.financial.totalAmount ?? quote?.totalAmount ?? 0;
+  const checkoutDownPaymentAmount = checkout?.financial.downPaymentAmount ?? quote?.downPaymentAmount ?? 0;
+  const checkoutRemainingAmountFromCheckout = checkout?.financial.remainingAmount ?? quote?.remainingAmount ?? 0;
+
+  const paidAmount = payments
+    .filter((payment) => payment.status === 'paid')
+    .reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
+  const pendingAmount = payments
+    .filter((payment) => payment.status === 'pending')
+    .reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
+  const failedAmount = payments
+    .filter((payment) => payment.status === 'failed')
+    .reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
+  const outstandingAmount = Math.max(0, Number(checkoutExpectedTotal) - paidAmount);
+  const paymentCoveragePercent = checkoutExpectedTotal > 0 ? (paidAmount / checkoutExpectedTotal) * 100 : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -469,12 +492,25 @@ export default async function EnrollmentDetailPage({
               />
             </label>
             <div className="col-span-2 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-              <span>Matrícula: {displayPricing?.enrollmentAmount ?? displayPricing?.basePrice ?? '-'}</span>
-              <span>Acomodação: {displayPricing?.accommodationAmount ?? 0}</span>
-              <span>Total pacote: {displayPricing?.packageTotalAmount ?? displayPricing?.totalAmount ?? '-'}</span>
-              <span>Comissão matrícula: {displayPricing?.enrollmentCommissionAmount ?? '-'}</span>
-              <span>Comissão acomodação: {displayPricing?.accommodationCommissionAmount ?? '-'}</span>
-              <span>Comissão total: {displayPricing?.totalCommissionAmount ?? displayPricing?.commissionAmount ?? '-'} ({displayPricing?.commissionPercentage ?? 0}%)</span>
+              <span>
+                Item curso: {formatMoney(displayPricing?.enrollmentAmount ?? displayPricing?.basePrice, displayPricing?.currency ?? 'CAD')}
+              </span>
+              <span>
+                Item acomodação: {formatMoney(displayPricing?.accommodationAmount ?? 0, displayPricing?.currency ?? 'CAD')}
+              </span>
+              <span>
+                Pacote (vínculo): {formatMoney(displayPricing?.packageTotalAmount ?? displayPricing?.totalAmount, displayPricing?.currency ?? 'CAD')}
+              </span>
+              <span>
+                Comissão do item curso: {formatMoney(displayPricing?.enrollmentCommissionAmount, displayPricing?.currency ?? 'CAD')}
+              </span>
+              <span>
+                Comissão do item acomodação: {formatMoney(displayPricing?.accommodationCommissionAmount, displayPricing?.currency ?? 'CAD')}
+              </span>
+              <span>
+                Comissão total: {formatMoney(displayPricing?.totalCommissionAmount ?? displayPricing?.commissionAmount, displayPricing?.currency ?? 'CAD')}
+                ({displayPricing?.commissionPercentage ?? 0}%)
+              </span>
             </div>
             <div className="col-span-2">
               <Button type="submit" size="sm">Salvar Pricing</Button>
@@ -549,6 +585,61 @@ export default async function EnrollmentDetailPage({
               )}
             </div>
           )}
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Fluxo financeiro manual</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Hoje o financeiro é gerado apenas por ação da operação na matrícula.
+          </p>
+          <div className="mt-3 grid gap-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            <span>
+              Valor a gerar (total): {formatMoney(checkoutExpectedTotal, checkoutAmountCurrency)}
+            </span>
+            <span>
+              Entrada esperada: {formatMoney(checkoutDownPaymentAmount, checkoutAmountCurrency)}
+            </span>
+            <span>
+              Saldo esperado: {formatMoney(checkoutRemainingAmountFromCheckout, checkoutAmountCurrency)}
+            </span>
+            <span>
+              Já pago (somente status paid): {formatMoney(paidAmount, checkoutAmountCurrency)}
+            </span>
+            <span>
+              Pendente (status pending): {formatMoney(pendingAmount, checkoutAmountCurrency)}
+            </span>
+            {failedAmount > 0 ? (
+              <span>
+                Falhas: {formatMoney(failedAmount, checkoutAmountCurrency)}
+              </span>
+            ) : null}
+            <span>
+              Falta receber: {formatMoney(outstandingAmount, checkoutAmountCurrency)} ({paymentCoveragePercent.toFixed(2)}%)
+            </span>
+            <span>
+              Checkout: {checkout?.state ?? 'indisponível'} •
+              orderStatus: {checkout?.state === 'paid' ? 'pago' : 'não pago'}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <form action={syncEnrollmentOrderAction}>
+              <input type="hidden" name="enrollmentId" value={enrollment.id} />
+              <Button type="submit" size="sm" variant="outline" disabled={!quote}>
+                Gerar/Atualizar order da matrícula
+              </Button>
+            </form>
+            <form action={createEnrollmentInvoiceAction}>
+              <input type="hidden" name="enrollmentId" value={enrollment.id} />
+              <Button type="submit" size="sm" variant="outline" disabled={!quote}>
+                Gerar invoice
+              </Button>
+            </form>
+          </div>
+          {!quote ? (
+            <p className="mt-2 text-xs text-amber-700">
+              Gere ou ajuste o pacote primeiro para habilitar a geração financeira.
+            </p>
+          ) : null}
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">

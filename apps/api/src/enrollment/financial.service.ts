@@ -118,6 +118,12 @@ export class FinancialService {
             remainingAmount: true,
           },
         },
+        orders: {
+          where: { type: 'package' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { id: true },
+        },
         payments: {
           orderBy: { createdAt: 'desc' },
           select: {
@@ -163,6 +169,7 @@ export class FinancialService {
         accommodation: item.accommodation,
         commercialStatus: item.status,
         financialStatus: latestInvoice?.status ?? 'not_invoiced',
+        packageOrderId: item.orders[0]?.id ?? null,
         totalAmount: total,
         downPaymentAmount: this.toNumber(latestQuote?.downPaymentAmount),
         remainingAmount:
@@ -174,6 +181,8 @@ export class FinancialService {
           item.pricing?.totalCommissionAmount ?? item.pricing?.commissionAmount,
         ),
         commissionPercentage: this.toNumber(item.pricing?.commissionPercentage),
+        courseAmount: this.toNumber(item.pricing?.enrollmentAmount),
+        accommodationAmount: this.toNumber(item.pricing?.accommodationAmount),
         currency: item.pricing?.currency ?? 'CAD',
       };
     });

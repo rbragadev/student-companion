@@ -44,7 +44,7 @@ export default async function NewEnrollmentPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Nova Matrícula"
-        description="Fluxo comercial igual ao app: curso, datas, acomodação opcional e geração de pacote."
+        description="Curso, datas e itens de venda independentes, com opção de gerar pacote quando curso + acomodação estiverem vinculados."
         actions={(
           <Link href="/enrollments">
             <Button size="sm" variant="outline"><ArrowLeft size={14} />Voltar</Button>
@@ -67,4 +67,3 @@ export default async function NewEnrollmentPage({
     </div>
   );
 }
-

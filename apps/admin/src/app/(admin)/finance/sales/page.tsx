@@ -75,6 +75,8 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
       render: (row) => (
         <div>
           <p className="text-sm text-slate-700">Total: {money(row.totalAmount, row.currency)}</p>
+          <p className="text-xs text-slate-500">Item curso: {money(row.courseAmount ?? 0, row.currency)}</p>
+          <p className="text-xs text-slate-500">Item acomodação: {money(row.accommodationAmount ?? 0, row.currency)}</p>
           <p className="text-xs text-slate-500">Entrada: {money(row.downPaymentAmount, row.currency)}</p>
           <p className="text-xs text-slate-500">Saldo: {money(row.remainingAmount, row.currency)}</p>
         </div>
@@ -159,7 +161,7 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
         columns={columns}
         data={sales}
         keyExtractor={(row) => row.id}
-        getRowHref={(row) => `/enrollments/${row.id}`}
+        getRowHref={(row) => (row.packageOrderId ? `/orders/${row.packageOrderId}` : `/enrollments/${row.id}`)}
         emptyTitle="Nenhuma venda encontrada"
         emptyDescription="Ajuste os filtros ou avance no fluxo de matrícula para gerar pacotes."
       />

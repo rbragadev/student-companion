@@ -141,13 +141,40 @@ export class OrderService {
     enrollmentId?: string;
     accommodationId?: string;
     courseId?: string;
+    fromDate?: string;
+    toDate?: string;
+    excludeDraft?: boolean;
   }) {
+    const createdAtFilter: { gte?: Date; lte?: Date } = {};
+
+    if (filters?.fromDate) {
+      const fromDate = new Date(filters.fromDate);
+      if (Number.isNaN(fromDate.getTime())) {
+        throw new BadRequestException('fromDate inválida');
+      }
+      createdAtFilter.gte = fromDate;
+    }
+
+    if (filters?.toDate) {
+      const toDate = new Date(filters.toDate);
+      if (Number.isNaN(toDate.getTime())) {
+        throw new BadRequestException('toDate inválida');
+      }
+      toDate.setHours(23, 59, 59, 999);
+      createdAtFilter.lte = toDate;
+    }
+
+    const statusFilter = filters?.excludeDraft
+      ? (filters.status ? { equals: filters.status } : { not: 'draft' })
+      : filters?.status;
+
     const rows = await this.prisma.order.findMany({
       where: {
         userId: filters?.userId,
         type: filters?.type,
-        status: filters?.status,
+        status: statusFilter as any,
         enrollmentId: filters?.enrollmentId,
+        createdAt: Object.keys(createdAtFilter).length ? createdAtFilter : undefined,
         OR:
           filters?.accommodationId || filters?.courseId
             ? [

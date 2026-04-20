@@ -524,6 +524,9 @@ export interface SalesRowAdmin {
   school: EnrollmentAdmin['school'];
   course: EnrollmentAdmin['course'];
   accommodation: EnrollmentAdmin['accommodation'];
+  packageOrderId?: string | null;
+  courseAmount?: number;
+  accommodationAmount?: number;
   commercialStatus: string;
   financialStatus: string;
   totalAmount: number;

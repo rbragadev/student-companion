@@ -28,6 +28,13 @@ function getOptionalText(formData: FormData, key: string): string | undefined {
   return trimmed.length ? trimmed : undefined;
 }
 
+function getOptionalBoolean(formData: FormData, key: string): boolean {
+  const value = formData.get(key);
+  if (typeof value !== 'string') return false;
+  const normalized = value.toLowerCase().trim();
+  return normalized === 'on' || normalized === 'true' || normalized === '1';
+}
+
 function toDateOnlyIso(value: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new Error(`Data inválida: ${value}`);
@@ -48,7 +55,15 @@ export async function createEnrollmentFromAdminAction(formData: FormData) {
   const accommodationId = getOptionalText(formData, 'accommodationId');
   const accommodationStartDate = getOptionalText(formData, 'accommodationStartDate');
   const accommodationEndDate = getOptionalText(formData, 'accommodationEndDate');
+  const isPackage = getOptionalBoolean(formData, 'isPackage');
   const submitMode = getOptionalText(formData, 'submitMode') ?? 'draft';
+
+  const isNextRedirectError = (error: unknown): boolean =>
+    typeof error === 'object' &&
+    error !== null &&
+    'digest' in error &&
+    typeof (error as { digest?: unknown }).digest === 'string' &&
+    String((error as { digest?: unknown }).digest).startsWith('NEXT_REDIRECT');
 
   try {
     const enrollment = await apiFetch<{ id: string }>(`/enrollments/start`, {
@@ -58,7 +73,7 @@ export async function createEnrollmentFromAdminAction(formData: FormData) {
         courseId,
         classGroupId,
         academicPeriodId,
-        accommodationId,
+        ...(isPackage && accommodationId ? { accommodationId } : {}),
       }),
     });
 
@@ -83,34 +98,58 @@ export async function createEnrollmentFromAdminAction(formData: FormData) {
       );
     }
 
+    const commonCourseItem = {
+      itemType: 'course' as const,
+      referenceId: coursePricing.id,
+      coursePricingId: coursePricing.id,
+      startDate: courseStartDate,
+      endDate: courseEndDate,
+    };
+
+    const quoteItems = [
+      commonCourseItem,
+      ...(isPackage && accommodationPricing && accommodationStartDate && accommodationEndDate
+        ? [
+            {
+              itemType: 'accommodation' as const,
+              referenceId: accommodationPricing.id,
+              accommodationPricingId: accommodationPricing.id,
+              startDate: toDateOnlyIso(accommodationStartDate),
+              endDate: toDateOnlyIso(accommodationEndDate),
+            },
+          ]
+        : []),
+    ];
+
     await apiFetch(`/quotes`, {
       method: 'POST',
       body: JSON.stringify({
         userId: studentId,
         enrollmentId: enrollment.id,
         downPaymentPercentage: 30,
-        items: [
-          {
-            itemType: 'course',
-            referenceId: coursePricing.id,
-            coursePricingId: coursePricing.id,
-            startDate: courseStartDate,
-            endDate: courseEndDate,
-          },
-          ...(accommodationPricing && accommodationStartDate && accommodationEndDate
-            ? [
-                {
-                  itemType: 'accommodation',
-                  referenceId: accommodationPricing.id,
-                  accommodationPricingId: accommodationPricing.id,
-                  startDate: toDateOnlyIso(accommodationStartDate),
-                  endDate: toDateOnlyIso(accommodationEndDate),
-                },
-              ]
-            : []),
-        ],
+        items: quoteItems,
       }),
     });
+
+    if (!isPackage && accommodationPricing && accommodationStartDate && accommodationEndDate) {
+      await apiFetch(`/quotes`, {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: studentId,
+          enrollmentId: enrollment.id,
+          downPaymentPercentage: 30,
+          items: [
+            {
+              itemType: 'accommodation',
+              referenceId: accommodationPricing.id,
+              accommodationPricingId: accommodationPricing.id,
+              startDate: toDateOnlyIso(accommodationStartDate),
+              endDate: toDateOnlyIso(accommodationEndDate),
+            },
+          ],
+        }),
+      });
+    }
 
     if (submitMode === 'send') {
       const course = await apiFetch<{ autoApproveIntent?: boolean; auto_approve_intent?: boolean }>(
@@ -129,6 +168,10 @@ export async function createEnrollmentFromAdminAction(formData: FormData) {
 
     redirect(`/enrollments/${enrollment.id}`);
   } catch (error) {
+    if (isNextRedirectError(error)) {
+      throw error;
+    }
+
     const message = error instanceof Error ? error.message : 'Falha ao criar matrícula';
     redirect(`/enrollments/new?error=${encodeURIComponent(message)}`);
   }
@@ -144,6 +187,32 @@ export async function updateEnrollmentWorkflowAction(formData: FormData) {
   await apiFetch(`/enrollments/${enrollmentId}`, {
     method: 'PATCH',
     body: JSON.stringify({ status, reason: reason || undefined }),
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}
+
+export async function syncEnrollmentOrderAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const enrollmentId = getText(formData, 'enrollmentId');
+
+  await apiFetch(`/enrollments/${enrollmentId}/sync-order`, {
+    method: 'POST',
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}
+
+export async function createEnrollmentInvoiceAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const enrollmentId = getText(formData, 'enrollmentId');
+
+  await apiFetch('/invoices', {
+    method: 'POST',
+    body: JSON.stringify({
+      enrollmentId,
+      status: 'pending',
+    }),
   });
 
   redirect(`/enrollments/${enrollmentId}`);

@@ -87,6 +87,11 @@ export class EnrollmentController {
     return this.enrollmentService.updateStatus(id, dto.status, dto.reason, dto.changedById);
   }
 
+  @Post(':id/sync-order')
+  syncOrder(@Param('id') id: string) {
+    return this.enrollmentService.syncOrder(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.enrollmentService.findOne(id);

@@ -133,7 +133,7 @@ export class EnrollmentQuoteService {
     const quote = await this.prisma.enrollmentQuote.findUnique({
       where: { id: quoteId },
       include: {
-        enrollment: { select: { id: true, studentId: true } },
+        enrollment: { select: { id: true, studentId: true, status: true } },
         items: {
           include: {
             coursePricing: { select: { id: true, courseId: true } },
@@ -146,6 +146,10 @@ export class EnrollmentQuoteService {
       },
     });
     if (!quote) return;
+
+    if (quote.enrollment?.status && ['draft', 'started'].includes(quote.enrollment.status)) {
+      return;
+    }
 
     const userId = quote.enrollment?.studentId;
     if (!userId) {
@@ -233,6 +237,22 @@ export class EnrollmentQuoteService {
         },
       });
     }
+  }
+
+  async syncOrderForEnrollment(enrollmentId: string) {
+    const quotes = await this.prisma.enrollmentQuote.findMany({
+      where: { enrollmentId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (!quotes.length) return [];
+
+    for (const quote of quotes) {
+      await this.syncOrderFromQuote(quote.id);
+    }
+
+    return quotes.map((quote) => quote.id);
   }
 
   private resolvePackageStatusContext(input: {

@@ -21,6 +21,7 @@ interface PricingPreview {
   id: string;
   amount: number;
   currency: string;
+  itemType?: 'course' | 'accommodation';
 }
 
 interface Props {
@@ -46,6 +47,7 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id ?? '');
   const [selectedOfferId, setSelectedOfferId] = useState<string>('');
   const [selectedAccommodationId, setSelectedAccommodationId] = useState<string>('');
+  const [createPackage, setCreatePackage] = useState<boolean>(true);
   const [courseStartDate, setCourseStartDate] = useState<string>('');
   const [courseEndDate, setCourseEndDate] = useState<string>('');
   const [accommodationStartDate, setAccommodationStartDate] = useState<string>('');
@@ -77,6 +79,12 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
     setAccommodationStartDate(toDateOnly(nextOffer.startDate));
     setAccommodationEndDate(toDateOnly(nextOffer.endDate));
   }, [selectedCourseId, selectedOffer?.id, offers]);
+
+  useEffect(() => {
+    if (!selectedAccommodationId) {
+      setCreatePackage(true);
+    }
+  }, [selectedAccommodationId]);
 
   useEffect(() => {
     if (!selectedCourseId || !selectedOffer?.academicPeriodId || !courseStartDate || !courseEndDate) {
@@ -318,6 +326,19 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
           </select>
         </label>
 
+        <label className="text-sm font-medium text-slate-700 md:col-span-3">
+          <input
+            type="checkbox"
+            name="isPackage"
+            checked={createPackage}
+            onChange={(event) => setCreatePackage(event.target.checked)}
+            disabled={!selectedAccommodationId}
+            className="mr-2"
+            value="on"
+          />
+          Tratar curso + acomodação como pacote único
+        </label>
+
         <label className="text-sm font-medium text-slate-700">
           Data início (acomodação)
           <input
@@ -341,21 +362,41 @@ export function NewEnrollmentForm({ students, courses, accommodations, offersByC
           />
         </label>
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-          Acomodação usa janela própria. Se preencher, será incluída no pacote da matrícula.
+          {selectedAccommodationId && createPackage
+            ? 'Acomodação usa janela própria e será incluída no pacote da matrícula.'
+            : 'Acomodação é item comercial separado da matrícula. Sem vínculo de pacote, cada item gera sua ordem independente.'}
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-        <p className="font-semibold text-slate-800">Prévia financeira da matrícula</p>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <p className="font-semibold text-slate-800">
+          Itens de venda
+          {selectedAccommodationId
+            ? createPackage
+              ? ' (pacote)'
+              : ' (curso e acomodação separados)'
+            : ''}
+        </p>
         {pricingLoading ? (
           <p className="mt-2 text-slate-600">Calculando valores...</p>
         ) : pricingError ? (
           <p className="mt-2 text-rose-600">{pricingError}</p>
         ) : (
           <div className="mt-2 grid gap-1">
-            <p>Curso: {formatMoney(courseAmount, previewCurrency)}</p>
-            <p>Acomodação: {formatMoney(accommodationAmount, previewCurrency)}</p>
-            <p className="font-medium">Total: {formatMoney(totalAmount, previewCurrency)}</p>
+            <p className="font-medium">Pacote (vínculo): {formatMoney(totalAmount, previewCurrency)}</p>
+            <p className="font-semibold">Item curso: {formatMoney(courseAmount, previewCurrency)}</p>
+            <p className={accommodationAmount > 0 ? 'font-semibold' : 'text-slate-500'}>
+              Item acomodação: {formatMoney(accommodationAmount, previewCurrency)}
+            </p>
+            <p className="text-xs text-slate-500">
+              {coursePreview && accommodationPreview
+                ? 'Curso e acomodação estão como itens separados na mesma cotação.'
+                : coursePreview
+                  ? 'Somente item curso incluído.'
+                  : accommodationPreview
+                    ? 'Somente item acomodação incluído.'
+                  : 'Nenhum item selecionado.'}
+            </p>
             <p>Entrada (30%): {formatMoney(downPayment, previewCurrency)}</p>
             <p>Saldo: {formatMoney(remaining, previewCurrency)}</p>
           </div>
