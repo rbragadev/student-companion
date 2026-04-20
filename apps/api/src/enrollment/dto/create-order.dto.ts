@@ -29,6 +29,11 @@ export class CreateOrderItemDto {
   amount: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commissionAmount?: number;
+
+  @IsOptional()
   @IsUUID()
   courseId?: string;
 
@@ -61,6 +66,61 @@ export class CreateOrderDto {
   totalAmount: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  courseAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  accommodationAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fees?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  discounts?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  downPaymentPercentage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  downPaymentAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  remainingAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commissionPercentage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commissionAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commissionCourseAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commissionAccommodationAmount?: number;
+
+  @IsOptional()
   @IsString()
   currency?: string;
 
@@ -73,4 +133,3 @@ export class CreateOrderDto {
   @Type(() => CreateOrderItemDto)
   items: CreateOrderItemDto[];
 }
-

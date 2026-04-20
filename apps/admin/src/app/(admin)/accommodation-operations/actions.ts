@@ -13,6 +13,82 @@ function getText(formData: FormData, key: string): string {
   return value.trim();
 }
 
+function getOptionalText(formData: FormData, key: string): string | undefined {
+  const value = formData.get(key);
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+}
+
+function toDateOnlyIso(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error(`Data inválida: ${value}`);
+  }
+  return value;
+}
+
+function toIsoDate(value: string): string {
+  return new Date(`${value}T00:00:00.000Z`).toISOString();
+}
+
+export async function createStandaloneAccommodationOrderAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const userId = getText(formData, 'userId');
+  const accommodationId = getText(formData, 'accommodationId');
+  const periodOption = getText(formData, 'periodOption');
+  const startDate = toDateOnlyIso(getText(formData, 'startDate'));
+  const endDate = toDateOnlyIso(getText(formData, 'endDate'));
+  const enrollmentId = getOptionalText(formData, 'enrollmentId');
+
+  let createdOrderId: string | null = null;
+  try {
+    const pricing = await apiFetch<{ id: string; finalPrice?: number; basePrice?: number; currency?: string }>(
+      `/accommodation-pricing/resolve?${new URLSearchParams({
+        accommodationId,
+        periodOption,
+        startDate: toIsoDate(startDate),
+        endDate: toIsoDate(endDate),
+      }).toString()}`,
+    );
+
+    const amount = Number(pricing.finalPrice ?? pricing.basePrice ?? 0);
+    const currency = pricing.currency ?? 'CAD';
+
+    const created = await apiFetch<{ id: string }>(`/orders`, {
+      method: 'POST',
+      body: JSON.stringify({
+        userId,
+        type: 'accommodation',
+        status: 'draft',
+        paymentStatus: 'pending',
+        currency,
+        totalAmount: amount,
+        accommodationAmount: amount,
+        courseAmount: 0,
+        downPaymentPercentage: 30,
+        enrollmentId: enrollmentId ?? undefined,
+        items: [
+          {
+            itemType: 'accommodation',
+            referenceId: pricing.id,
+            accommodationId,
+            startDate: toIsoDate(startDate),
+            endDate: toIsoDate(endDate),
+            amount,
+            commissionAmount: 0,
+          },
+        ],
+      }),
+    });
+    createdOrderId = created.id;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Falha ao criar reserva de acomodação';
+    redirect(`/accommodation-operations?error=${encodeURIComponent(message)}`);
+  }
+
+  redirect(`/accommodation-operations/${createdOrderId}`);
+}
+
 export async function updateAccommodationOrderWorkflowAction(formData: FormData) {
   await assertActionPermission('users.write');
   const session = await requireSession();
@@ -70,4 +146,3 @@ export async function updateStandaloneAccommodationOrderStatusAction(formData: F
 
   redirect(`/accommodation-operations/${orderId}`);
 }
-

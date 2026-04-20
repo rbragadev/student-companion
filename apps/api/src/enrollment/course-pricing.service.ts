@@ -9,13 +9,23 @@ export class CoursePricingService {
 
   private parseIsoDate(value?: string): Date | null {
     if (!value) return null;
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
-      ? new Date(`${value}T00:00:00.000Z`)
-      : new Date(value);
+    const date =
+      /^\d{4}-\d{2}-\d{2}$/.test(value) && !value.includes('T')
+        ? this.parseIsoDateOnly(value)
+        : new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
+  private parseIsoDateOnly(value: string): Date {
+    const [year, month, day] = value.split('-').map((part) => Number(part));
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+
   private formatDateIso(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
+
+  private toDateOnly(date: Date): string {
     return date.toISOString().slice(0, 10);
   }
 
@@ -247,7 +257,12 @@ export class CoursePricingService {
       pricingLabel = 'per week';
     } else {
       if (startDate && endDate) {
-        if (startDate < pricing.academicPeriod.startDate || endDate > pricing.academicPeriod.endDate) {
+        const startDateOnly = this.toDateOnly(startDate);
+        const endDateOnly = this.toDateOnly(endDate);
+        const periodStartDateOnly = this.toDateOnly(pricing.academicPeriod.startDate);
+        const periodEndDateOnly = this.toDateOnly(pricing.academicPeriod.endDate);
+
+        if (startDateOnly < periodStartDateOnly || endDateOnly > periodEndDateOnly) {
           throw new BadRequestException(
             'Período fixo inválido: datas fora da janela do período acadêmico',
           );

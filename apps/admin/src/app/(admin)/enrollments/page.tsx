@@ -4,6 +4,8 @@ import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import type { AccommodationAdmin, CourseAdmin, EnrollmentAdmin, SchoolAdmin } from '@/types/catalog.types';
 import type { Institution } from '@/types/structure.types';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default async function EnrollmentsPage() {
   await requirePermission('users.read');
@@ -21,6 +23,11 @@ export default async function EnrollmentsPage() {
       <PageHeader
         title="Matrículas"
         description="Matrículas confirmadas com vínculo acadêmico completo."
+        actions={(
+          <Link href="/enrollments/new">
+            <Button size="sm">Nova matrícula</Button>
+          </Link>
+        )}
       />
       <EnrollmentView
         enrollments={enrollments}

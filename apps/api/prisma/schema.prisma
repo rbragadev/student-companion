@@ -577,7 +577,18 @@ model Order {
   enrollmentQuoteId String?         @unique @map("enrollment_quote_id") @db.Uuid
   type              String          @db.VarChar(30)
   status            String          @default("draft") @db.VarChar(30)
+  courseAmount      Decimal         @default(0) @map("course_amount") @db.Decimal(12, 2)
+  accommodationAmount Decimal       @default(0) @map("accommodation_amount") @db.Decimal(12, 2)
+  fees              Decimal         @default(0) @db.Decimal(12, 2)
+  discounts         Decimal         @default(0) @db.Decimal(12, 2)
   totalAmount       Decimal         @map("total_amount") @db.Decimal(12, 2)
+  downPaymentPercentage Decimal     @default(30) @map("down_payment_percentage") @db.Decimal(5, 2)
+  downPaymentAmount Decimal         @default(0) @map("down_payment_amount") @db.Decimal(12, 2)
+  remainingAmount   Decimal         @default(0) @map("remaining_amount") @db.Decimal(12, 2)
+  commissionPercentage Decimal      @default(0) @map("commission_percentage") @db.Decimal(7, 4)
+  commissionAmount  Decimal         @default(0) @map("commission_amount") @db.Decimal(12, 2)
+  commissionCourseAmount Decimal    @default(0) @map("commission_course_amount") @db.Decimal(12, 2)
+  commissionAccommodationAmount Decimal @default(0) @map("commission_accommodation_amount") @db.Decimal(12, 2)
   currency          String          @default("CAD") @db.VarChar(10)
   paymentStatus     String          @default("pending") @map("payment_status") @db.VarChar(20)
   createdAt         DateTime        @default(now()) @map("created_at")
@@ -603,6 +614,7 @@ model OrderItem {
   startDate       DateTime     @map("start_date")
   endDate         DateTime     @map("end_date")
   amount          Decimal      @db.Decimal(12, 2)
+  commissionAmount Decimal     @default(0) @map("commission_amount") @db.Decimal(12, 2)
   createdAt       DateTime     @default(now()) @map("created_at")
   courseId        String?      @map("course_id") @db.Uuid
   accommodationId String?      @map("accommodation_id") @db.Uuid

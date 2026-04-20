@@ -122,6 +122,14 @@ export class PaymentService {
       throw new NotFoundException(`Matrícula ${enrollmentId} não encontrada`);
     }
 
+    const order = await this.prisma.order.findFirst({
+      where: { enrollmentId },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        items: true,
+      },
+    });
+
     const quote =
       (await this.enrollmentQuoteService.findByEnrollment(enrollment.id).catch(() => null)) ?? null;
     const payments = await this.prisma.payment.findMany({
@@ -142,9 +150,9 @@ export class PaymentService {
     } else if (this.isRejectedStatus(enrollment.status)) {
       state = 'blocked_rejected';
       reason = 'A proposta foi rejeitada/cancelada e o checkout está bloqueado.';
-    } else if (!quote) {
+    } else if (!order) {
       state = 'blocked_missing_quote';
-      reason = 'Ainda não há quote válida vinculada a esta matrícula.';
+      reason = 'Ainda não há order comercial válida vinculada a esta matrícula.';
     } else if (
       !enrollment.course.auto_approve_intent &&
       !this.isApprovalReadyStatus(enrollment.status)
@@ -153,19 +161,26 @@ export class PaymentService {
       reason = 'Aguardando aprovação operacional para liberar checkout.';
     }
 
-    const currency = quote?.currency ?? enrollment.pricing?.currency ?? 'CAD';
-    const totalAmount = quote
-      ? this.toNumber(quote.totalAmount)
-      : this.toNumber(enrollment.pricing?.packageTotalAmount ?? enrollment.pricing?.totalAmount);
-    const downPaymentAmount = quote
-      ? this.toNumber(quote.downPaymentAmount)
-      : Number((totalAmount * 0.3).toFixed(2));
-    const remainingAmount = quote
-      ? this.toNumber(quote.remainingAmount)
-      : Number((totalAmount - downPaymentAmount).toFixed(2));
+    const currency = order?.currency ?? quote?.currency ?? enrollment.pricing?.currency ?? 'CAD';
+    const totalAmount = order
+      ? this.toNumber((order as any).totalAmount)
+      : quote
+        ? this.toNumber(quote.totalAmount)
+        : this.toNumber(enrollment.pricing?.packageTotalAmount ?? enrollment.pricing?.totalAmount);
+    const downPaymentAmount = order
+      ? this.toNumber((order as any).downPaymentAmount)
+      : quote
+        ? this.toNumber(quote.downPaymentAmount)
+        : Number((totalAmount * 0.3).toFixed(2));
+    const remainingAmount = order
+      ? this.toNumber((order as any).remainingAmount)
+      : quote
+        ? this.toNumber(quote.remainingAmount)
+        : Number((totalAmount - downPaymentAmount).toFixed(2));
 
     return {
       enrollment,
+      order,
       quote,
       payments,
       paidDownPayment,
@@ -196,6 +211,28 @@ export class PaymentService {
       academicPeriod: context.enrollment.academicPeriod,
       accommodation: context.enrollment.accommodation,
       enrollmentStatus: context.enrollment.status,
+      order: context.order
+        ? {
+            id: context.order.id,
+            type: context.order.type,
+            status: context.order.status,
+            paymentStatus: context.order.paymentStatus,
+            courseAmount: this.toNumber((context.order as any).courseAmount),
+            accommodationAmount: this.toNumber((context.order as any).accommodationAmount),
+            fees: this.toNumber((context.order as any).fees),
+            discounts: this.toNumber((context.order as any).discounts),
+            totalAmount: this.toNumber((context.order as any).totalAmount),
+            downPaymentPercentage: this.toNumber((context.order as any).downPaymentPercentage),
+            downPaymentAmount: this.toNumber((context.order as any).downPaymentAmount),
+            remainingAmount: this.toNumber((context.order as any).remainingAmount),
+            commissionPercentage: this.toNumber((context.order as any).commissionPercentage),
+            commissionAmount: this.toNumber((context.order as any).commissionAmount),
+            commissionCourseAmount: this.toNumber((context.order as any).commissionCourseAmount),
+            commissionAccommodationAmount: this.toNumber(
+              (context.order as any).commissionAccommodationAmount,
+            ),
+          }
+        : null,
       quote: context.quote,
       packageStatus:
         context.state === 'paid'
@@ -261,8 +298,8 @@ export class PaymentService {
             ? (await tx.order.findUnique({
                 where: { enrollmentQuoteId: context.quote.id },
                 select: { id: true },
-              }))?.id ?? null
-            : null,
+              }))?.id ?? context.order?.id ?? null
+            : context.order?.id ?? null,
           type: 'down_payment',
           amount,
           currency: context.financial.currency,

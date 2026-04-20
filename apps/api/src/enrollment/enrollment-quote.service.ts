@@ -64,6 +64,10 @@ export class EnrollmentQuoteService {
     return diffDays / 7;
   }
 
+  private toDateOnly(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
+
   private async syncEnrollmentPricingFromQuote(
     enrollmentId: string,
     quote: Pick<
@@ -162,7 +166,18 @@ export class EnrollmentQuoteService {
         enrollmentQuoteId: quote.id,
         type: this.mapQuoteTypeToOrderType(quote.type),
         status: quote.enrollmentId ? 'submitted' : 'draft',
+        courseAmount: this.toNumber(quote.courseAmount),
+        accommodationAmount: this.toNumber(quote.accommodationAmount),
+        fees: this.toNumber(quote.fees),
+        discounts: this.toNumber(quote.discounts),
         totalAmount: this.toNumber(quote.totalAmount),
+        downPaymentPercentage: this.toNumber(quote.downPaymentPercentage),
+        downPaymentAmount: this.toNumber(quote.downPaymentAmount),
+        remainingAmount: this.toNumber(quote.remainingAmount),
+        commissionPercentage: this.toNumber(quote.commissionPercentage),
+        commissionAmount: this.toNumber(quote.commissionAmount),
+        commissionCourseAmount: this.toNumber(quote.commissionCourseAmount),
+        commissionAccommodationAmount: this.toNumber(quote.commissionAccommodationAmount),
         currency: quote.currency,
         paymentStatus,
       },
@@ -171,7 +186,18 @@ export class EnrollmentQuoteService {
         enrollmentId: quote.enrollmentId ?? null,
         type: this.mapQuoteTypeToOrderType(quote.type),
         status: quote.enrollmentId ? 'submitted' : 'draft',
+        courseAmount: this.toNumber(quote.courseAmount),
+        accommodationAmount: this.toNumber(quote.accommodationAmount),
+        fees: this.toNumber(quote.fees),
+        discounts: this.toNumber(quote.discounts),
         totalAmount: this.toNumber(quote.totalAmount),
+        downPaymentPercentage: this.toNumber(quote.downPaymentPercentage),
+        downPaymentAmount: this.toNumber(quote.downPaymentAmount),
+        remainingAmount: this.toNumber(quote.remainingAmount),
+        commissionPercentage: this.toNumber(quote.commissionPercentage),
+        commissionAmount: this.toNumber(quote.commissionAmount),
+        commissionCourseAmount: this.toNumber(quote.commissionCourseAmount),
+        commissionAccommodationAmount: this.toNumber(quote.commissionAccommodationAmount),
         currency: quote.currency,
         paymentStatus,
       },
@@ -188,6 +214,7 @@ export class EnrollmentQuoteService {
           startDate: item.startDate,
           endDate: item.endDate,
           amount: item.amount,
+          commissionAmount: item.commissionAmount,
           courseId: item.coursePricing?.courseId ?? null,
           accommodationId: item.accommodationPricing?.accommodationId ?? null,
         })),
@@ -545,10 +572,12 @@ export class EnrollmentQuoteService {
         if (resolvedCoursePricing.course.period_type === 'weekly') {
           this.validateWeeklyRange(startDate, endDate, itemLabel);
         } else {
-          if (
-            startDate < resolvedCoursePricing.academicPeriod.startDate ||
-            endDate > resolvedCoursePricing.academicPeriod.endDate
-          ) {
+          const startDateOnly = this.toDateOnly(startDate);
+          const endDateOnly = this.toDateOnly(endDate);
+          const periodStartDateOnly = this.toDateOnly(resolvedCoursePricing.academicPeriod.startDate);
+          const periodEndDateOnly = this.toDateOnly(resolvedCoursePricing.academicPeriod.endDate);
+
+          if (startDateOnly < periodStartDateOnly || endDateOnly > periodEndDateOnly) {
             throw new BadRequestException(
               `Período fixo inválido para item ${itemLabel}: datas fora da janela do período acadêmico`,
             );

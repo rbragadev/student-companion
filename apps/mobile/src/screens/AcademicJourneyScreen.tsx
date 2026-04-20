@@ -72,7 +72,9 @@ export default function AcademicJourneyScreen() {
   );
 
   const activeEnrollment = data?.activeEnrollment ?? null;
-  const enrollmentHistory = data?.enrollmentHistory ?? [];
+  const enrollmentHistory = (data?.enrollmentHistory ?? []).filter(
+    (enrollment) => enrollment.id !== activeEnrollment?.id,
+  );
 
   return (
     <Screen safeArea={true} scrollable={true}>
@@ -105,12 +107,14 @@ export default function AcademicJourneyScreen() {
         {!isLoading && !isError && (
           <>
             <Card>
-              <Text variant="h3" className="font-semibold">Em andamento</Text>
+              <Text variant="h3" className="font-semibold">Matrícula em aberto</Text>
               {activeEnrollment ? (
                 <View className="mt-3 gap-1">
                   <Text variant="body" className="font-medium">{activeEnrollment.course.program_name}</Text>
+                  <Text variant="caption">
+                    {activeEnrollment.institution.name} {'>'} {activeEnrollment.school.name} {'>'} {activeEnrollment.unit.name}
+                  </Text>
                   <Text variant="caption">Turma: {activeEnrollment.classGroup.name} ({activeEnrollment.classGroup.code})</Text>
-                  <Text variant="caption">Período: {activeEnrollment.academicPeriod.name}</Text>
                   <Text variant="caption">
                     Acomodação: {activeEnrollment.accommodation ? activeEnrollment.accommodation.title : 'Sem acomodação'}
                   </Text>
@@ -121,34 +125,11 @@ export default function AcademicJourneyScreen() {
                     className="mt-3"
                     onPress={() => navigation.navigate(StackRoutes.ENROLLMENT_DETAIL, { enrollmentId: activeEnrollment.id })}
                   >
-                    Abrir matrícula em andamento
-                  </Button>
-                </View>
-              ) : (
-                <Text variant="caption" className="mt-2">Nenhuma matrícula em andamento.</Text>
-              )}
-            </Card>
-
-            <Card>
-              <Text variant="h3" className="font-semibold">Matrícula atual</Text>
-              {activeEnrollment ? (
-                <View className="mt-3 gap-2">
-                  <Text variant="body" className="font-medium">{activeEnrollment.course.program_name}</Text>
-                  <Text variant="caption">{activeEnrollment.institution.name} {'>'} {activeEnrollment.school.name} {'>'} {activeEnrollment.unit.name}</Text>
-                  <Text variant="caption">
-                    Acomodação: {activeEnrollment.accommodation ? activeEnrollment.accommodation.title : 'Sem acomodação'}
-                  </Text>
-                  <Text variant="caption">Status: {enrollmentStatusLabel[activeEnrollment.status]}</Text>
-                  <Text variant="caption">Próximo passo: {enrollmentNextStepLabel[activeEnrollment.status]}</Text>
-                  <Button
-                    className="mt-2"
-                    onPress={() => navigation.navigate(StackRoutes.ENROLLMENT_DETAIL, { enrollmentId: activeEnrollment.id })}
-                  >
                     Abrir matrícula
                   </Button>
                 </View>
               ) : (
-                <Text variant="caption" className="mt-2">Você não possui matrícula ativa no momento.</Text>
+                <Text variant="caption" className="mt-2">Nenhuma matrícula em aberto no momento.</Text>
               )}
             </Card>
 

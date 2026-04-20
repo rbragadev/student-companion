@@ -59,6 +59,20 @@ export default async function OrderDetailPage({
           <p className="text-xs text-slate-500">Status: {order.status}</p>
           <p className="text-xs text-slate-500">Pagamento: {order.paymentStatus}</p>
           <p className="text-xs text-slate-500">Total: {money(order.totalAmount, order.currency)}</p>
+          <p className="text-xs text-slate-500">
+            Curso: {money(order.courseAmount ?? 0, order.currency)} • Acomodação:{' '}
+            {money(order.accommodationAmount ?? 0, order.currency)}
+          </p>
+          <p className="text-xs text-slate-500">
+            Entrada ({Number(order.downPaymentPercentage ?? 30).toFixed(2)}%):{' '}
+            {money(order.downPaymentAmount ?? 0, order.currency)}
+          </p>
+          <p className="text-xs text-slate-500">
+            Saldo: {money(order.remainingAmount ?? 0, order.currency)}
+          </p>
+          <p className="text-xs text-slate-500">
+            Comissão: {money(order.commissionAmount ?? 0, order.currency)} ({Number(order.commissionPercentage ?? 0).toFixed(2)}%)
+          </p>
           {order.enrollment?.id ? (
             <Link href={`/enrollments/${order.enrollment.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
               Abrir matrícula vinculada

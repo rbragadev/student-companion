@@ -21,6 +21,119 @@ function getOptionalNumber(formData: FormData, key: string): number | undefined 
   return parsed;
 }
 
+function getOptionalText(formData: FormData, key: string): string | undefined {
+  const value = formData.get(key);
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+}
+
+function toDateOnlyIso(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error(`Data inválida: ${value}`);
+  }
+  return value;
+}
+
+export async function createEnrollmentFromAdminAction(formData: FormData) {
+  await assertActionPermission('users.write');
+
+  const studentId = getText(formData, 'studentId');
+  const courseId = getText(formData, 'courseId');
+  const classGroupId = getText(formData, 'classGroupId');
+  const academicPeriodId = getText(formData, 'academicPeriodId');
+  const academicPeriodName = getText(formData, 'academicPeriodName');
+  const courseStartDate = toDateOnlyIso(getText(formData, 'courseStartDate'));
+  const courseEndDate = toDateOnlyIso(getText(formData, 'courseEndDate'));
+  const accommodationId = getOptionalText(formData, 'accommodationId');
+  const accommodationStartDate = getOptionalText(formData, 'accommodationStartDate');
+  const accommodationEndDate = getOptionalText(formData, 'accommodationEndDate');
+  const submitMode = getOptionalText(formData, 'submitMode') ?? 'draft';
+
+  try {
+    const enrollment = await apiFetch<{ id: string }>(`/enrollments/start`, {
+      method: 'POST',
+      body: JSON.stringify({
+        studentId,
+        courseId,
+        classGroupId,
+        academicPeriodId,
+        accommodationId,
+      }),
+    });
+
+    const coursePricing = await apiFetch<{ id: string }>(
+      `/course-pricing/resolve?${new URLSearchParams({
+        courseId,
+        academicPeriodId,
+        startDate: courseStartDate,
+        endDate: courseEndDate,
+      }).toString()}`,
+    );
+
+    let accommodationPricing: { id: string } | null = null;
+    if (accommodationId && accommodationStartDate && accommodationEndDate) {
+      accommodationPricing = await apiFetch<{ id: string }>(
+        `/accommodation-pricing/resolve?${new URLSearchParams({
+          accommodationId,
+          periodOption: academicPeriodName,
+          startDate: toDateOnlyIso(accommodationStartDate),
+          endDate: toDateOnlyIso(accommodationEndDate),
+        }).toString()}`,
+      );
+    }
+
+    await apiFetch(`/quotes`, {
+      method: 'POST',
+      body: JSON.stringify({
+        userId: studentId,
+        enrollmentId: enrollment.id,
+        downPaymentPercentage: 30,
+        items: [
+          {
+            itemType: 'course',
+            referenceId: coursePricing.id,
+            coursePricingId: coursePricing.id,
+            startDate: courseStartDate,
+            endDate: courseEndDate,
+          },
+          ...(accommodationPricing && accommodationStartDate && accommodationEndDate
+            ? [
+                {
+                  itemType: 'accommodation',
+                  referenceId: accommodationPricing.id,
+                  accommodationPricingId: accommodationPricing.id,
+                  startDate: toDateOnlyIso(accommodationStartDate),
+                  endDate: toDateOnlyIso(accommodationEndDate),
+                },
+              ]
+            : []),
+        ],
+      }),
+    });
+
+    if (submitMode === 'send') {
+      const course = await apiFetch<{ autoApproveIntent?: boolean; auto_approve_intent?: boolean }>(
+        `/course/${courseId}`,
+      );
+      const targetStatus =
+        course.autoApproveIntent || course.auto_approve_intent
+          ? 'checkout_available'
+          : 'awaiting_school_approval';
+
+      await apiFetch(`/enrollments/${enrollment.id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: targetStatus }),
+      });
+    }
+
+    redirect(`/enrollments/${enrollment.id}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Falha ao criar matrícula';
+    redirect(`/enrollments/new?error=${encodeURIComponent(message)}`);
+  }
+}
+
 export async function updateEnrollmentWorkflowAction(formData: FormData) {
   await assertActionPermission('users.write');
   const enrollmentId = getText(formData, 'enrollmentId');
@@ -45,13 +158,46 @@ export async function updateEnrollmentPricingAction(formData: FormData) {
   const currencyValue = formData.get('currency');
   const currency = typeof currencyValue === 'string' ? currencyValue.trim() : '';
 
+  const [enrollment, quote] = await Promise.all([
+    apiFetch<{
+      pricing?: {
+        basePrice?: number;
+        fees?: number;
+        discounts?: number;
+        currency?: string;
+      };
+    }>(`/enrollments/${enrollmentId}`).catch(() => null),
+    apiFetch<{
+      courseAmount: number;
+      fees: number;
+      discounts: number;
+      currency: string;
+    }>(`/quotes/by-enrollment/${enrollmentId}`).catch(() => null),
+  ]);
+
+  const finalBasePrice =
+    basePrice ?? enrollment?.pricing?.basePrice ?? quote?.courseAmount;
+  const finalFees = fees ?? enrollment?.pricing?.fees ?? quote?.fees;
+  const finalDiscounts =
+    discounts ?? enrollment?.pricing?.discounts ?? quote?.discounts;
+  const finalCurrency =
+    currency || enrollment?.pricing?.currency || quote?.currency || 'CAD';
+
+  if (
+    finalBasePrice === undefined ||
+    finalFees === undefined ||
+    finalDiscounts === undefined
+  ) {
+    throw new Error('Não foi possível recuperar os valores de pricing para salvar.');
+  }
+
   await apiFetch(`/enrollments/${enrollmentId}`, {
     method: 'PATCH',
     body: JSON.stringify({
-      basePrice,
-      fees,
-      discounts,
-      currency: currency || undefined,
+      basePrice: finalBasePrice,
+      fees: finalFees,
+      discounts: finalDiscounts,
+      currency: finalCurrency,
     }),
   });
 
@@ -127,25 +273,6 @@ export async function updateEnrollmentAccommodationAction(formData: FormData) {
     method: 'PATCH',
     body: JSON.stringify({
       accommodationId,
-    }),
-  });
-
-  redirect(`/enrollments/${enrollmentId}`);
-}
-
-export async function updateEnrollmentAccommodationOrderAction(formData: FormData) {
-  await assertActionPermission('users.write');
-  const enrollmentId = getText(formData, 'enrollmentId');
-  const orderValue = formData.get('orderId');
-  const orderId =
-    typeof orderValue === 'string' && orderValue.trim() !== ''
-      ? orderValue.trim()
-      : null;
-
-  await apiFetch(`/enrollments/${enrollmentId}/accommodation-order`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      orderId,
     }),
   });
 

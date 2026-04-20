@@ -5,7 +5,6 @@ import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { SetEnrollmentAccommodationDto } from './dto/set-enrollment-accommodation.dto';
 import { UpdateEnrollmentAccommodationWorkflowDto } from './dto/update-enrollment-accommodation-workflow.dto';
 import { StartEnrollmentDto } from './dto/start-enrollment.dto';
-import { SetEnrollmentAccommodationOrderDto } from './dto/set-enrollment-accommodation-order.dto';
 
 @Controller('enrollments')
 export class EnrollmentController {
@@ -68,14 +67,6 @@ export class EnrollmentController {
     @Body() dto: SetEnrollmentAccommodationDto,
   ) {
     return this.enrollmentService.setAccommodation(id, dto.accommodationId);
-  }
-
-  @Patch(':id/accommodation-order')
-  setAccommodationOrder(
-    @Param('id') id: string,
-    @Body() dto: SetEnrollmentAccommodationOrderDto,
-  ) {
-    return this.enrollmentService.setAccommodationOrder(id, dto.orderId ?? null);
   }
 
   @Patch(':id/accommodation-workflow')

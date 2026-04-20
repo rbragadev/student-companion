@@ -687,6 +687,23 @@ async function main() {
     skipDuplicates: true,
   });
 
+  // Limpa contexto transacional para manter seed enxuta e previsível.
+  await prisma.payment.deleteMany();
+  await prisma.invoiceItem.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.orderItem.deleteMany();
+  await prisma.order.deleteMany();
+  await prisma.enrollmentQuoteItem.deleteMany();
+  await prisma.enrollmentQuote.deleteMany();
+  await prisma.enrollmentMessageRead.deleteMany();
+  await prisma.enrollmentMessage.deleteMany();
+  await prisma.enrollmentDocument.deleteMany();
+  await prisma.enrollmentAccommodationStatusHistory.deleteMany();
+  await prisma.enrollmentStatusHistory.deleteMany();
+  await prisma.enrollmentPricing.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.enrollment.deleteMany();
+
   const enrollments = [
     {
       id: ids.enrollments.raphaelAwaitingApproval,
@@ -698,205 +715,10 @@ async function main() {
       classGroupId: ids.classGroups.engA1Morning,
       academicPeriodId: ids.academicPeriods.fall2026,
       accommodationId: null,
-      status: 'awaiting_school_approval',
-      accommodationStatus: 'selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2026-04-15T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollments.emilyActive,
-      studentId: ids.users.emily,
-      institutionId: ids.institutions.global,
-      schoolId: ids.schools.vgc,
-      unitId: ids.units.burnaby,
-      courseId: ids.courses.ieltsVgc,
-      classGroupId: ids.classGroups.engB2Evening,
-      academicPeriodId: ids.academicPeriods.winter2027,
-      accommodationId: null,
-      status: 'paid',
-      accommodationStatus: 'closed',
-      accommodationClosedAt: new Date('2026-04-13T00:00:00.000Z'),
-      createdAt: new Date('2026-04-10T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollments.emilyCancelled,
-      studentId: ids.users.emily,
-      institutionId: ids.institutions.global,
-      schoolId: ids.schools.ilsc,
-      unitId: ids.units.downtown,
-      courseId: ids.courses.generalEnglishIlsc,
-      classGroupId: ids.classGroups.engA1Morning,
-      academicPeriodId: ids.academicPeriods.fall2026,
-      accommodationId: null,
-      status: 'cancelled',
-      accommodationStatus: 'not_selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2025-12-20T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollments.lucasReview,
-      studentId: ids.users.lucas,
-      institutionId: ids.institutions.exchange,
-      schoolId: ids.schools.cornerstone,
-      unitId: ids.units.toronto,
-      courseId: ids.courses.digitalMarketingCornerstone,
-      classGroupId: ids.classGroups.businessAfternoon,
-      academicPeriodId: ids.academicPeriods.spring2026,
-      accommodationId: null,
-      status: 'awaiting_school_approval',
-      accommodationStatus: 'selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2026-03-02T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbb4-bbbb-4bbb-8bbb-bbbbbbbbbbb4',
-      studentId: ids.users.raphael,
-      institutionId: ids.institutions.global,
-      schoolId: ids.schools.vgc,
-      unitId: ids.units.burnaby,
-      courseId: ids.courses.ieltsVgc,
-      classGroupId: ids.classGroups.engB2Evening,
-      academicPeriodId: ids.academicPeriods.winter2027,
-      accommodationId: null,
       status: 'draft',
       accommodationStatus: 'not_selected',
       accommodationClosedAt: null,
-      createdAt: new Date('2025-11-01T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbb5-bbbb-4bbb-8bbb-bbbbbbbbbbb5',
-      studentId: ids.users.raphael,
-      institutionId: ids.institutions.global,
-      schoolId: ids.schools.vgc,
-      unitId: ids.units.burnaby,
-      courseId: ids.courses.ieltsVgc,
-      classGroupId: ids.classGroups.engB2Evening,
-      academicPeriodId: ids.academicPeriods.winter2027,
-      accommodationId: null,
-      status: 'started',
-      accommodationStatus: 'not_selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2025-11-02T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbb6-bbbb-4bbb-8bbb-bbbbbbbbbbb6',
-      studentId: ids.users.lucas,
-      institutionId: ids.institutions.exchange,
-      schoolId: ids.schools.cornerstone,
-      unitId: ids.units.toronto,
-      courseId: ids.courses.digitalMarketingCornerstone,
-      classGroupId: ids.classGroups.businessAfternoon,
-      academicPeriodId: ids.academicPeriods.spring2026,
-      accommodationId: null,
-      status: 'approved',
-      accommodationStatus: 'selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2025-11-03T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbb7-bbbb-4bbb-8bbb-bbbbbbbbbbb7',
-      studentId: ids.users.lucas,
-      institutionId: ids.institutions.exchange,
-      schoolId: ids.schools.cornerstone,
-      unitId: ids.units.toronto,
-      courseId: ids.courses.digitalMarketingCornerstone,
-      classGroupId: ids.classGroups.businessAfternoon,
-      academicPeriodId: ids.academicPeriods.spring2026,
-      accommodationId: null,
-      status: 'checkout_available',
-      accommodationStatus: 'selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2025-11-04T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbb8-bbbb-4bbb-8bbb-bbbbbbbbbbb8',
-      studentId: ids.users.lucas,
-      institutionId: ids.institutions.exchange,
-      schoolId: ids.schools.cornerstone,
-      unitId: ids.units.toronto,
-      courseId: ids.courses.digitalMarketingCornerstone,
-      classGroupId: ids.classGroups.businessAfternoon,
-      academicPeriodId: ids.academicPeriods.spring2026,
-      accommodationId: null,
-      status: 'payment_pending',
-      accommodationStatus: 'selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2025-11-05T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbb9-bbbb-4bbb-8bbb-bbbbbbbbbbb9',
-      studentId: ids.users.lucas,
-      institutionId: ids.institutions.exchange,
-      schoolId: ids.schools.cornerstone,
-      unitId: ids.units.toronto,
-      courseId: ids.courses.digitalMarketingCornerstone,
-      classGroupId: ids.classGroups.businessAfternoon,
-      academicPeriodId: ids.academicPeriods.spring2026,
-      accommodationId: null,
-      status: 'partially_paid',
-      accommodationStatus: 'selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2025-11-06T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbba-bbbb-4bbb-8bbb-bbbbbbbbbba0',
-      studentId: ids.users.emily,
-      institutionId: ids.institutions.global,
-      schoolId: ids.schools.vgc,
-      unitId: ids.units.burnaby,
-      courseId: ids.courses.ieltsVgc,
-      classGroupId: ids.classGroups.engB2Evening,
-      academicPeriodId: ids.academicPeriods.winter2027,
-      accommodationId: null,
-      status: 'confirmed',
-      accommodationStatus: 'approved',
-      accommodationClosedAt: null,
-      createdAt: new Date('2025-11-07T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbba-bbbb-4bbb-8bbb-bbbbbbbbbba1',
-      studentId: ids.users.emily,
-      institutionId: ids.institutions.global,
-      schoolId: ids.schools.vgc,
-      unitId: ids.units.burnaby,
-      courseId: ids.courses.ieltsVgc,
-      classGroupId: ids.classGroups.engB2Evening,
-      academicPeriodId: ids.academicPeriods.winter2027,
-      accommodationId: null,
-      status: 'enrolled',
-      accommodationStatus: 'closed',
-      accommodationClosedAt: new Date('2025-11-08T00:00:00.000Z'),
-      createdAt: new Date('2025-11-08T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbba-bbbb-4bbb-8bbb-bbbbbbbbbba2',
-      studentId: ids.users.raphael,
-      institutionId: ids.institutions.global,
-      schoolId: ids.schools.ilsc,
-      unitId: ids.units.downtown,
-      courseId: ids.courses.generalEnglishIlsc,
-      classGroupId: ids.classGroups.engA1Morning,
-      academicPeriodId: ids.academicPeriods.fall2026,
-      accommodationId: null,
-      status: 'rejected',
-      accommodationStatus: 'not_selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2025-11-09T00:00:00.000Z'),
-    },
-    {
-      id: 'bbbbbbba-bbbb-4bbb-8bbb-bbbbbbbbbba3',
-      studentId: ids.users.raphael,
-      institutionId: ids.institutions.global,
-      schoolId: ids.schools.ilsc,
-      unitId: ids.units.downtown,
-      courseId: ids.courses.generalEnglishIlsc,
-      classGroupId: ids.classGroups.engA1Morning,
-      academicPeriodId: ids.academicPeriods.fall2026,
-      accommodationId: null,
-      status: 'expired',
-      accommodationStatus: 'not_selected',
-      accommodationClosedAt: null,
-      createdAt: new Date('2025-11-10T00:00:00.000Z'),
+      createdAt: new Date('2026-04-15T00:00:00.000Z'),
     },
   ] as const;
 
@@ -908,62 +730,7 @@ async function main() {
     });
   }
 
-  const statusHistory = [
-    {
-      id: ids.enrollmentStatusHistory.raphaelStarted,
-      enrollmentId: ids.enrollments.raphaelAwaitingApproval,
-      fromStatus: null,
-      toStatus: 'awaiting_school_approval',
-      reason: 'Matrícula enviada para aprovação da escola.',
-      changedById: ids.users.admin,
-      createdAt: new Date('2026-04-15T00:10:00.000Z'),
-    },
-    {
-      id: ids.enrollmentStatusHistory.emilyStarted,
-      enrollmentId: ids.enrollments.emilyActive,
-      fromStatus: null,
-      toStatus: 'started',
-      reason: 'Matrícula iniciada a partir do pacote.',
-      changedById: ids.users.admin,
-      createdAt: new Date('2026-04-10T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentStatusHistory.emilyApproved,
-      enrollmentId: ids.enrollments.emilyActive,
-      fromStatus: 'started',
-      toStatus: 'approved',
-      reason: 'Documentação revisada e aprovada.',
-      changedById: ids.users.admin,
-      createdAt: new Date('2026-04-12T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentStatusHistory.emilyEnrolled,
-      enrollmentId: ids.enrollments.emilyActive,
-      fromStatus: 'approved',
-      toStatus: 'paid',
-      reason: 'Entrada confirmada e checkout concluído.',
-      changedById: ids.users.superAdmin,
-      createdAt: new Date('2026-04-14T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentStatusHistory.lucasStarted,
-      enrollmentId: ids.enrollments.lucasReview,
-      fromStatus: null,
-      toStatus: 'started',
-      reason: 'Matrícula iniciada.',
-      changedById: ids.users.operador,
-      createdAt: new Date('2026-03-02T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentStatusHistory.lucasDocsPending,
-      enrollmentId: ids.enrollments.lucasReview,
-      fromStatus: 'started',
-      toStatus: 'awaiting_school_approval',
-      reason: 'Aguardando validação operacional da escola.',
-      changedById: ids.users.admin,
-      createdAt: new Date('2026-03-04T00:00:00.000Z'),
-    },
-  ] as const;
+  const statusHistory: Array<any> = [];
 
   for (const item of statusHistory) {
     await prisma.enrollmentStatusHistory.upsert({
@@ -973,44 +740,7 @@ async function main() {
     });
   }
 
-  const accommodationStatusHistory = [
-    {
-      id: ids.enrollmentAccommodationStatusHistory.emilySelected,
-      enrollmentId: ids.enrollments.emilyActive,
-      fromStatus: 'not_selected',
-      toStatus: 'selected',
-      reason: 'Acomodação escolhida no pacote.',
-      changedById: ids.users.admin,
-      createdAt: new Date('2026-04-10T01:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentAccommodationStatusHistory.emilyApproved,
-      enrollmentId: ids.enrollments.emilyActive,
-      fromStatus: 'selected',
-      toStatus: 'approved',
-      reason: 'Acomodação validada pela operação.',
-      changedById: ids.users.admin,
-      createdAt: new Date('2026-04-12T11:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentAccommodationStatusHistory.emilyClosed,
-      enrollmentId: ids.enrollments.emilyActive,
-      fromStatus: 'approved',
-      toStatus: 'closed',
-      reason: 'Fechamento concluído para faturamento.',
-      changedById: ids.users.superAdmin,
-      createdAt: new Date('2026-04-13T09:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentAccommodationStatusHistory.lucasSelected,
-      enrollmentId: ids.enrollments.lucasReview,
-      fromStatus: 'not_selected',
-      toStatus: 'selected',
-      reason: 'Acomodação vinculada ao processo.',
-      changedById: ids.users.operador,
-      createdAt: new Date('2026-03-03T08:00:00.000Z'),
-    },
-  ] as const;
+  const accommodationStatusHistory: Array<any> = [];
 
   for (const item of accommodationStatusHistory) {
     await prisma.enrollmentAccommodationStatusHistory.upsert({
@@ -1020,38 +750,7 @@ async function main() {
     });
   }
 
-  const documents = [
-    {
-      id: ids.enrollmentDocuments.emilyPassport,
-      enrollmentId: ids.enrollments.emilyActive,
-      type: 'passport',
-      fileUrl: 'https://studentcompanion.dev/docs/emily/passport.pdf',
-      status: 'approved',
-      adminNote: 'Documento válido.',
-      createdAt: new Date('2026-04-11T00:00:00.000Z'),
-      updatedAt: new Date('2026-04-11T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentDocuments.emilyDiploma,
-      enrollmentId: ids.enrollments.emilyActive,
-      type: 'high_school_diploma',
-      fileUrl: 'https://studentcompanion.dev/docs/emily/diploma.pdf',
-      status: 'approved',
-      adminNote: null,
-      createdAt: new Date('2026-04-11T00:00:00.000Z'),
-      updatedAt: new Date('2026-04-12T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentDocuments.lucasTranscript,
-      enrollmentId: ids.enrollments.lucasReview,
-      type: 'transcript',
-      fileUrl: 'https://studentcompanion.dev/docs/lucas/transcript.pdf',
-      status: 'pending',
-      adminNote: 'Solicitado arquivo mais legível.',
-      createdAt: new Date('2026-03-03T00:00:00.000Z'),
-      updatedAt: new Date('2026-03-04T00:00:00.000Z'),
-    },
-  ] as const;
+  const documents: Array<any> = [];
 
   for (const item of documents) {
     await prisma.enrollmentDocument.upsert({
@@ -1061,48 +760,7 @@ async function main() {
     });
   }
 
-  const messages = [
-    {
-      id: ids.enrollmentMessages.emilyStudent,
-      enrollmentId: ids.enrollments.emilyActive,
-      senderId: ids.users.emily,
-      channel: 'enrollment',
-      message: 'Enviei os documentos solicitados. Podem validar, por favor?',
-      createdAt: new Date('2026-04-11T02:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentMessages.emilyAdmin,
-      enrollmentId: ids.enrollments.emilyActive,
-      senderId: ids.users.admin,
-      channel: 'enrollment',
-      message: 'Tudo certo, Emily. Sua matrícula foi aprovada.',
-      createdAt: new Date('2026-04-12T10:30:00.000Z'),
-    },
-    {
-      id: ids.enrollmentMessages.lucasAdmin,
-      enrollmentId: ids.enrollments.lucasReview,
-      senderId: ids.users.operador,
-      channel: 'enrollment',
-      message: 'Lucas, precisamos do histórico escolar completo para seguir.',
-      createdAt: new Date('2026-03-04T09:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentMessages.emilyAccommodationAdmin,
-      enrollmentId: ids.enrollments.emilyActive,
-      senderId: ids.users.admin,
-      channel: 'accommodation',
-      message: 'Sua acomodação foi aprovada e fechada para faturamento.',
-      createdAt: new Date('2026-04-13T09:05:00.000Z'),
-    },
-    {
-      id: ids.enrollmentMessages.lucasAccommodationAdmin,
-      enrollmentId: ids.enrollments.lucasReview,
-      senderId: ids.users.operador,
-      channel: 'accommodation',
-      message: 'Confirme os detalhes de check-in da acomodação para seguirmos.',
-      createdAt: new Date('2026-03-04T12:00:00.000Z'),
-    },
-  ] as const;
+  const messages: Array<any> = [];
 
   for (const item of messages) {
     await prisma.enrollmentMessage.upsert({
@@ -1112,18 +770,7 @@ async function main() {
     });
   }
 
-  const messageReads = [
-    {
-      enrollmentId: ids.enrollments.emilyActive,
-      userId: ids.users.emily,
-      lastReadAt: new Date('2026-04-12T10:35:00.000Z'),
-    },
-    {
-      enrollmentId: ids.enrollments.lucasReview,
-      userId: ids.users.lucas,
-      lastReadAt: new Date('2026-03-04T08:50:00.000Z'),
-    },
-  ] as const;
+  const messageReads: Array<any> = [];
 
   for (const item of messageReads) {
     await prisma.enrollmentMessageRead.upsert({
@@ -1138,50 +785,7 @@ async function main() {
     });
   }
 
-  const pricing = [
-    {
-      id: ids.enrollmentPricing.emilyActive,
-      enrollmentId: ids.enrollments.emilyActive,
-      basePrice: 5400,
-      fees: 450,
-      discounts: 300,
-      totalAmount: 6500,
-      enrollmentAmount: 5550,
-      accommodationAmount: 950,
-      packageTotalAmount: 6500,
-      currency: 'CAD',
-      commissionAmount: 471.75,
-      commissionPercentage: 7.2577,
-      enrollmentCommissionAmount: 471.75,
-      enrollmentCommissionPercentage: 8.5,
-      accommodationCommissionAmount: 0,
-      accommodationCommissionPercentage: 0,
-      totalCommissionAmount: 471.75,
-      createdAt: new Date('2026-04-12T00:00:00.000Z'),
-      updatedAt: new Date('2026-04-12T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentPricing.lucasReview,
-      enrollmentId: ids.enrollments.lucasReview,
-      basePrice: 4200,
-      fees: 350,
-      discounts: 200,
-      totalAmount: 6100,
-      enrollmentAmount: 4350,
-      accommodationAmount: 1750,
-      packageTotalAmount: 6100,
-      currency: 'CAD',
-      commissionAmount: 315.38,
-      commissionPercentage: 5.1702,
-      enrollmentCommissionAmount: 315.38,
-      enrollmentCommissionPercentage: 7.25,
-      accommodationCommissionAmount: 0,
-      accommodationCommissionPercentage: 0,
-      totalCommissionAmount: 315.38,
-      createdAt: new Date('2026-03-04T00:00:00.000Z'),
-      updatedAt: new Date('2026-03-04T00:00:00.000Z'),
-    },
-  ] as const;
+  const pricing: Array<any> = [];
 
   for (const item of pricing) {
     await prisma.enrollmentPricing.upsert({
@@ -1537,15 +1141,7 @@ async function main() {
 
   await prisma.enrollment.updateMany({
     where: { id: ids.enrollments.raphaelAwaitingApproval },
-    data: { accommodationId: ids.accommodations.downtownShared },
-  });
-  await prisma.enrollment.updateMany({
-    where: { id: ids.enrollments.emilyActive },
-    data: { accommodationId: ids.accommodations.burnabyStudio },
-  });
-  await prisma.enrollment.updateMany({
-    where: { id: ids.enrollments.lucasReview },
-    data: { accommodationId: ids.accommodations.richmondApartment },
+    data: { accommodationId: null },
   });
 
   const quotes = [
@@ -1570,90 +1166,6 @@ async function main() {
       type: 'course_only',
       createdAt: new Date('2026-04-15T00:00:00.000Z'),
     },
-    {
-      id: ids.enrollmentQuotes.emilyIntentWithAccommodation,
-      enrollmentId: ids.enrollments.emilyActive,
-      coursePricingId: ids.coursePricing.vgcWinterIelts,
-      accommodationPricingId: ids.accommodationPricing.burnabyWinter,
-      courseAmount: 5550,
-      accommodationAmount: 950,
-      fees: 450,
-      discounts: 300,
-      totalAmount: 6650,
-      currency: 'CAD',
-      downPaymentPercentage: 30,
-      downPaymentAmount: 1995,
-      remainingAmount: 4655,
-      commissionPercentage: 7.0947,
-      commissionAmount: 471.75,
-      commissionCourseAmount: 471.75,
-      commissionAccommodationAmount: 0,
-      type: 'course_with_accommodation',
-      createdAt: new Date('2026-04-10T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
-      enrollmentId: ids.enrollments.lucasReview,
-      coursePricingId: ids.coursePricing.cornerstoneSpringDigital,
-      accommodationPricingId: ids.accommodationPricing.richmondSpring,
-      courseAmount: 4350,
-      accommodationAmount: 1750,
-      fees: 350,
-      discounts: 200,
-      totalAmount: 6250,
-      currency: 'CAD',
-      downPaymentPercentage: 30,
-      downPaymentAmount: 1875,
-      remainingAmount: 4375,
-      commissionPercentage: 5.0461,
-      commissionAmount: 315.38,
-      commissionCourseAmount: 315.38,
-      commissionAccommodationAmount: 0,
-      type: 'course_with_accommodation',
-      createdAt: new Date('2026-03-02T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentQuotes.accommodationOnlySample,
-      enrollmentId: null,
-      coursePricingId: null,
-      accommodationPricingId: ids.accommodationPricing.kitsFall,
-      courseAmount: 0,
-      accommodationAmount: 1200,
-      fees: 80,
-      discounts: 0,
-      totalAmount: 1280,
-      currency: 'CAD',
-      downPaymentPercentage: 30,
-      downPaymentAmount: 384,
-      remainingAmount: 896,
-      commissionPercentage: 0,
-      commissionAmount: 0,
-      commissionCourseAmount: 0,
-      commissionAccommodationAmount: 0,
-      type: 'accommodation_only',
-      createdAt: new Date('2026-04-16T00:00:00.000Z'),
-    },
-    {
-      id: ids.enrollmentQuotes.accommodationOnlyWinterLongStay,
-      enrollmentId: null,
-      coursePricingId: null,
-      accommodationPricingId: ids.accommodationPricing.commercialWinter,
-      courseAmount: 0,
-      accommodationAmount: 5200,
-      fees: 120,
-      discounts: 200,
-      totalAmount: 5120,
-      currency: 'CAD',
-      downPaymentPercentage: 30,
-      downPaymentAmount: 1536,
-      remainingAmount: 3584,
-      commissionPercentage: 4.6875,
-      commissionAmount: 240,
-      commissionCourseAmount: 0,
-      commissionAccommodationAmount: 240,
-      type: 'accommodation_only',
-      createdAt: new Date('2026-12-05T00:00:00.000Z'),
-    },
   ] as const;
 
   for (const item of quotes) {
@@ -1664,7 +1176,18 @@ async function main() {
     });
   }
 
-  const quoteItems = [
+  const quoteItems: Array<{
+    id: string;
+    quoteId: string;
+    itemType: 'course' | 'accommodation';
+    referenceId: string;
+    coursePricingId: string | null;
+    accommodationPricingId: string | null;
+    startDate: Date;
+    endDate: Date;
+    amount: number;
+    commissionAmount: number;
+  }> = [
     {
       id: ids.enrollmentQuoteItems.raphaelCourse,
       quoteId: ids.enrollmentQuotes.raphaelPendingCourseOnly,
@@ -1677,78 +1200,6 @@ async function main() {
       amount: 5550,
       commissionAmount: 471.75,
     },
-    {
-      id: ids.enrollmentQuoteItems.emilyCourse,
-      quoteId: ids.enrollmentQuotes.emilyIntentWithAccommodation,
-      itemType: 'course',
-      referenceId: ids.coursePricing.vgcWinterIelts,
-      coursePricingId: ids.coursePricing.vgcWinterIelts,
-      accommodationPricingId: null,
-      startDate: new Date('2027-01-05T00:00:00.000Z'),
-      endDate: new Date('2027-03-20T00:00:00.000Z'),
-      amount: 5550,
-      commissionAmount: 471.75,
-    },
-    {
-      id: ids.enrollmentQuoteItems.emilyAccommodation,
-      quoteId: ids.enrollmentQuotes.emilyIntentWithAccommodation,
-      itemType: 'accommodation',
-      referenceId: ids.accommodationPricing.burnabyWinter,
-      coursePricingId: null,
-      accommodationPricingId: ids.accommodationPricing.burnabyWinter,
-      startDate: new Date('2027-01-05T00:00:00.000Z'),
-      endDate: new Date('2027-03-20T00:00:00.000Z'),
-      amount: 950,
-      commissionAmount: 0,
-    },
-    {
-      id: ids.enrollmentQuoteItems.lucasCourse,
-      quoteId: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
-      itemType: 'course',
-      referenceId: ids.coursePricing.cornerstoneSpringDigital,
-      coursePricingId: ids.coursePricing.cornerstoneSpringDigital,
-      accommodationPricingId: null,
-      startDate: new Date('2026-03-01T00:00:00.000Z'),
-      endDate: new Date('2026-06-30T00:00:00.000Z'),
-      amount: 4350,
-      commissionAmount: 315.38,
-    },
-    {
-      id: ids.enrollmentQuoteItems.lucasAccommodation,
-      quoteId: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
-      itemType: 'accommodation',
-      referenceId: ids.accommodationPricing.richmondSpring,
-      coursePricingId: null,
-      accommodationPricingId: ids.accommodationPricing.richmondSpring,
-      startDate: new Date('2026-03-01T00:00:00.000Z'),
-      endDate: new Date('2026-06-30T00:00:00.000Z'),
-      amount: 1750,
-      commissionAmount: 0,
-    },
-    {
-      id: ids.enrollmentQuoteItems.accommodationOnly,
-      quoteId: ids.enrollmentQuotes.accommodationOnlySample,
-      itemType: 'accommodation',
-      referenceId: ids.accommodationPricing.kitsFall,
-      coursePricingId: null,
-      accommodationPricingId: ids.accommodationPricing.kitsFall,
-      startDate: new Date('2026-09-01T00:00:00.000Z'),
-      endDate: new Date('2026-10-27T00:00:00.000Z'),
-      amount: 1200,
-      commissionAmount: 0,
-    },
-    {
-      id: ids.enrollmentQuoteItems.accommodationOnlyWinterLongStay,
-      quoteId: ids.enrollmentQuotes.accommodationOnlyWinterLongStay,
-      itemType: 'accommodation',
-      referenceId: ids.accommodationPricing.commercialWinter,
-      coursePricingId: null,
-      accommodationPricingId: ids.accommodationPricing.commercialWinter,
-      startDate: new Date('2027-01-10T00:00:00.000Z'),
-      endDate: new Date('2027-03-07T00:00:00.000Z'),
-      amount: 5200,
-      commissionAmount: 240,
-    },
   ] as const;
 
   for (const item of quoteItems) {
@@ -1759,53 +1210,122 @@ async function main() {
     });
   }
 
+  const quoteTypeToOrderType = (type: string): 'course' | 'accommodation' | 'package' => {
+    if (type === 'course_only') return 'course';
+    if (type === 'accommodation_only') return 'accommodation';
+    return 'package';
+  };
+
+  const quoteOwnerById: Record<string, string> = {
+    [ids.enrollmentQuotes.raphaelPendingCourseOnly]: ids.users.raphael,
+  };
+
+  const coursePricingRows = await prisma.coursePricing.findMany({
+    select: { id: true, courseId: true },
+  });
+  const accommodationPricingRows = await prisma.accommodationPricing.findMany({
+    select: { id: true, accommodationId: true },
+  });
+  const courseByPricingId = new Map(coursePricingRows.map((row) => [row.id, row.courseId]));
+  const accommodationByPricingId = new Map(
+    accommodationPricingRows.map((row) => [row.id, row.accommodationId]),
+  );
+
+  const studentByEnrollmentId = new Map(enrollments.map((item) => [item.id, item.studentId]));
+  const orderByQuoteId = new Map<string, string>();
+
+  for (const quote of quotes) {
+    const userId = quote.enrollmentId
+      ? studentByEnrollmentId.get(quote.enrollmentId)
+      : quoteOwnerById[quote.id];
+
+    if (!userId) {
+      throw new Error(`Seed inválido: quote ${quote.id} sem dono (userId) resolvido`);
+    }
+
+    const order = await prisma.order.upsert({
+      where: { enrollmentQuoteId: quote.id },
+      create: {
+        userId,
+        enrollmentId: quote.enrollmentId,
+        enrollmentQuoteId: quote.id,
+        type: quoteTypeToOrderType(quote.type),
+        status: 'submitted',
+        courseAmount: quote.courseAmount,
+        accommodationAmount: quote.accommodationAmount,
+        fees: quote.fees,
+        discounts: quote.discounts,
+        totalAmount: quote.totalAmount,
+        downPaymentPercentage: quote.downPaymentPercentage,
+        downPaymentAmount: quote.downPaymentAmount,
+        remainingAmount: quote.remainingAmount,
+        commissionPercentage: quote.commissionPercentage,
+        commissionAmount: quote.commissionAmount,
+        commissionCourseAmount: quote.commissionCourseAmount,
+        commissionAccommodationAmount: quote.commissionAccommodationAmount,
+        currency: quote.currency,
+        paymentStatus: 'pending',
+      },
+      update: {
+        userId,
+        enrollmentId: quote.enrollmentId,
+        type: quoteTypeToOrderType(quote.type),
+        courseAmount: quote.courseAmount,
+        accommodationAmount: quote.accommodationAmount,
+        fees: quote.fees,
+        discounts: quote.discounts,
+        totalAmount: quote.totalAmount,
+        downPaymentPercentage: quote.downPaymentPercentage,
+        downPaymentAmount: quote.downPaymentAmount,
+        remainingAmount: quote.remainingAmount,
+        commissionPercentage: quote.commissionPercentage,
+        commissionAmount: quote.commissionAmount,
+        commissionCourseAmount: quote.commissionCourseAmount,
+        commissionAccommodationAmount: quote.commissionAccommodationAmount,
+        currency: quote.currency,
+      },
+      select: { id: true },
+    });
+
+    orderByQuoteId.set(quote.id, order.id);
+
+    await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
+
+    const itemsForQuote = quoteItems.filter((item) => item.quoteId === quote.id);
+    if (itemsForQuote.length > 0) {
+      await prisma.orderItem.createMany({
+        data: itemsForQuote.map((item) => ({
+          orderId: order.id,
+          itemType: item.itemType,
+          referenceId: item.referenceId,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          amount: item.amount,
+          commissionAmount: item.commissionAmount,
+          courseId: item.coursePricingId ? courseByPricingId.get(item.coursePricingId) ?? null : null,
+          accommodationId: item.accommodationPricingId
+            ? accommodationByPricingId.get(item.accommodationPricingId) ?? null
+            : null,
+        })),
+      });
+    }
+
+    if (quote.enrollmentId) {
+      const hasAccommodationItem = itemsForQuote.some((item) => item.itemType === 'accommodation');
+      await prisma.enrollment.updateMany({
+        where: { id: quote.enrollmentId },
+        data: {
+          accommodationOrderId: hasAccommodationItem ? order.id : null,
+        },
+      });
+    }
+  }
+
   const invoices = [
-    {
-      id: ids.invoices.emilyPaid,
-      number: 'INV-20260414-1001',
-      enrollmentId: ids.enrollments.emilyActive,
-      enrollmentQuoteId: ids.enrollmentQuotes.emilyIntentWithAccommodation,
-      totalAmount: 6650,
-      dueDate: new Date('2026-04-20T00:00:00.000Z'),
-      status: 'paid',
-      currency: 'CAD',
-      createdAt: new Date('2026-04-14T09:00:00.000Z'),
-      updatedAt: new Date('2026-04-14T11:00:00.000Z'),
-      items: [
-        { id: ids.invoiceItems.emilyCourse, description: 'Curso', type: 'course', amount: 5550 },
-        {
-          id: ids.invoiceItems.emilyAccommodation,
-          description: 'Acomodação',
-          type: 'accommodation',
-          amount: 950,
-        },
-      ],
-    },
-    {
-      id: ids.invoices.lucasPending,
-      number: 'INV-20260305-1002',
-      enrollmentId: ids.enrollments.lucasReview,
-      enrollmentQuoteId: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
-      totalAmount: 6250,
-      dueDate: new Date('2026-03-25T00:00:00.000Z'),
-      status: 'pending',
-      currency: 'CAD',
-      createdAt: new Date('2026-03-05T08:50:00.000Z'),
-      updatedAt: new Date('2026-03-05T08:50:00.000Z'),
-      items: [
-        { id: ids.invoiceItems.lucasCourse, description: 'Curso', type: 'course', amount: 4350 },
-        {
-          id: ids.invoiceItems.lucasAccommodation,
-          description: 'Acomodação',
-          type: 'accommodation',
-          amount: 1750,
-        },
-      ],
-    },
     {
       id: ids.invoices.raphaelOverdue,
       number: 'INV-20260416-1003',
-      enrollmentId: null,
+      enrollmentId: ids.enrollments.raphaelAwaitingApproval,
       enrollmentQuoteId: ids.enrollmentQuotes.raphaelPendingCourseOnly,
       totalAmount: 5700,
       dueDate: new Date('2026-04-17T00:00:00.000Z'),
@@ -1815,26 +1335,6 @@ async function main() {
       updatedAt: new Date('2026-04-18T10:00:00.000Z'),
       items: [
         { id: ids.invoiceItems.raphaelCourse, description: 'Curso', type: 'course', amount: 5550 },
-      ],
-    },
-    {
-      id: ids.invoices.accommodationOnlyPending,
-      number: 'INV-20260418-1004',
-      enrollmentId: null,
-      enrollmentQuoteId: ids.enrollmentQuotes.accommodationOnlySample,
-      totalAmount: 1280,
-      dueDate: new Date('2026-04-25T00:00:00.000Z'),
-      status: 'pending',
-      currency: 'CAD',
-      createdAt: new Date('2026-04-18T09:20:00.000Z'),
-      updatedAt: new Date('2026-04-18T09:20:00.000Z'),
-      items: [
-        {
-          id: ids.invoiceItems.accommodationOnly,
-          description: 'Acomodação standalone',
-          type: 'accommodation',
-          amount: 1200,
-        },
       ],
     },
   ] as const;
@@ -1887,127 +1387,40 @@ async function main() {
     }
   }
 
-  const payments = [
-    {
-      id: ids.payments.emilyDownPaymentPaid,
-      enrollmentId: ids.enrollments.emilyActive,
-      enrollmentQuoteId: ids.enrollmentQuotes.emilyIntentWithAccommodation,
-      invoiceId: ids.invoices.emilyPaid,
-      type: 'down_payment',
-      amount: 1995,
-      currency: 'CAD',
-      status: 'paid',
-      provider: 'fake',
-      providerReference: 'fake_seed_emily_001',
-      paidAt: new Date('2026-04-14T11:00:00.000Z'),
-      createdAt: new Date('2026-04-14T10:58:00.000Z'),
-      updatedAt: new Date('2026-04-14T11:00:00.000Z'),
-    },
-    {
-      id: ids.payments.lucasDownPaymentPending,
-      enrollmentId: ids.enrollments.lucasReview,
-      enrollmentQuoteId: ids.enrollmentQuotes.lucasConvertedWithAccommodation,
-      invoiceId: ids.invoices.lucasPending,
-      type: 'down_payment',
-      amount: 1875,
-      currency: 'CAD',
-      status: 'pending',
-      provider: 'fake',
-      providerReference: null,
-      paidAt: null,
-      createdAt: new Date('2026-03-05T09:00:00.000Z'),
-      updatedAt: new Date('2026-03-05T09:00:00.000Z'),
-    },
-    {
-      id: ids.payments.raphaelInvoicePending,
-      enrollmentId: null,
-      enrollmentQuoteId: ids.enrollmentQuotes.raphaelPendingCourseOnly,
-      invoiceId: ids.invoices.raphaelOverdue,
-      type: 'down_payment',
-      amount: 1710,
-      currency: 'CAD',
-      status: 'pending',
-      provider: 'fake',
-      providerReference: null,
-      paidAt: null,
-      createdAt: new Date('2026-04-16T10:15:00.000Z'),
-      updatedAt: new Date('2026-04-16T10:15:00.000Z'),
-    },
-    {
-      id: ids.payments.accommodationOnlyPaid,
-      enrollmentId: null,
-      enrollmentQuoteId: ids.enrollmentQuotes.accommodationOnlySample,
-      invoiceId: ids.invoices.accommodationOnlyPending,
-      type: 'down_payment',
-      amount: 384,
-      currency: 'CAD',
-      status: 'paid',
-      provider: 'fake',
-      providerReference: 'fake_seed_accommodation_only_001',
-      paidAt: new Date('2026-04-18T09:35:00.000Z'),
-      createdAt: new Date('2026-04-18T09:30:00.000Z'),
-      updatedAt: new Date('2026-04-18T09:35:00.000Z'),
-    },
-  ] as const;
+  const payments: Array<any> = [];
 
   for (const item of payments) {
     await prisma.payment.upsert({
       where: { id: item.id },
-      create: item,
-      update: item,
+      create: {
+        ...item,
+        orderId: item.enrollmentQuoteId ? orderByQuoteId.get(item.enrollmentQuoteId) ?? null : null,
+      },
+      update: {
+        ...item,
+        orderId: item.enrollmentQuoteId ? orderByQuoteId.get(item.enrollmentQuoteId) ?? null : null,
+      },
     });
   }
 
-  const notifications = [
-    {
-      id: ids.notifications.raphaelApproved,
-      userId: ids.users.raphael,
-      type: 'proposal_approved',
-      title: 'Proposta aprovada',
-      message: 'Sua proposta foi aprovada. O checkout está disponível na sua matrícula.',
-      metadata: {
-        enrollmentId: ids.enrollments.raphaelAwaitingApproval,
+  for (const quote of quotes) {
+    const orderId = orderByQuoteId.get(quote.id);
+    if (!orderId) continue;
+    const paid = payments.some((item) => item.enrollmentQuoteId === quote.id && item.status === 'paid');
+    const pending = payments.some(
+      (item) => item.enrollmentQuoteId === quote.id && item.status === 'pending',
+    );
+    const paymentStatus = paid ? 'paid' : pending ? 'pending' : 'pending';
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus,
+        status: paymentStatus === 'paid' ? 'paid' : 'submitted',
       },
-      readAt: null,
-      createdAt: new Date('2026-04-16T09:00:00.000Z'),
-    },
-    {
-      id: ids.notifications.raphaelPaymentConfirmed,
-      userId: ids.users.raphael,
-      type: 'payment_confirmed',
-      title: 'Pagamento confirmado',
-      message: 'Recebemos sua entrada. Seguiremos com as etapas operacionais.',
-      metadata: {
-        enrollmentId: ids.enrollments.raphaelAwaitingApproval,
-      },
-      readAt: null,
-      createdAt: new Date('2026-04-16T12:10:00.000Z'),
-    },
-    {
-      id: ids.notifications.lucasRejected,
-      userId: ids.users.lucas,
-      type: 'proposal_rejected',
-      title: 'Proposta rejeitada',
-      message: 'Sua proposta foi rejeitada: documentação acadêmica incompleta para o período.',
-      metadata: {
-        enrollmentId: ids.enrollments.lucasReview,
-      },
-      readAt: null,
-      createdAt: new Date('2026-02-10T09:30:00.000Z'),
-    },
-    {
-      id: ids.notifications.emilyDocuments,
-      userId: ids.users.emily,
-      type: 'documents_requested',
-      title: 'Documentos solicitados',
-      message: 'Envie os documentos pendentes para avançarmos na matrícula.',
-      metadata: {
-        enrollmentId: ids.enrollments.emilyActive,
-      },
-      readAt: new Date('2026-04-12T09:30:00.000Z'),
-      createdAt: new Date('2026-04-11T15:20:00.000Z'),
-    },
-  ] as const;
+    });
+  }
+
+  const notifications: Array<any> = [];
 
   for (const item of notifications) {
     await prisma.notification.upsert({

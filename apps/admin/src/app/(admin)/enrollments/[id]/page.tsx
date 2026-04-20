@@ -12,13 +12,11 @@ import type {
   PaymentAdmin,
   EnrollmentQuoteAdmin,
   EnrollmentTimelineEventAdmin,
-  OrderAdmin,
 } from '@/types/catalog.types';
 import {
   confirmEnrollmentFakePaymentAction,
   createEnrollmentDocumentAction,
   updateEnrollmentAccommodationAction,
-  updateEnrollmentAccommodationOrderAction,
   updateEnrollmentAccommodationWorkflowAction,
   createEnrollmentMessageAction,
   updateEnrollmentDocumentAction,
@@ -73,6 +71,13 @@ const ACCOMMODATION_STATUS_OPTIONS = [
   { value: 'denied', label: 'Negada' },
   { value: 'closed', label: 'Fechada (sem troca)' },
 ];
+const ACCOMMODATION_EDITABLE_ENROLLMENT_STATUSES = new Set([
+  'draft',
+  'started',
+  'awaiting_school_approval',
+  'approved',
+  'checkout_available',
+]);
 
 function formatDateTime(value?: string | null) {
   if (!value) return '-';
@@ -120,10 +125,25 @@ export default async function EnrollmentDetailPage({
     score?: number | null;
     recommendationBadge?: string | null;
   }>>(`/accommodation/recommended/school/${enrollment.school.id}`).catch(() => []);
-  const accommodationOrders = await apiFetch<OrderAdmin[]>(
-    `/orders?userId=${enrollment.student.id}&type=accommodation`,
-  ).catch(() => []);
-
+  const accommodationOptions = [
+    ...(enrollment.accommodation
+      ? [
+          {
+            id: enrollment.accommodation.id,
+            title: enrollment.accommodation.title,
+            accommodationType: enrollment.accommodation.accommodationType,
+            location: enrollment.accommodation.location,
+            priceInCents: enrollment.accommodation.priceInCents,
+            priceUnit: enrollment.accommodation.priceUnit,
+            score: enrollment.accommodation.score ?? null,
+            recommendationBadge: null,
+          },
+        ]
+      : []),
+    ...recommendedAccommodations,
+  ].filter(
+    (item, index, arr) => arr.findIndex((candidate) => candidate.id === item.id) === index,
+  );
   const pricing = enrollment.pricing;
   const enrollmentMessages = (enrollment.messages ?? []).filter(
     (message) => (message.channel ?? 'enrollment') === 'enrollment',
@@ -132,6 +152,20 @@ export default async function EnrollmentDetailPage({
     (message) => message.channel === 'accommodation',
   );
   const isAccommodationClosed = enrollment.accommodationStatus === 'closed';
+  const hasLinkedAccommodationOrder = Boolean(enrollment.accommodationOrder?.id);
+  const isEnrollmentStatusEditableForAccommodation =
+    ACCOMMODATION_EDITABLE_ENROLLMENT_STATUSES.has(enrollment.status);
+  const canEditAccommodation =
+    !isAccommodationClosed &&
+    !hasLinkedAccommodationOrder &&
+    isEnrollmentStatusEditableForAccommodation;
+  const accommodationLockReason = isAccommodationClosed
+    ? 'Acomodação fechada. Troca/remoção bloqueada para preservar fechamento e faturamento.'
+    : hasLinkedAccommodationOrder
+      ? 'Acomodação bloqueada nesta matrícula: já existe order vinculada para este aluno.'
+      : !isEnrollmentStatusEditableForAccommodation
+        ? `Acomodação bloqueada para o status atual da matrícula (${enrollment.status}).`
+        : null;
   const statusOptions = getNextEnrollmentStatuses(
     enrollment.status,
     Boolean(enrollment.course.auto_approve_intent),
@@ -143,6 +177,36 @@ export default async function EnrollmentDetailPage({
     { status: 'paid', label: 'Confirmar pagamento' },
     { status: 'cancelled', label: 'Cancelar' },
   ].filter((item) => statusOptions.includes(item.status) && item.status !== enrollment.status);
+
+  const pricingFromQuote = quote
+    ? {
+        basePrice: quote.courseAmount,
+        fees: quote.fees,
+        discounts: quote.discounts,
+        currency: quote.currency,
+        totalAmount: quote.totalAmount,
+        enrollmentAmount: quote.courseAmount,
+        accommodationAmount: quote.accommodationAmount,
+        packageTotalAmount: quote.totalAmount,
+        commissionAmount: quote.commissionAmount,
+        commissionPercentage: quote.commissionPercentage,
+        enrollmentCommissionAmount: quote.commissionCourseAmount,
+        enrollmentCommissionPercentage: quote.commissionPercentage,
+        accommodationCommissionAmount: quote.commissionAccommodationAmount,
+        accommodationCommissionPercentage: 0,
+        totalCommissionAmount: quote.commissionAmount,
+      }
+    : null;
+
+  const displayPricing = (() => {
+    const hasPersistedValues =
+      !!pricing &&
+      (Number(pricing.packageTotalAmount ?? pricing.totalAmount ?? 0) > 0 ||
+        Number(pricing.totalCommissionAmount ?? pricing.commissionAmount ?? 0) > 0 ||
+        Number(pricing.enrollmentCommissionAmount ?? 0) > 0 ||
+        Number(pricing.basePrice ?? 0) > 0);
+    return hasPersistedValues ? pricing : pricingFromQuote ?? pricing;
+  })();
 
   return (
     <div className="flex flex-col gap-6">
@@ -238,7 +302,7 @@ export default async function EnrollmentDetailPage({
         <article className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
           <h2 className="text-sm font-semibold text-slate-900">Acomodação do pacote</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Selecione uma acomodação recomendada para a escola desta matrícula, ou mantenha sem acomodação.
+            Selecione a acomodação da matrícula. O vínculo comercial com a order é automático no backend.
           </p>
           <form action={updateEnrollmentAccommodationAction} className="mt-3 flex flex-wrap items-end gap-2">
             <input type="hidden" name="enrollmentId" value={enrollment.id} />
@@ -247,18 +311,18 @@ export default async function EnrollmentDetailPage({
               <select
                 name="accommodationId"
                 defaultValue={enrollment.accommodation?.id ?? ''}
-                disabled={isAccommodationClosed}
+                disabled={!canEditAccommodation}
                 className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
               >
                 <option value="">Sem acomodação</option>
-                {recommendedAccommodations.map((item) => (
+                {accommodationOptions.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.title} ({item.accommodationType}) - ${(item.priceInCents / 100).toFixed(0)}/{item.priceUnit}
                   </option>
                 ))}
               </select>
             </label>
-            <Button type="submit" size="sm" variant="outline" disabled={isAccommodationClosed}>
+            <Button type="submit" size="sm" variant="outline" disabled={!canEditAccommodation}>
               Salvar acomodação
             </Button>
           </form>
@@ -268,9 +332,40 @@ export default async function EnrollmentDetailPage({
             </p>
           )}
           {enrollment.accommodationOrder?.id ? (
-            <Link href={`/accommodation-operations/${enrollment.accommodationOrder.id}`} className="mt-1 inline-block text-xs text-blue-600 hover:underline">
-              Abrir operação da acomodação
-            </Link>
+            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+              <p className="font-semibold text-slate-700">Dados comerciais da acomodação</p>
+              <p className="mt-1">
+                Order: <strong>{enrollment.accommodationOrder.id}</strong>
+              </p>
+              <p>
+                Status: <strong>{enrollment.accommodationOrder.status}</strong> • Pagamento:{' '}
+                <strong>{enrollment.accommodationOrder.paymentStatus}</strong>
+              </p>
+              <p>
+                Total: <strong>{Number(enrollment.accommodationOrder.totalAmount).toFixed(2)} {enrollment.accommodationOrder.currency}</strong>
+              </p>
+              {enrollment.accommodationOrder.items
+                .filter((item) => item.itemType === 'accommodation')
+                .map((item) => (
+                  <p key={item.id}>
+                    Período: {new Date(item.startDate).toLocaleDateString('pt-BR')} - {new Date(item.endDate).toLocaleDateString('pt-BR')} • Valor item:{' '}
+                    {Number(item.amount).toFixed(2)} {enrollment.accommodationOrder?.currency}
+                  </p>
+                ))}
+              <div className="mt-1 flex gap-3">
+                <Link href={`/accommodation-operations/${enrollment.accommodationOrder.id}`} className="text-blue-600 hover:underline">
+                  Abrir operação da acomodação
+                </Link>
+                <Link href={`/orders/${enrollment.accommodationOrder.id}`} className="text-blue-600 hover:underline">
+                  Abrir order
+                </Link>
+                {enrollment.accommodation ? (
+                  <Link href={`/accommodations/${enrollment.accommodation.id}`} className="text-blue-600 hover:underline">
+                    Abrir cadastro da acomodação
+                  </Link>
+                ) : null}
+              </div>
+            </div>
           ) : enrollment.accommodation ? (
             <Link href={`/accommodations/${enrollment.accommodation.id}`} className="mt-1 inline-block text-xs text-blue-600 hover:underline">
               Abrir cadastro da acomodação
@@ -280,49 +375,11 @@ export default async function EnrollmentDetailPage({
             Status operacional da acomodação: <strong>{enrollment.accommodationStatus}</strong>
             {enrollment.accommodationClosedAt ? ` • Fechada em ${formatDateTime(enrollment.accommodationClosedAt)}` : ''}
           </p>
-          {isAccommodationClosed && (
-            <p className="mt-1 text-xs text-amber-700">
-              Acomodação fechada. Troca/remoção bloqueada para preservar fechamento e faturamento.
-            </p>
-          )}
-        </article>
-
-        <article className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
-          <h2 className="text-sm font-semibold text-slate-900">Order de acomodação vinculada</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            A matrícula pode apontar para uma venda standalone de acomodação.
-          </p>
-          <form action={updateEnrollmentAccommodationOrderAction} className="mt-3 flex flex-wrap items-end gap-2">
-            <input type="hidden" name="enrollmentId" value={enrollment.id} />
-            <label className="min-w-[320px] flex-1 text-xs font-medium text-slate-600">
-              Order de acomodação
-              <select
-                name="orderId"
-                defaultValue={enrollment.accommodationOrder?.id ?? ''}
-                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
-              >
-                <option value="">Sem order vinculada</option>
-                {accommodationOrders.map((order) => {
-                  const item = order.items.find((entry) => entry.itemType === 'accommodation');
-                  const title = item?.accommodation?.title ?? 'Acomodação';
-                  return (
-                    <option key={order.id} value={order.id}>
-                      {title} • {Number(order.totalAmount).toFixed(2)} {order.currency} • {order.status}
-                    </option>
-                  );
-                })}
-              </select>
-            </label>
-            <Button type="submit" size="sm" variant="outline">
-              Vincular order
-            </Button>
-          </form>
-          {enrollment.accommodationOrder ? (
-            <Link href={`/orders/${enrollment.accommodationOrder.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
-              Abrir order vinculada
-            </Link>
+          {accommodationLockReason ? (
+            <p className="mt-1 text-xs text-amber-700">{accommodationLockReason}</p>
           ) : null}
         </article>
+
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -372,27 +429,52 @@ export default async function EnrollmentDetailPage({
             <input type="hidden" name="enrollmentId" value={enrollment.id} />
             <label className="text-xs font-medium text-slate-600">
               Base Price
-              <input name="basePrice" type="number" min={0} step="0.01" defaultValue={pricing?.basePrice ?? ''} className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" />
+              <input
+                name="basePrice"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={displayPricing?.basePrice ?? ''}
+                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              />
             </label>
             <label className="text-xs font-medium text-slate-600">
               Fees
-              <input name="fees" type="number" min={0} step="0.01" defaultValue={pricing?.fees ?? 0} className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" />
+              <input
+                name="fees"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={displayPricing?.fees ?? 0}
+                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              />
             </label>
             <label className="text-xs font-medium text-slate-600">
               Discounts
-              <input name="discounts" type="number" min={0} step="0.01" defaultValue={pricing?.discounts ?? 0} className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" />
+              <input
+                name="discounts"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={displayPricing?.discounts ?? 0}
+                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              />
             </label>
             <label className="text-xs font-medium text-slate-600">
               Currency
-              <input name="currency" defaultValue={pricing?.currency ?? 'CAD'} className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm" />
+              <input
+                name="currency"
+                defaultValue={displayPricing?.currency ?? 'CAD'}
+                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              />
             </label>
             <div className="col-span-2 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-              <span>Matrícula: {pricing?.enrollmentAmount ?? pricing?.basePrice ?? '-'}</span>
-              <span>Acomodação: {pricing?.accommodationAmount ?? 0}</span>
-              <span>Total pacote: {pricing?.packageTotalAmount ?? pricing?.totalAmount ?? '-'}</span>
-              <span>Comissão matrícula: {pricing?.enrollmentCommissionAmount ?? '-'}</span>
-              <span>Comissão acomodação: {pricing?.accommodationCommissionAmount ?? '-'}</span>
-              <span>Comissão total: {pricing?.totalCommissionAmount ?? pricing?.commissionAmount ?? '-'} ({pricing?.commissionPercentage ?? 0}%)</span>
+              <span>Matrícula: {displayPricing?.enrollmentAmount ?? displayPricing?.basePrice ?? '-'}</span>
+              <span>Acomodação: {displayPricing?.accommodationAmount ?? 0}</span>
+              <span>Total pacote: {displayPricing?.packageTotalAmount ?? displayPricing?.totalAmount ?? '-'}</span>
+              <span>Comissão matrícula: {displayPricing?.enrollmentCommissionAmount ?? '-'}</span>
+              <span>Comissão acomodação: {displayPricing?.accommodationCommissionAmount ?? '-'}</span>
+              <span>Comissão total: {displayPricing?.totalCommissionAmount ?? displayPricing?.commissionAmount ?? '-'} ({displayPricing?.commissionPercentage ?? 0}%)</span>
             </div>
             <div className="col-span-2">
               <Button type="submit" size="sm">Salvar Pricing</Button>

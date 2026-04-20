@@ -455,7 +455,18 @@ export interface OrderAdmin {
   enrollmentQuoteId?: string | null;
   type: 'course' | 'accommodation' | 'package' | string;
   status: string;
+  courseAmount?: number;
+  accommodationAmount?: number;
+  fees?: number;
+  discounts?: number;
   totalAmount: number;
+  downPaymentPercentage?: number;
+  downPaymentAmount?: number;
+  remainingAmount?: number;
+  commissionPercentage?: number;
+  commissionAmount?: number;
+  commissionCourseAmount?: number;
+  commissionAccommodationAmount?: number;
   currency: string;
   paymentStatus: string;
   createdAt: string;
@@ -479,6 +490,7 @@ export interface OrderAdmin {
     startDate: string;
     endDate: string;
     amount: number;
+    commissionAmount?: number;
     course?: { id: string; program_name: string } | null;
     accommodation?: {
       id: string;

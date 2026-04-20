@@ -2,16 +2,32 @@ import { PageHeader } from '@/components/ui/page-header';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import type { OrderAdmin } from '@/types/catalog.types';
+import type {
+  AccommodationAdmin,
+  AccommodationPricingAdmin,
+  EnrollmentAdmin,
+  OrderAdmin,
+  StudentAdmin,
+} from '@/types/catalog.types';
+import { NewAccommodationOrderForm } from './new-accommodation-order-form';
 
 function money(value?: number, currency = 'CAD') {
   return `${Number(value ?? 0).toFixed(2)} ${currency}`;
 }
 
-export default async function AccommodationOperationsPage() {
+export default async function AccommodationOperationsPage({
+  searchParams,
+}: Readonly<{ searchParams?: Promise<{ error?: string }> }>) {
   await requirePermission('users.read');
 
-  const orders = await apiFetch<OrderAdmin[]>('/orders').catch(() => []);
+  const [orders, students, accommodations, pricingRows, enrollments] = await Promise.all([
+    apiFetch<OrderAdmin[]>('/orders').catch(() => []),
+    apiFetch<StudentAdmin[]>('/users/student').catch(() => []),
+    apiFetch<AccommodationAdmin[]>('/accommodation').catch(() => []),
+    apiFetch<AccommodationPricingAdmin[]>('/accommodation-pricing').catch(() => []),
+    apiFetch<EnrollmentAdmin[]>('/enrollments').catch(() => []),
+  ]);
+  const params = (await searchParams) ?? {};
   const rows = orders.filter((order) =>
     order.items.some((item) => item.itemType === 'accommodation'),
   );
@@ -71,6 +87,19 @@ export default async function AccommodationOperationsPage() {
       <PageHeader
         title="Fechamento de Acomodação"
         description="Operação da venda de acomodação como produto independente, com vínculo opcional à matrícula."
+      />
+
+      {params.error ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          {decodeURIComponent(params.error)}
+        </div>
+      ) : null}
+
+      <NewAccommodationOrderForm
+        students={students}
+        accommodations={accommodations}
+        pricingRows={pricingRows}
+        enrollments={enrollments}
       />
 
       <DataTable<OrderAdmin>

@@ -864,6 +864,13 @@ export class EnrollmentService {
 
   async setAccommodation(id: string, accommodationId?: string | null) {
     const enrollment = await this.findOne(id);
+    const editableStatuses = new Set<string>([
+      'draft',
+      'started',
+      'awaiting_school_approval',
+      'approved',
+      'checkout_available',
+    ]);
     const hasConfirmedDownPayment = await this.prisma.payment.findFirst({
       where: {
         enrollmentId: id,
@@ -885,6 +892,18 @@ export class EnrollmentService {
       );
     }
 
+    if (!editableStatuses.has(enrollment.status)) {
+      throw new BadRequestException(
+        `Não é possível alterar acomodação com matrícula em status ${enrollment.status}`,
+      );
+    }
+
+    if (enrollment.accommodationOrder?.id) {
+      throw new BadRequestException(
+        'Já existe order de acomodação vinculada. Este vínculo comercial deve ser gerenciado pela própria order',
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const nextAccommodationId = await this.validateAccommodationForSchool(
         tx,
@@ -903,42 +922,57 @@ export class EnrollmentService {
       });
 
       if (nextAccommodationId) {
-        const accommodation = await tx.accommodation.findUnique({
-          where: { id: nextAccommodationId },
-          select: { id: true, priceInCents: true },
-        });
-        if (!accommodation) {
-          throw new NotFoundException(`Acomodação ${nextAccommodationId} não encontrada`);
-        }
-        const amount = Number((accommodation.priceInCents / 100).toFixed(2));
-        const linkedOrder = await tx.order.create({
-          data: {
+        const existingOrder = await tx.order.findFirst({
+          where: {
             userId: enrollment.student.id,
-            enrollmentId: enrollment.id,
-            type: 'accommodation',
-            status: 'submitted',
-            totalAmount: amount,
-            currency: 'CAD',
-            paymentStatus: hasConfirmedDownPayment ? 'paid' : 'pending',
             items: {
-              create: {
+              some: {
                 itemType: 'accommodation',
-                referenceId: nextAccommodationId,
-                startDate: enrollment.academicPeriod.startDate,
-                endDate: enrollment.academicPeriod.endDate,
-                amount,
                 accommodationId: nextAccommodationId,
               },
             },
+            OR: [{ enrollmentId: null }, { enrollmentId: enrollment.id }],
           },
+          orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
           select: { id: true },
         });
 
-        await tx.enrollment.update({
-          where: { id: enrollment.id },
-          data: { accommodationOrderId: linkedOrder.id },
-        });
+        if (enrollment.accommodationOrder?.id && enrollment.accommodationOrder.id !== existingOrder?.id) {
+          await tx.order.updateMany({
+            where: {
+              id: enrollment.accommodationOrder.id,
+              enrollmentId: enrollment.id,
+            },
+            data: { enrollmentId: null },
+          });
+        }
+
+        if (existingOrder) {
+          await tx.order.update({
+            where: { id: existingOrder.id },
+            data: { enrollmentId: enrollment.id },
+          });
+
+          await tx.enrollment.update({
+            where: { id: enrollment.id },
+            data: { accommodationOrderId: existingOrder.id },
+          });
+        } else {
+          await tx.enrollment.update({
+            where: { id: enrollment.id },
+            data: { accommodationOrderId: null },
+          });
+        }
       } else {
+        if (enrollment.accommodationOrder?.id) {
+          await tx.order.updateMany({
+            where: {
+              id: enrollment.accommodationOrder.id,
+              enrollmentId: enrollment.id,
+            },
+            data: { enrollmentId: null },
+          });
+        }
         await tx.enrollment.update({
           where: { id: enrollment.id },
           data: { accommodationOrderId: null },
@@ -982,85 +1016,6 @@ export class EnrollmentService {
 
       return tx.enrollment.findUnique({
         where: { id },
-        include: this.includeDetailGraph,
-      });
-    });
-  }
-
-  async setAccommodationOrder(id: string, orderId?: string | null) {
-    const enrollment = await this.findOne(id);
-
-    if (!orderId) {
-      return this.prisma.$transaction(async (tx) => {
-        if (enrollment.accommodationOrder?.id) {
-          await tx.order.updateMany({
-            where: {
-              id: enrollment.accommodationOrder.id,
-              enrollmentId: enrollment.id,
-            },
-            data: { enrollmentId: null },
-          });
-        }
-
-        return tx.enrollment.update({
-          where: { id },
-          data: {
-            accommodationOrderId: null,
-          },
-          include: this.includeDetailGraph,
-        });
-      });
-    }
-
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        items: {
-          where: { itemType: 'accommodation' },
-          include: { accommodation: { select: { id: true } } },
-        },
-      },
-    });
-    if (!order) {
-      throw new NotFoundException(`Order ${orderId} não encontrada`);
-    }
-    if (order.userId !== enrollment.student.id) {
-      throw new BadRequestException('Order de acomodação pertence a outro aluno');
-    }
-    if (order.enrollmentId && order.enrollmentId !== enrollment.id) {
-      throw new BadRequestException('Order já está vinculada a outra matrícula');
-    }
-    const accommodationItem = order.items.find((item) => item.accommodationId);
-    if (!accommodationItem?.accommodationId) {
-      throw new BadRequestException('Order não possui item de acomodação');
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      if (enrollment.accommodationOrder?.id && enrollment.accommodationOrder.id !== order.id) {
-        await tx.order.updateMany({
-          where: {
-            id: enrollment.accommodationOrder.id,
-            enrollmentId: enrollment.id,
-          },
-          data: { enrollmentId: null },
-        });
-      }
-
-      await tx.order.update({
-        where: { id: order.id },
-        data: { enrollmentId: enrollment.id },
-      });
-
-      return tx.enrollment.update({
-        where: { id },
-        data: {
-          accommodationOrderId: order.id,
-          accommodationId: accommodationItem.accommodationId,
-          accommodationStatus:
-            enrollment.accommodationStatus === 'not_selected'
-              ? 'selected'
-              : enrollment.accommodationStatus,
-        },
         include: this.includeDetailGraph,
       });
     });

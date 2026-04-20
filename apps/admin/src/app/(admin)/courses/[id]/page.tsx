@@ -152,8 +152,8 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
                     : ''}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Janela: {row.academicPeriod?.startDate ? new Date(row.academicPeriod.startDate).toLocaleDateString() : '-'} -{' '}
-                  {row.academicPeriod?.endDate ? new Date(row.academicPeriod.endDate).toLocaleDateString() : '-'}
+                  Janela: {row.academicPeriod?.startDate ? new Date(row.academicPeriod.startDate).toISOString().slice(0, 10) : '-'} -{' '}
+                  {row.academicPeriod?.endDate ? new Date(row.academicPeriod.endDate).toISOString().slice(0, 10) : '-'}
                 </p>
               </div>
               <input
