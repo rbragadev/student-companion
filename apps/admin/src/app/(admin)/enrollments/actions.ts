@@ -356,6 +356,7 @@ export async function createFinanceTransactionAction(formData: FormData) {
   const financeItemId = getText(formData, 'financeItemId');
   const installmentAmount = getOptionalNumber(formData, 'installmentAmount');
   const installments = getInt(formData, 'installments');
+  const returnTo = getOptionalText(formData, 'returnTo');
 
   if (installmentAmount === undefined || installmentAmount <= 0) {
     throw new Error('Valor da parcela inválido.');
@@ -372,7 +373,7 @@ export async function createFinanceTransactionAction(formData: FormData) {
     }),
   });
 
-  redirect(`/enrollments/${enrollmentId}`);
+  redirect(returnTo?.trim() || `/enrollments/${enrollmentId}`);
 }
 
 export async function updateFinanceTransactionStatusAction(formData: FormData) {
@@ -380,13 +381,14 @@ export async function updateFinanceTransactionStatusAction(formData: FormData) {
   const enrollmentId = getText(formData, 'enrollmentId');
   const transactionId = getText(formData, 'transactionId');
   const status = getText(formData, 'status');
+  const returnTo = getOptionalText(formData, 'returnTo');
 
   await apiFetch(`/finance-transactions/${transactionId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
 
-  redirect(`/enrollments/${enrollmentId}`);
+  redirect(returnTo?.trim() || `/enrollments/${enrollmentId}`);
 }
 
 export async function updateEnrollmentAccommodationAction(formData: FormData) {

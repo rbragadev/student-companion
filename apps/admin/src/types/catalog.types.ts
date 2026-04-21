@@ -267,6 +267,19 @@ export interface FinanceItemAdmin {
   transactions: FinanceTransactionAdmin[];
 }
 
+export interface FinanceItemDetailAdmin extends FinanceItemAdmin {
+  enrollment: {
+    id: string;
+    status: string;
+    student: EnrollmentAdmin['student'];
+    institution: EnrollmentAdmin['institution'];
+    school: EnrollmentAdmin['school'];
+    course: EnrollmentAdmin['course'];
+    accommodation?: EnrollmentAdmin['accommodation'] | null;
+    accommodationStatus?: EnrollmentAdmin['accommodationStatus'];
+  };
+}
+
 export interface EnrollmentCheckoutAdmin {
   enrollmentId: string;
   state:
@@ -491,6 +504,7 @@ export interface FinancialOverviewAdmin {
 
 export interface SalesRowAdmin {
   id: string;
+  enrollmentId?: string;
   student: EnrollmentAdmin['student'];
   institution: EnrollmentAdmin['institution'];
   school: EnrollmentAdmin['school'];
@@ -498,6 +512,9 @@ export interface SalesRowAdmin {
   accommodation: EnrollmentAdmin['accommodation'];
   courseAmount?: number;
   accommodationAmount?: number;
+  itemType?: string;
+  itemTitle?: string;
+  transactionsCount?: number;
   commercialStatus: string;
   financialStatus: string;
   totalAmount: number;

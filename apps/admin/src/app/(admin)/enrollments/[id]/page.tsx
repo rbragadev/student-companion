@@ -564,6 +564,7 @@ export default async function EnrollmentDetailPage({
                             <form action={updateFinanceTransactionStatusAction} className="flex items-center gap-1">
                               <input type="hidden" name="enrollmentId" value={enrollment.id} />
                               <input type="hidden" name="transactionId" value={transaction.id} />
+                              <input type="hidden" name="returnTo" value={`/enrollments/${enrollment.id}`} />
                               <select name="status" defaultValue={transaction.status} className="h-8 rounded border border-slate-300 px-2 text-xs">
                                 {transactionStatuses
                                   .filter((status) => status !== transaction.status)
@@ -591,6 +592,7 @@ export default async function EnrollmentDetailPage({
                       emittedAmount={Number(item.paidAmount) + Number(item.pendingAmount)}
                       remainingAmount={Number(item.remainingAmount)}
                       currency={itemCurrency}
+                      returnTo={`/enrollments/${enrollment.id}`}
                       action={createFinanceTransactionAction}
                     />
                   )}

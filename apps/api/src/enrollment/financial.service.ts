@@ -87,96 +87,96 @@ export class FinancialService {
     status?: string;
     hasAccommodation?: string;
   }) {
-    const rows = await this.prisma.enrollment.findMany({
+    const rows = await this.prisma.financeItem.findMany({
       where: {
-        institutionId: filters?.institutionId,
-        schoolId: filters?.schoolId,
-        courseId: filters?.courseId,
-        status: filters?.status,
-        accommodationId:
+        enrollment: {
+          institutionId: filters?.institutionId,
+          schoolId: filters?.schoolId,
+          courseId: filters?.courseId,
+          status: filters?.status,
+          accommodationId:
           filters?.hasAccommodation === 'with'
             ? { not: null }
             : filters?.hasAccommodation === 'without'
               ? null
               : undefined,
+        },
       },
-      orderBy: { createdAt: 'desc' },
       include: {
-        student: { select: { id: true, firstName: true, lastName: true, email: true } },
-        institution: { select: { id: true, name: true } },
-        school: { select: { id: true, name: true } },
-        course: { select: { id: true, program_name: true } },
-        accommodation: { select: { id: true, title: true, accommodationType: true } },
-        pricing: true,
-        quotes: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
+        enrollment: {
           select: {
             id: true,
-            type: true,
-            downPaymentAmount: true,
-            remainingAmount: true,
+            status: true,
+            student: { select: { id: true, firstName: true, lastName: true, email: true } },
+            institution: { select: { id: true, name: true } },
+            school: { select: { id: true, name: true } },
+            course: { select: { id: true, program_name: true } },
+            accommodation: { select: { id: true, title: true, accommodationType: true } },
           },
         },
-        payments: {
-          orderBy: { createdAt: 'desc' },
+        transactions: {
           select: {
-            id: true,
-            type: true,
             status: true,
             amount: true,
-            paidAt: true,
-            createdAt: true,
-          },
-        },
-        invoices: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: {
-            id: true,
-            number: true,
-            status: true,
-            totalAmount: true,
-            dueDate: true,
           },
         },
       },
+      orderBy: { createdAt: 'desc' },
     });
 
     return rows.map((item) => {
-      const latestQuote = item.quotes[0] ?? null;
-      const latestInvoice = item.invoices[0] ?? null;
-      const paidAmount = item.payments
-        .filter((payment) => payment.status === 'paid')
-        .reduce((sum, payment) => sum + this.toNumber(payment.amount), 0);
+      const paidAmount = item.transactions
+        .filter((transaction) => transaction.status === 'paid')
+        .reduce((sum, transaction) => sum + this.toNumber(transaction.amount), 0);
+      const pendingAmount = item.transactions
+        .filter((transaction) => transaction.status === 'pending')
+        .reduce((sum, transaction) => sum + this.toNumber(transaction.amount), 0);
+      const emittedAmount = item.transactions
+        .filter((transaction) => !['cancelled', 'failed'].includes(transaction.status))
+        .reduce((sum, transaction) => sum + this.toNumber(transaction.amount), 0);
+      const total = this.toNumber(item.amount);
+      const remainingAmount = Math.max(0, Number((total - paidAmount).toFixed(2)));
+      const hasTransactions = item.transactions.length > 0;
 
-      const total = this.toNumber(
-        item.pricing?.packageTotalAmount ?? item.pricing?.totalAmount ?? latestInvoice?.totalAmount,
-      );
+      let financialStatus = 'not_invoiced';
+      if (hasTransactions) {
+        financialStatus =
+          paidAmount >= total
+            ? 'paid'
+            : pendingAmount > 0
+              ? 'payment_pending'
+              : paidAmount > 0
+                ? 'partially_paid'
+                : 'not_invoiced';
+      }
+
+      const isCourse = item.itemType === 'course';
+      const isAccommodation = item.itemType === 'accommodation';
 
       return {
         id: item.id,
-        student: item.student,
-        institution: item.institution,
-        school: item.school,
-        course: item.course,
-        accommodation: item.accommodation,
-        commercialStatus: item.status,
-        financialStatus: latestInvoice?.status ?? 'not_invoiced',
+        enrollmentId: item.enrollment.id,
+        student: item.enrollment.student,
+        institution: item.enrollment.institution,
+        school: item.enrollment.school,
+        course: item.enrollment.course,
+        accommodation: item.enrollment.accommodation,
+        commercialStatus: item.enrollment.status,
+        financialStatus,
         totalAmount: total,
-        downPaymentAmount: this.toNumber(latestQuote?.downPaymentAmount),
-        remainingAmount:
-          this.toNumber(latestQuote?.remainingAmount) || Math.max(0, total - paidAmount),
+        downPaymentAmount: this.toNumber(emittedAmount),
+        remainingAmount,
         paidAmount: Number(paidAmount.toFixed(2)),
-        quote: latestQuote,
-        invoice: latestInvoice,
-        commissionAmount: this.toNumber(
-          item.pricing?.totalCommissionAmount ?? item.pricing?.commissionAmount,
-        ),
-        commissionPercentage: this.toNumber(item.pricing?.commissionPercentage),
-        courseAmount: this.toNumber(item.pricing?.enrollmentAmount),
-        accommodationAmount: this.toNumber(item.pricing?.accommodationAmount),
-        currency: item.pricing?.currency ?? 'CAD',
+        commissionAmount: 0,
+        commissionPercentage: 0,
+        currency: item.currency,
+        courseAmount: isCourse ? total : 0,
+        accommodationAmount: isAccommodation ? total : 0,
+        quote: null,
+        invoice: null,
+        itemType: item.itemType,
+        itemTitle: item.title,
+        transactionsCount: item.transactions.length,
       };
     });
   }

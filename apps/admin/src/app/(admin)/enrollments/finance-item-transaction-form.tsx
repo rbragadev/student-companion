@@ -12,6 +12,7 @@ type Props = {
   remainingAmount: number;
   emittedAmount: number;
   currency: string;
+  returnTo?: string;
   action: CreateAction;
 };
 
@@ -56,6 +57,7 @@ export default function FinanceItemTransactionForm({
   totalAmount,
   emittedAmount,
   currency,
+  returnTo,
   action,
 }: Props) {
   const emittedAmountSafe = useMemo(() => Math.max(0, emittedAmount), [emittedAmount]);
@@ -100,6 +102,7 @@ export default function FinanceItemTransactionForm({
     <form action={action} className="mt-3 border border-dashed border-slate-200 p-3">
       <input type="hidden" name="enrollmentId" value={enrollmentId} />
       <input type="hidden" name="financeItemId" value={financeItemId} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <input type="hidden" name="installmentAmount" value={installmentAmount.toFixed(2)} />
       <input type="hidden" name="installments" value={installments.toString()} />
       <input type="hidden" name="dueDateOffsetDays" value={dueDateOffsetInput || '0'} />

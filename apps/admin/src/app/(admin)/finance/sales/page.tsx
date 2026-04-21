@@ -64,6 +64,9 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
       render: (row) => (
         <div>
           <p className="font-medium text-slate-900">{row.course.program_name}</p>
+          <p className="text-xs font-medium text-slate-500">
+            Item: {row.itemType ?? 'item'}{row.itemTitle ? ` • ${row.itemTitle}` : ''}
+          </p>
           <p className="text-xs text-slate-500">{row.institution.name} {'>'} {row.school.name}</p>
           <p className="text-xs text-slate-500">{row.accommodation?.title ?? 'Sem acomodação'}</p>
         </div>
@@ -77,7 +80,8 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
           <p className="text-sm text-slate-700">Total: {money(row.totalAmount, row.currency)}</p>
           <p className="text-xs text-slate-500">Item curso: {money(row.courseAmount ?? 0, row.currency)}</p>
           <p className="text-xs text-slate-500">Item acomodação: {money(row.accommodationAmount ?? 0, row.currency)}</p>
-          <p className="text-xs text-slate-500">Entrada: {money(row.downPaymentAmount, row.currency)}</p>
+          <p className="text-xs text-slate-500">Emissão: {money(row.downPaymentAmount, row.currency)}</p>
+          <p className="text-xs text-slate-500">Transações: {row.transactionsCount ?? 0}</p>
           <p className="text-xs text-slate-500">Saldo: {money(row.remainingAmount, row.currency)}</p>
         </div>
       ),
@@ -94,16 +98,14 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
     },
     {
       key: 'invoice',
-      label: 'Invoice',
-      render: (row) =>
-        row.invoice ? (
-          <div>
-            <p className="text-sm text-slate-700">{row.invoice.number}</p>
-            <p className="text-xs text-slate-500">{row.invoice.status}</p>
-          </div>
-        ) : (
-          <span className="text-xs text-slate-400">Não gerada</span>
-        ),
+      label: 'Vínculo',
+      render: (row) => (
+        <span className="text-xs text-slate-500">
+          {row.id
+            ? `Item financeiro: ${row.id.slice(0, 8)}`
+            : 'Sem item financeiro'}
+        </span>
+      ),
     },
   ];
 
@@ -111,7 +113,7 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Vendas / Itens"
-        description="Acompanhe vendas por matrícula com itens de curso e/ou acomodação no fluxo operacional atual."
+        description="Acompanhe cada item financeiro (curso ou acomodação) da matrícula, com emissão, pagamento e saldo."
       />
 
       <form className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-5">
@@ -161,7 +163,7 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
         columns={columns}
         data={sales}
         keyExtractor={(row) => row.id}
-        getRowHref={(row) => `/enrollments/${row.id}`}
+        getRowHref={(row) => `/finance/sales-items/${row.id}`}
         emptyTitle="Nenhuma venda encontrada"
         emptyDescription="Ajuste os filtros ou avance no fluxo de matrícula para gerar vendas por item."
       />

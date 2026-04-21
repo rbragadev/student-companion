@@ -22,7 +22,7 @@ type FinanceTransactionRow = {
 type FinanceItemRow = {
   id: string;
   enrollmentId: string;
-  quoteItemId: string | null;
+  quoteItemId?: string | null;
   itemType: string;
   sourceType: string;
   title: string;
@@ -36,8 +36,19 @@ type FinanceItemRow = {
   transactions: FinanceTransactionRow[];
 };
 
-type EnrollmentInfo = {
+type FinanceItemEnrollment = {
   id: string;
+  status: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  institution: { id: string; name: string };
+  school: { id: string; name: string };
+  course: { id: string; program_name: string };
+  accommodation: { id: string; title: string; accommodationType?: string | null } | null;
 };
 
 @Injectable()
@@ -53,7 +64,7 @@ export class FinanceItemService {
     return Number(value.toFixed(2));
   }
 
-  private calculateFinanceSummary(item: FinanceItemRow) {
+  private calculateFinanceSummary(item: Pick<FinanceItemRow, 'amount' | 'transactions'>) {
     const totalAmount = this.toNumber(item.amount);
     const paidAmount = item.transactions
       .filter((transaction) => transaction.status === 'paid')
@@ -204,6 +215,48 @@ export class FinanceItemService {
         })),
       };
     });
+  }
+
+  async getById(id: string) {
+    const item = await this.prisma.financeItem.findUnique({
+      where: { id },
+      include: {
+        transactions: {
+          orderBy: { createdAt: 'asc' },
+        },
+        enrollment: {
+          select: {
+            id: true,
+            status: true,
+            student: { select: { id: true, firstName: true, lastName: true, email: true } },
+            institution: { select: { id: true, name: true } },
+            school: { select: { id: true, name: true } },
+            course: { select: { id: true, program_name: true } },
+            accommodation: { select: { id: true, title: true, accommodationType: true } },
+          },
+        },
+      },
+    });
+
+    if (!item || !item.enrollment) {
+      throw new NotFoundException(`Item financeiro ${id} não encontrado`);
+    }
+
+    const summary = this.calculateFinanceSummary(item);
+
+    return {
+      ...item,
+      amount: summary.totalAmount,
+      paidAmount: summary.paidAmount,
+      pendingAmount: summary.pendingAmount,
+      remainingAmount: summary.remainingAmount,
+      paidRate: summary.paidRate,
+      enrollment: item.enrollment as FinanceItemEnrollment,
+      transactions: item.transactions.map((transaction) => ({
+        ...transaction,
+        amount: this.toNumber(transaction.amount),
+      })),
+    };
   }
 
   async createTransactions(

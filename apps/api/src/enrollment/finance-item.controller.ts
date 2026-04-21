@@ -12,6 +12,11 @@ export class FinanceItemController {
     return this.financeItemService.listByEnrollment(id);
   }
 
+  @Get('finance-items/:id')
+  getById(@Param('id') id: string) {
+    return this.financeItemService.getById(id);
+  }
+
   @Post('finance-items/:id/transactions')
   createTransactions(@Param('id') id: string, @Body() dto: CreateFinanceTransactionDto) {
     return this.financeItemService.createTransactions(id, dto);
