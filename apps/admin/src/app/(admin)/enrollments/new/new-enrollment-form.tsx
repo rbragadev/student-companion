@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { AccommodationAdmin, CourseAdmin, StudentAdmin } from '@/types/catalog.types';
-import { toDateInputValue } from '@/lib/date';
+import { formatDatePtBr, toDateInputValue } from '@/lib/date';
 import { createEnrollmentFromAdminAction } from '../actions';
 
 interface CourseOffer {
@@ -31,6 +31,71 @@ interface PricingPreview {
   pricingLabel?: string;
 }
 
+interface AccommodationRulePreview {
+  id: string;
+  periodOption: string;
+  basePrice: number;
+  pricePerDay?: number | null;
+  minimumStayDays?: number | null;
+  windowStartDate?: string | null;
+  windowEndDate?: string | null;
+  currency?: string | null;
+  isActive: boolean;
+}
+
+function pickBestAccommodationRule(
+  rules: AccommodationRulePreview[],
+  opts: {
+    periodOption?: string;
+    offerStartDate?: string;
+    offerEndDate?: string;
+    startDate?: string;
+    endDate?: string;
+  },
+) {
+  const normalizedPeriod = normalizePeriodOption(opts.periodOption);
+  const startDate = opts.startDate || '';
+  const endDate = opts.endDate || '';
+  const offerStartDate = opts.offerStartDate || '';
+  const offerEndDate = opts.offerEndDate || '';
+
+  const isInWindow = (rule: AccommodationRulePreview) => {
+    if (!startDate || !endDate) return false;
+    if (rule.windowStartDate && startDate < toDateOnly(rule.windowStartDate)) return false;
+    if (rule.windowEndDate && endDate > toDateOnly(rule.windowEndDate)) return false;
+    return true;
+  };
+
+  if (!rules.length) return null;
+  if (normalizedPeriod) {
+    const exact = rules.find((rule) => normalizePeriodOption(rule.periodOption) === normalizedPeriod);
+    if (exact) return exact;
+
+    const fuzzy = rules.find((rule) => {
+      const normalizedRule = normalizePeriodOption(rule.periodOption);
+      return (
+        normalizedRule.includes(normalizedPeriod) ||
+        normalizedPeriod.includes(normalizedRule) ||
+        normalizedPeriod.includes(normalizedRule.split(' ').join(''))
+      );
+    });
+    if (fuzzy) return fuzzy;
+  }
+
+  const withWindowMatch = rules.find(isInWindow);
+  if (withWindowMatch) return withWindowMatch;
+
+  const withPeriodDates = rules.find((rule) => {
+    if (!offerStartDate || !offerEndDate) return false;
+    if (rule.windowStartDate && offerStartDate < toDateOnly(rule.windowStartDate)) return false;
+    if (rule.windowEndDate && offerEndDate > toDateOnly(rule.windowEndDate)) return false;
+    return true;
+  });
+  if (withPeriodDates) return withPeriodDates;
+
+  return rules.find((rule) => rule.basePrice !== null && rule.basePrice !== undefined) || rules[0];
+}
+
 interface Props {
   students: StudentAdmin[];
   courses: CourseAdmin[];
@@ -48,8 +113,18 @@ function toIsoDate(value: string) {
   return value;
 }
 
-function formatMoney(value: number, currency: string) {
-  return `${value.toFixed(2)} ${currency}`;
+function formatMoney(
+  value: number | string | null | undefined,
+  currency: string,
+) {
+  const numericValue =
+    typeof value === 'number' ? value : Number.parseFloat(String(value ?? '0').replace(',', '.'));
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+  return `${safeValue.toFixed(2)} ${currency}`;
+}
+
+function normalizePeriodOption(value?: string) {
+  return (value ?? '').trim().toLowerCase();
 }
 
 function calculateWeeks(startDate: string, endDate: string) {
@@ -69,9 +144,7 @@ function calculateDays(startDate: string, endDate: string) {
 }
 
 function formatDate(value: string) {
-  if (!value) return '';
-  const [year, month, day] = value.split('-');
-  return `${day}/${month}/${year}`;
+  return formatDatePtBr(value) === '-' ? 'não definida' : formatDatePtBr(value);
 }
 
 function parseDateOnlyUtcMidday(value: string) {
@@ -103,6 +176,10 @@ export function NewEnrollmentForm({
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingError, setPricingError] = useState<string | null>(null);
   const [accommodationRuleError, setAccommodationRuleError] = useState<string | null>(null);
+  const [accommodationRules, setAccommodationRules] = useState<AccommodationRulePreview[]>([]);
+  const [isAccommodationRulesLoading, setIsAccommodationRulesLoading] = useState(false);
+  const [accommodationRulesError, setAccommodationRulesError] = useState<string | null>(null);
+  const [showAccommodationRulesModal, setShowAccommodationRulesModal] = useState(false);
 
   const offers = useMemo(() => offersByCourse[selectedCourseId] ?? [], [offersByCourse, selectedCourseId]);
   const selectedCourse = useMemo(
@@ -123,26 +200,89 @@ export function NewEnrollmentForm({
   const accommodationWindowEnd = accommodationPreview?.windowEndDate
     ? toDateOnly(accommodationPreview.windowEndDate)
     : '';
+  const selectedAccommodation = useMemo(
+    () => accommodations.find((item) => item.id === selectedAccommodationId) ?? null,
+    [accommodations, selectedAccommodationId],
+  );
+  const selectedAccommodationRule = useMemo(() => {
+    return pickBestAccommodationRule(accommodationRules, {
+      periodOption: selectedOffer?.academicPeriodName,
+      offerStartDate: selectedOffer?.startDate,
+      offerEndDate: selectedOffer?.endDate,
+      startDate: accommodationStartDate || selectedOffer?.startDate,
+      endDate: accommodationEndDate || selectedOffer?.endDate,
+    });
+  }, [accommodationRules, accommodationEndDate, accommodationStartDate, selectedOffer?.academicPeriodName, selectedOffer?.endDate, selectedOffer?.startDate]);
+  const activeAccommodationWindowStart =
+    accommodationWindowStart ||
+    toDateOnly(selectedAccommodationRule?.windowStartDate ?? '') ||
+    toDateOnly(selectedOffer?.startDate ?? '');
+  const activeAccommodationWindowEnd =
+    accommodationWindowEnd ||
+    toDateOnly(selectedAccommodationRule?.windowEndDate ?? '') ||
+    toDateOnly(selectedOffer?.endDate ?? '');
+  const effectiveAccommodationMinimumStayDays =
+    accommodationMinimumStayDays || selectedAccommodationRule?.minimumStayDays || 1;
   const selectedAccommodationDatesAreAligned =
     selectedAccommodationId && accommodationStartDate && accommodationEndDate
       ? accommodationStartDate === courseStartDate && accommodationEndDate === courseEndDate
       : true;
   const accommodationDateRangeDays = calculateDays(accommodationStartDate, accommodationEndDate);
   const isAccommodationDateOutOfWindow =
-    !!accommodationPreview &&
+    !!activeAccommodationWindowStart &&
+    !!activeAccommodationWindowEnd &&
     !!accommodationStartDate &&
     !!accommodationEndDate &&
-    !!accommodationWindowStart &&
-    !!accommodationWindowEnd &&
-    (accommodationStartDate < accommodationWindowStart || accommodationEndDate > accommodationWindowEnd);
+    (accommodationStartDate < activeAccommodationWindowStart || accommodationEndDate > activeAccommodationWindowEnd);
   const isAccommodationDateShorterThanMinimum =
     !!accommodationDateRangeDays &&
-    accommodationMinimumStayDays > 0 &&
-    accommodationDateRangeDays < accommodationMinimumStayDays;
-  const selectedAccommodation = useMemo(
-    () => accommodations.find((item) => item.id === selectedAccommodationId) ?? null,
-    [accommodations, selectedAccommodationId],
-  );
+    effectiveAccommodationMinimumStayDays > 0 &&
+    accommodationDateRangeDays < effectiveAccommodationMinimumStayDays;
+
+  useEffect(() => {
+    if (!selectedAccommodationId) {
+      setAccommodationRules([]);
+      setAccommodationRulesError(null);
+      setShowAccommodationRulesModal(false);
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    const run = async () => {
+      try {
+        setIsAccommodationRulesLoading(true);
+        setAccommodationRulesError(null);
+        const rulesRes = await fetch(
+          `${apiUrl}/accommodation-pricing?accommodationId=${encodeURIComponent(selectedAccommodationId)}&isActive=true`,
+          {
+            signal: controller.signal,
+            cache: 'no-store',
+          },
+        );
+        const rulesBody = await rulesRes.json().catch(() => ({}));
+        if (!rulesRes.ok) {
+          throw new Error(rulesBody?.message ?? 'Não foi possível carregar regras da acomodação.');
+        }
+        const rows = (rulesBody?.data ?? rulesBody) as AccommodationRulePreview[];
+        if (!active) return;
+        setAccommodationRules(Array.isArray(rows) ? rows : []);
+      } catch (error) {
+        if (!active) return;
+        setAccommodationRules([]);
+        setAccommodationRulesError(error instanceof Error ? error.message : 'Falha ao carregar regras da acomodação.');
+      } finally {
+        if (active) setIsAccommodationRulesLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [apiUrl, selectedAccommodationId]);
 
   useEffect(() => {
     if (!selectedOffer && offers.length === 0) {
@@ -277,8 +417,7 @@ export function NewEnrollmentForm({
         if (!active) return;
         const message = error instanceof Error ? error.message : 'Erro ao calcular valores';
         setPricingError(message);
-        setAccommodationRuleError(null);
-        setCoursePreview(null);
+        setAccommodationRuleError(message);
         setAccommodationPreview(null);
       } finally {
         if (active) setPricingLoading(false);
@@ -309,6 +448,12 @@ export function NewEnrollmentForm({
     }
 
     const messages: string[] = [];
+    if (pricingError && accommodationPreview === null && accommodationRules.length > 0) {
+      messages.push('A janela da acomodação foi carregada da regra selecionada. Ajuste o período para continuar.');
+    }
+    if (accommodationRulesError) {
+      messages.push(accommodationRulesError);
+    }
 
     if (!selectedAccommodationDatesAreAligned) {
       messages.push('As datas de acomodação foram alteradas em relação ao curso.');
@@ -319,7 +464,7 @@ export function NewEnrollmentForm({
     }
 
     if (isAccommodationDateShorterThanMinimum) {
-      messages.push(`A permanência mínima é de ${accommodationMinimumStayDays} dias.`);
+      messages.push(`A permanência mínima é de ${effectiveAccommodationMinimumStayDays} dias.`);
     }
 
     if (messages.length === 0) {
@@ -329,9 +474,12 @@ export function NewEnrollmentForm({
 
     setAccommodationRuleError(messages.join(' '));
   }, [
-    accommodationMinimumStayDays,
+    accommodationPreview,
+    accommodationRulesError,
+    effectiveAccommodationMinimumStayDays,
     accommodationStartDate,
     accommodationEndDate,
+    pricingError,
     isAccommodationDateOutOfWindow,
     isAccommodationDateShorterThanMinimum,
     selectedAccommodationDatesAreAligned,
@@ -354,7 +502,30 @@ export function NewEnrollmentForm({
         accommodationPreview.basePrice ?? accommodationPreview.amount,
         accommodationPreview.currency,
       )} ${accommodationPreview.basePriceMode === 'per_day' || accommodationPreview.pricingLabel === 'per day' ? '/dia' : '/semana'}`
-    : '';
+    : selectedAccommodationRule
+      ? `${formatMoney(
+          selectedAccommodationRule.pricePerDay ??
+            selectedAccommodationRule.basePrice ??
+            0,
+          selectedAccommodationRule.currency || coursePreview?.currency || 'CAD',
+        )} ${selectedAccommodationRule.pricePerDay ? '/dia' : '/semana'}`
+      : '';
+  const selectedAccommodationRuleWindowLabel = [
+    selectedAccommodationRule?.periodOption || 'padrão',
+    selectedAccommodationRule?.minimumStayDays
+      ? `${selectedAccommodationRule.minimumStayDays} dias`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' • ');
+  const accommodationDateFieldStartLimit =
+    activeAccommodationWindowStart || toDateOnly(selectedOffer?.startDate ?? '');
+  const accommodationDateFieldEndLimit =
+    activeAccommodationWindowEnd || toDateOnly(selectedOffer?.endDate ?? '');
+  const applyAccommodationWindow = (rule: AccommodationRulePreview) => {
+    if (rule.windowStartDate) setAccommodationStartDate(toDateOnly(rule.windowStartDate));
+    if (rule.windowEndDate) setAccommodationEndDate(toDateOnly(rule.windowEndDate));
+  };
 
   return (
     <form action={createEnrollmentFromAdminAction} className="grid gap-5 rounded-xl border border-slate-200 bg-white p-5">
@@ -473,33 +644,161 @@ export function NewEnrollmentForm({
       <div className="grid gap-4 md:grid-cols-3">
         <label className="text-sm font-medium text-slate-700 md:col-span-3">
           Acomodação (opcional)
-          <select
-            name="accommodationId"
-            value={selectedAccommodationId}
-            onChange={(event) => setSelectedAccommodationId(event.target.value)}
-            className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-          >
-            <option value="">Sem acomodação</option>
-            {accommodations.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.title} ({item.accommodationType})
-              </option>
-            ))}
-          </select>
+          <div className="mt-1 flex items-start gap-2">
+            <select
+              name="accommodationId"
+              value={selectedAccommodationId}
+              onChange={(event) => {
+                const nextAccommodationId = event.target.value;
+                setSelectedAccommodationId(nextAccommodationId);
+                if (nextAccommodationId) {
+                  if (selectedOffer?.startDate) {
+                    setAccommodationStartDate(toDateOnly(selectedOffer.startDate));
+                  }
+                  if (selectedOffer?.endDate) {
+                    setAccommodationEndDate(toDateOnly(selectedOffer.endDate));
+                  }
+                } else {
+                  setAccommodationStartDate('');
+                  setAccommodationEndDate('');
+                }
+              }}
+              className="h-10 flex-1 rounded-lg border border-slate-300 px-3 text-sm"
+            >
+              <option value="">Sem acomodação</option>
+              {accommodations.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title} ({item.accommodationType})
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setShowAccommodationRulesModal(true)}
+              disabled={!selectedAccommodationId}
+            >
+              Ver regras
+            </Button>
+          </div>
         </label>
         {selectedAccommodation ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 md:col-span-3">
+          <div className="md:col-span-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
             <p className="font-semibold text-slate-700">Janela e regra da acomodação</p>
             <p>
-              Janela: {formatDate(accommodationWindowStart) || 'não definida'} até{' '}
-              {formatDate(accommodationWindowEnd) || 'não definida'}
+              Janela:
+              {formatDate(activeAccommodationWindowStart) || 'não definida'} até{' '}
+              {formatDate(activeAccommodationWindowEnd) || 'não definida'}
             </p>
-            <p>Permanência mínima: {accommodationMinimumStayDays || 0} dias</p>
+            <p>Permanência mínima: {effectiveAccommodationMinimumStayDays || 0} dias</p>
+            {selectedAccommodationRule ? <p>Regra: {selectedAccommodationRuleWindowLabel}</p> : null}
             <p>
               Cobrança:{' '}
               {accommodationPriceSummary ||
                 'Aguardando datas para calcular a regra da acomodação selecionada.'}
             </p>
+            {isAccommodationRulesLoading ? (
+              <p className="mt-2 text-xs text-slate-500">Carregando regras da acomodação...</p>
+            ) : null}
+            {accommodationRulesError ? (
+              <p className="mt-2 text-xs text-amber-700">{accommodationRulesError}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {showAccommodationRulesModal ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800">Regras da acomodação</h3>
+                <Button type="button" size="sm" variant="outline" onClick={() => setShowAccommodationRulesModal(false)}>
+                  Fechar
+                </Button>
+              </div>
+              {accommodationRules.length === 0 ? (
+                <p className="text-sm text-rose-600">
+                  {accommodationRulesError ??
+                    'Sem regras ativas para esta acomodação. Use os limites de curso para cadastro temporário.'}
+                </p>
+              ) : (
+                <div className="grid gap-4">
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                    <p className="mb-2 text-xs font-semibold text-slate-700">
+                      Ajuste rápido do período (clicável)
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <label className="text-xs text-slate-700">
+                        Início
+                        <input
+                          type="date"
+                          min={accommodationDateFieldStartLimit || undefined}
+                          max={accommodationDateFieldEndLimit || undefined}
+                          value={accommodationStartDate}
+                          onChange={(event) => setAccommodationStartDate(event.target.value)}
+                          className="mt-1 h-9 w-full rounded-md border border-slate-300 px-2 text-xs"
+                        />
+                      </label>
+                      <label className="text-xs text-slate-700">
+                        Fim
+                        <input
+                          type="date"
+                          min={accommodationDateFieldStartLimit || undefined}
+                          max={accommodationDateFieldEndLimit || undefined}
+                          value={accommodationEndDate}
+                          onChange={(event) => setAccommodationEndDate(event.target.value)}
+                          className="mt-1 h-9 w-full rounded-md border border-slate-300 px-2 text-xs"
+                        />
+                      </label>
+                    </div>
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      Janela ativa:{' '}
+                      <span className="font-medium">
+                        {formatDate(accommodationDateFieldStartLimit)} até {formatDate(accommodationDateFieldEndLimit)}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {accommodationRules.map((rule) => {
+                      const ruleStart = rule.windowStartDate ? toDateOnly(rule.windowStartDate) : '';
+                      const ruleEnd = rule.windowEndDate ? toDateOnly(rule.windowEndDate) : '';
+                      const isCurrentRule = selectedAccommodationRule?.id === rule.id;
+                      return (
+                        <article
+                          key={rule.id}
+                          className={`rounded-lg border p-3 text-xs ${
+                            isCurrentRule ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50'
+                          }`}
+                        >
+                          <p className="font-semibold text-slate-700">{rule.periodOption}</p>
+                          <p>
+                            Janela:{' '}
+                            {ruleStart ? `${formatDate(ruleStart)} até ${formatDate(ruleEnd)}` : 'Sem janela definida'}
+                          </p>
+                          <p>
+                            Cobrança:{' '}
+                            {formatMoney(rule.pricePerDay ?? rule.basePrice ?? 0, rule.currency || 'CAD')}
+                            {rule.pricePerDay ? '/dia' : '/semana'}
+                          </p>
+                          <p>Mínimo: {rule.minimumStayDays || 1} dias</p>
+                          <p>Tipo: {rule.pricePerDay ? 'diária' : 'semanal'}</p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => {
+                              applyAccommodationWindow(rule);
+                              setShowAccommodationRulesModal(false);
+                            }}
+                          >
+                            Usar janela deste período
+                          </Button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
 
@@ -527,8 +826,8 @@ export function NewEnrollmentForm({
           <input
             name="accommodationStartDate"
             type="date"
-            min={accommodationWindowStart || undefined}
-            max={accommodationWindowEnd || undefined}
+            min={accommodationDateFieldStartLimit || undefined}
+            max={accommodationDateFieldEndLimit || undefined}
             value={accommodationStartDate}
             onChange={(event) => setAccommodationStartDate(event.target.value)}
             disabled={!selectedAccommodationId}
@@ -540,8 +839,8 @@ export function NewEnrollmentForm({
           <input
             name="accommodationEndDate"
             type="date"
-            min={accommodationWindowStart || undefined}
-            max={accommodationWindowEnd || undefined}
+            min={accommodationDateFieldStartLimit || undefined}
+            max={accommodationDateFieldEndLimit || undefined}
             value={accommodationEndDate}
             onChange={(event) => setAccommodationEndDate(event.target.value)}
             disabled={!selectedAccommodationId}

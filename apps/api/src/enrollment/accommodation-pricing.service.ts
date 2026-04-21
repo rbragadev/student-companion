@@ -9,10 +9,25 @@ export class AccommodationPricingService {
 
   private parseIsoDate(value?: string): Date | null {
     if (!value) return null;
-    const date =
-      /^\d{4}-\d{2}-\d{2}$/.test(value) && !value.includes('T')
-        ? this.parseIsoDateOnly(value)
-        : new Date(value);
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const normalizedDateOnly = /^\d{4}-\d{2}-\d{2}$/;
+    const normalizedBrDate = /^\d{2}\/\d{2}\/\d{4}$/;
+    const normalizedDdMmYyyy = /^\d{2}-\d{2}-\d{4}$/;
+
+    const isoDate = normalizedDateOnly.test(trimmed) && !trimmed.includes('T') ? trimmed : null;
+    const brDate = normalizedBrDate.test(trimmed)
+      ? trimmed
+      : normalizedDdMmYyyy.test(trimmed)
+        ? `${trimmed.slice(6)}-${trimmed.slice(3, 5)}-${trimmed.slice(0, 2)}`
+        : null;
+
+    const date = isoDate
+      ? this.parseIsoDateOnly(isoDate)
+      : brDate
+        ? this.parseIsoDateOnly(brDate)
+        : new Date(trimmed);
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
@@ -68,14 +83,19 @@ export class AccommodationPricingService {
     windowStartDate: Date | null;
     windowEndDate: Date | null;
   }) {
-    if (windowStartDate && startDate < windowStartDate) {
+    const startDateOnly = this.toDateOnly(startDate);
+    const endDateOnly = this.toDateOnly(endDate);
+    const windowStartDateOnly = this.toDateOnly(windowStartDate);
+    const windowEndDateOnly = this.toDateOnly(windowEndDate);
+
+    if (windowStartDateOnly && startDateOnly < windowStartDateOnly) {
       throw new BadRequestException(
-        `A data inicial está antes do início da janela da acomodação (${this.toDateOnly(windowStartDate)}).`,
+        `A data inicial está antes do início da janela da acomodação (${windowStartDateOnly}).`,
       );
     }
-    if (windowEndDate && endDate > windowEndDate) {
+    if (windowEndDateOnly && endDateOnly > windowEndDateOnly) {
       throw new BadRequestException(
-        `A data final está depois do fim da janela da acomodação (${this.toDateOnly(windowEndDate)}).`,
+        `A data final está depois do fim da janela da acomodação (${windowEndDateOnly}).`,
       );
     }
   }
@@ -155,23 +175,43 @@ export class AccommodationPricingService {
       accommodation: { select: { id: true, title: true, accommodationType: true } },
     } as const;
 
-    const pricing = periodOption
-      ? await this.prisma.accommodationPricing.findFirst({
-          where: {
-            accommodationId,
-            periodOption,
-            isActive: true,
-          },
-          include: includeConfig,
-        })
-      : await this.prisma.accommodationPricing.findFirst({
-          where: {
-            accommodationId,
-            isActive: true,
-          },
-          orderBy: [{ createdAt: 'desc' }],
-          include: includeConfig,
-        });
+    const startDate = this.parseIsoDate(options?.startDate);
+    const endDate = this.parseIsoDate(options?.endDate);
+
+    const pricingCandidates = await this.prisma.accommodationPricing.findMany({
+      where: {
+        accommodationId,
+        isActive: true,
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      include: includeConfig,
+    });
+
+    const normalizedPeriod = periodOption?.trim().toLowerCase();
+    const normalize = (value: string) => value.trim().toLowerCase();
+
+    let pricing =
+      normalizedPeriod
+        ? pricingCandidates.find((item) => normalize(item.periodOption) === normalizedPeriod)
+        : pricingCandidates[0];
+
+    if (!pricing && normalizedPeriod) {
+      pricing = pricingCandidates.find((item) => normalize(item.periodOption).includes(normalizedPeriod));
+    }
+
+    if (!pricing && startDate && endDate) {
+      pricing = pricingCandidates.find((item) => {
+        const itemWindowStart = item.windowStartDate ?? null;
+        const itemWindowEnd = item.windowEndDate ?? null;
+        if (itemWindowStart && startDate < itemWindowStart) return false;
+        if (itemWindowEnd && endDate > itemWindowEnd) return false;
+        return true;
+      });
+    }
+
+    if (!pricing) {
+      pricing = pricingCandidates[0];
+    }
 
     if (!pricing) {
       throw new NotFoundException(
@@ -191,8 +231,6 @@ export class AccommodationPricingService {
     const effectiveWindowStartDate = pricing.windowStartDate ?? null;
     const effectiveWindowEndDate = pricing.windowEndDate ?? null;
 
-    const startDate = this.parseIsoDate(options?.startDate);
-    const endDate = this.parseIsoDate(options?.endDate);
     let weeks = 0;
     let durationDays = 0;
     let calculatedAmount = effectivePricePerDay > 0 ? effectiveBasePrice : effectiveBasePrice;
