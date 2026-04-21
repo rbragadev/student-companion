@@ -31,6 +31,27 @@ type DownPaymentAllocation = {
   };
 };
 
+type CheckoutPendingFinanceTransaction = {
+  id: string;
+  financeItemId: string;
+  financeItemTitle: string;
+  itemType: string;
+  amount: number;
+  currency: string;
+  dueDate: Date | null;
+  createdAt: Date;
+};
+
+type CheckoutFinanceOperationsSummary = {
+  totalAmount: number;
+  emittedAmount: number;
+  paidAmount: number;
+  pendingAmount: number;
+  remainingAmount: number;
+  pendingTransactionsCount: number;
+  pendingTransactions: CheckoutPendingFinanceTransaction[];
+};
+
 @Injectable()
 export class PaymentService {
   constructor(
@@ -50,6 +71,68 @@ export class PaymentService {
 
   private isApprovalReadyStatus(status: string): boolean {
     return ['approved', 'checkout_available', 'payment_pending', 'partially_paid', 'paid', 'confirmed', 'enrolled'].includes(status);
+  }
+
+  private async resolveFinanceOperationsSummary(
+    enrollmentId: string,
+  ): Promise<CheckoutFinanceOperationsSummary> {
+    const items = await this.prisma.financeItem.findMany({
+      where: { enrollmentId },
+      include: {
+        transactions: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    const totalAmount = Number(
+      items
+        .reduce((sum, item) => sum + this.toNumber(item.amount), 0)
+        .toFixed(2),
+    );
+    const paidAmount = Number(
+      items
+        .flatMap((item) => item.transactions)
+        .filter((transaction) => transaction.status === 'paid')
+        .reduce((sum, transaction) => sum + this.toNumber(transaction.amount), 0)
+        .toFixed(2),
+    );
+    const pendingTransactions = items
+      .flatMap((item) =>
+        item.transactions
+          .filter((transaction) => transaction.status === 'pending')
+          .map((transaction) => ({
+            id: transaction.id,
+            financeItemId: item.id,
+            financeItemTitle: item.title,
+            itemType: item.itemType,
+            amount: this.toNumber(transaction.amount),
+            currency: transaction.currency,
+            dueDate: transaction.dueDate ?? null,
+            createdAt: transaction.createdAt,
+          })),
+      )
+      .sort((a, b) => {
+        const dueA = a.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const dueB = b.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        if (dueA === dueB) return a.createdAt.getTime() - b.createdAt.getTime();
+        return dueA - dueB;
+      });
+    const pendingAmount = Number(
+      pendingTransactions.reduce((sum, transaction) => sum + transaction.amount, 0).toFixed(2),
+    );
+    const emittedAmount = Number((paidAmount + pendingAmount).toFixed(2));
+    const remainingAmount = Number(Math.max(0, totalAmount - paidAmount).toFixed(2));
+
+    return {
+      totalAmount,
+      emittedAmount,
+      paidAmount,
+      pendingAmount,
+      remainingAmount,
+      pendingTransactionsCount: pendingTransactions.length,
+      pendingTransactions,
+    };
   }
 
   private async reconcileInvoiceStatus(invoiceId?: string | null) {
@@ -220,6 +303,7 @@ export class PaymentService {
       where: { enrollmentId },
       orderBy: { createdAt: 'desc' },
     });
+    const financeOperations = await this.resolveFinanceOperationsSummary(enrollmentId);
 
     const paidDownPayment = payments.find(
       (item) => item.type === 'down_payment' && item.status === 'paid',
@@ -258,6 +342,7 @@ export class PaymentService {
       enrollment,
       quote,
       payments,
+      financeOperations,
       paidDownPayment,
       state,
       reason,
@@ -284,6 +369,8 @@ export class PaymentService {
       context.financial.downPaymentAmount,
     );
 
+    const hasPendingOperations = context.financeOperations.pendingTransactionsCount > 0;
+
     return {
       enrollmentId: context.enrollment.id,
       state: context.state,
@@ -301,7 +388,9 @@ export class PaymentService {
       quote: context.quote,
       packageStatus:
         context.state === 'paid'
-          ? 'paid'
+          ? hasPendingOperations
+            ? 'payment_pending'
+            : 'paid'
           : context.state === 'blocked_rejected'
             ? 'cancelled'
             : context.state === 'blocked_waiting_approval'
@@ -313,7 +402,9 @@ export class PaymentService {
                   : 'draft',
       nextStep:
         context.state === 'paid'
-          ? 'Pagamento confirmado.'
+          ? hasPendingOperations
+            ? 'Existem parcelas emitidas em aberto. Você pode pagar no checkout.'
+            : 'Pagamento confirmado.'
           : context.state === 'blocked_rejected'
             ? 'Pacote cancelado/negado.'
             : context.state === 'blocked_waiting_approval'
@@ -323,6 +414,9 @@ export class PaymentService {
                 : 'Gerar ou atualizar quote para liberar checkout.',
       financial: context.financial,
       financialBreakdown: allocation,
+      financeOperations: context.financeOperations,
+      canPayPendingInstallments:
+        context.state === 'paid' && context.financeOperations.pendingTransactionsCount > 0,
       payments: context.payments,
     };
   }
@@ -344,6 +438,72 @@ export class PaymentService {
       throw new BadRequestException('Checkout bloqueado: quote não encontrada');
     }
     if (context.state === 'paid' && context.paidDownPayment) {
+      if (context.financeOperations.pendingTransactionsCount > 0) {
+        const amount = context.financeOperations.pendingAmount;
+        if (amount <= 0) {
+          throw new BadRequestException('Não há valor pendente válido para pagamento.');
+        }
+
+        const pendingTransactionIds = context.financeOperations.pendingTransactions.map(
+          (transaction) => transaction.id,
+        );
+        const paidAt = new Date();
+
+        const payment = await this.prisma.$transaction(async (tx) => {
+          const pending = await tx.payment.create({
+            data: {
+              enrollmentId,
+              enrollmentQuoteId: context.quote?.id ?? null,
+              type: 'post_entry_payment',
+              amount,
+              currency: context.financial.currency,
+              status: 'pending',
+              provider: 'fake',
+            },
+          });
+
+          const paid = await tx.payment.update({
+            where: { id: pending.id },
+            data: {
+              status: 'paid',
+              providerReference: `fake_${Date.now()}`,
+              paidAt,
+            },
+          });
+
+          await tx.financeTransaction.updateMany({
+            where: { id: { in: pendingTransactionIds } },
+            data: {
+              status: 'paid',
+              paidAt,
+              provider: 'checkout',
+              providerReference: `checkout_payment:${paid.id}`,
+            },
+          });
+
+          return paid;
+        });
+
+        await this.notificationService.create({
+          userId: context.enrollment.student.id,
+          type: 'payment_confirmed',
+          title: 'Pagamento confirmado',
+          message:
+            'Recebemos o pagamento das parcelas emitidas do seu pacote.',
+          metadata: {
+            enrollmentId,
+            paymentId: payment.id,
+            amount: this.toNumber(payment.amount),
+            currency: payment.currency,
+          },
+        });
+
+        return {
+          payment,
+          checkout: await this.getCheckout(enrollmentId),
+        };
+      }
+
       return {
         payment: context.paidDownPayment,
         checkout: await this.getCheckout(enrollmentId),

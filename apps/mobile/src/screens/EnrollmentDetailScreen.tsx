@@ -265,15 +265,19 @@ export default function EnrollmentDetailScreen() {
   const upsellAccommodationsQuery = useUpsellAccommodationsByEnrollment(enrollmentId);
   const upsellAccommodations = upsellAccommodationsQuery.data ?? [];
   const isAccommodationClosed = enrollment?.accommodationStatus === 'closed';
+  const hasPendingInstallments = Boolean(
+    checkoutQuery.data?.financeOperations &&
+      checkoutQuery.data.financeOperations.pendingTransactionsCount > 0,
+  );
   const isCheckoutPaid = checkoutQuery.data?.state === 'paid';
   const isAccommodationLocked = isAccommodationClosed || isCheckoutPaid;
   const primaryAction = enrollment ? getPrimaryActionForStatus(enrollment.status) : null;
   const isCheckoutCtaBlocked =
     !enrollment ||
-    ['awaiting_school_approval', 'paid', 'confirmed', 'enrolled', 'rejected', 'cancelled', 'expired'].includes(
+    ['awaiting_school_approval', 'rejected', 'cancelled', 'expired'].includes(
       enrollment.status,
     ) ||
-    checkoutQuery.data?.state === 'paid';
+    (checkoutQuery.data?.state === 'paid' && !hasPendingInstallments);
 
   React.useEffect(() => {
     setSelectedAccommodationId(enrollment?.accommodation?.id ?? '');
@@ -407,6 +411,17 @@ export default function EnrollmentDetailScreen() {
                   <Text variant="caption">
                     Saldo: {checkoutQuery.data.financial.remainingAmount.toFixed(2)} {checkoutQuery.data.financial.currency}
                   </Text>
+                  {checkoutQuery.data.financeOperations ? (
+                    <>
+                      <Text variant="caption">
+                        Emitido: {checkoutQuery.data.financeOperations.emittedAmount.toFixed(2)} {checkoutQuery.data.financial.currency}
+                      </Text>
+                      <Text variant="caption">
+                        Em aberto: {checkoutQuery.data.financeOperations.pendingAmount.toFixed(2)} {checkoutQuery.data.financial.currency}
+                        {' '}({checkoutQuery.data.financeOperations.pendingTransactionsCount} cobrança{checkoutQuery.data.financeOperations.pendingTransactionsCount === 1 ? '' : 's'})
+                      </Text>
+                    </>
+                  ) : null}
                   <Button
                     className="mt-3"
                     onPress={() =>
@@ -414,7 +429,11 @@ export default function EnrollmentDetailScreen() {
                     }
                     disabled={isCheckoutCtaBlocked}
                   >
-                    {isCheckoutCtaBlocked ? 'Checkout indisponível' : 'Ir para checkout'}
+                    {isCheckoutCtaBlocked
+                      ? 'Checkout indisponível'
+                      : hasPendingInstallments
+                        ? 'Ir para checkout (parcelas em aberto)'
+                        : 'Ir para checkout'}
                   </Button>
                 </View>
               )}

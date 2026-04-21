@@ -53,8 +53,13 @@ export default function EnrollmentCheckoutScreen() {
 
   const payMutation = useMutation({
     mutationFn: async () => enrollmentApi.payEnrollmentDownPaymentFake(enrollmentId),
-    onSuccess: async () => {
-      setFeedback('Pagamento da entrada confirmado.');
+    onSuccess: async (result) => {
+      const isEntryPayment = result.payment?.type === 'down_payment';
+      setFeedback(
+        isEntryPayment
+          ? 'Pagamento da entrada confirmado.'
+          : 'Pagamento das parcelas emitidas confirmado.',
+      );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['enrollment', 'checkout', enrollmentId] }),
         queryClient.invalidateQueries({ queryKey: ['enrollment', 'detail', enrollmentId] }),
@@ -68,6 +73,15 @@ export default function EnrollmentCheckoutScreen() {
   });
 
   const checkout = checkoutQuery.data;
+  const canPayNow = Boolean(
+    checkout && (checkout.state === 'available' || checkout.canPayPendingInstallments),
+  );
+  const hasPendingInstallments = Boolean(
+    checkout?.financeOperations && checkout.financeOperations.pendingTransactionsCount > 0,
+  );
+  const payButtonLabel = checkout?.state === 'available'
+    ? 'Pagar entrada (30%)'
+    : 'Pagar parcelas emitidas';
 
   return (
     <Screen safeArea={true} scrollable={true}>
@@ -84,7 +98,9 @@ export default function EnrollmentCheckoutScreen() {
         <View>
           <Text variant="h2" className="font-semibold">Checkout do pacote</Text>
           <Text variant="bodySecondary" className="mt-1">
-            MVP: cobramos somente a entrada (30%). O restante fica pendente para cobrança operacional.
+            {checkout?.state === 'available'
+              ? 'MVP: cobramos somente a entrada (30%). O restante fica pendente para cobrança operacional.'
+              : 'Acompanhe entrada, parcelas emitidas e pagamentos pendentes do pacote.'}
           </Text>
         </View>
 
@@ -158,6 +174,22 @@ export default function EnrollmentCheckoutScreen() {
                 <Text variant="caption">
                   Saldo: {money(checkout.financial.remainingAmount, checkout.financial.currency)}
                 </Text>
+                {checkout.financeOperations ? (
+                  <>
+                    <Text variant="caption" className="mt-2 font-medium text-textPrimary">
+                      Operação financeira da jornada
+                    </Text>
+                    <Text variant="caption">
+                      Emitido: {money(checkout.financeOperations.emittedAmount, checkout.financial.currency)}
+                    </Text>
+                    <Text variant="caption">
+                      Pago: {money(checkout.financeOperations.paidAmount, checkout.financial.currency)}
+                    </Text>
+                    <Text variant="caption">
+                      Em aberto: {money(checkout.financeOperations.pendingAmount, checkout.financial.currency)} ({checkout.financeOperations.pendingTransactionsCount} cobrança{checkout.financeOperations.pendingTransactionsCount === 1 ? '' : 's'})
+                    </Text>
+                  </>
+                ) : null}
                 {checkout.financialBreakdown ? (
                   <>
                     <Text variant="caption" className="mt-2 font-medium text-textPrimary">
@@ -183,13 +215,36 @@ export default function EnrollmentCheckoutScreen() {
               </View>
             </Card>
 
-            {checkout.state === 'available' && (
+            {hasPendingInstallments && checkout.financeOperations ? (
+              <Card>
+                <Text variant="h3" className="font-semibold">Cobranças emitidas</Text>
+                <View className="mt-3 gap-2">
+                  {checkout.financeOperations.pendingTransactions.map((transaction) => (
+                    <View key={transaction.id} className="rounded-lg border border-border p-3">
+                      <Text variant="caption" className="font-medium text-textPrimary">
+                        {transaction.financeItemTitle}
+                      </Text>
+                      <Text variant="caption">
+                        {transaction.itemType} • {money(transaction.amount, transaction.currency)}
+                      </Text>
+                      {transaction.dueDate ? (
+                        <Text variant="caption">
+                          Vencimento: {new Date(transaction.dueDate).toLocaleDateString()}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            ) : null}
+
+            {canPayNow && (
               <Button onPress={() => payMutation.mutate()} disabled={payMutation.isPending}>
-                {payMutation.isPending ? 'Processando pagamento...' : 'Pagar entrada (30%)'}
+                {payMutation.isPending ? 'Processando pagamento...' : payButtonLabel}
               </Button>
             )}
 
-            {checkout.state === 'paid' && (
+            {checkout.state === 'paid' && !checkout.canPayPendingInstallments && (
               <Card className="border-green-200 bg-green-50">
                 <Text variant="caption" className="text-green-700">
                   Entrada já confirmada para este pacote.

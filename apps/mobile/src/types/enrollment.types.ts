@@ -328,6 +328,25 @@ export interface EnrollmentCheckoutState {
       accommodation: number;
     };
   };
+  financeOperations?: {
+    totalAmount: number;
+    emittedAmount: number;
+    paidAmount: number;
+    pendingAmount: number;
+    remainingAmount: number;
+    pendingTransactionsCount: number;
+    pendingTransactions: Array<{
+      id: string;
+      financeItemId: string;
+      financeItemTitle: string;
+      itemType: string;
+      amount: number;
+      currency: string;
+      dueDate?: string | null;
+      createdAt: string;
+    }>;
+  };
+  canPayPendingInstallments?: boolean;
   payments: CheckoutPayment[];
 }
 
