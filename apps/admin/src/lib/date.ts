@@ -11,12 +11,17 @@ export function normalizeDateOnly(value?: string | null): string {
     return trimmed;
   }
 
+  const [datePart] = trimmed.split('T');
+  if (DATE_ONLY_PATTERN.test(datePart)) {
+    return datePart;
+  }
+
   const parsedDate = new Date(trimmed);
   if (Number.isNaN(parsedDate.getTime())) return '';
 
-  const year = parsedDate.getFullYear();
-  const month = toTwoDigits(parsedDate.getMonth() + 1);
-  const day = toTwoDigits(parsedDate.getDate());
+  const year = parsedDate.getUTCFullYear();
+  const month = toTwoDigits(parsedDate.getUTCMonth() + 1);
+  const day = toTwoDigits(parsedDate.getUTCDate());
 
   return `${year}-${month}-${day}`;
 }

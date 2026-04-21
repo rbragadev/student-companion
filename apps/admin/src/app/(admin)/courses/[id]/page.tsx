@@ -10,6 +10,7 @@ import { toDateInputValue } from '@/lib/date';
 import type { CourseAdmin, CoursePricingAdmin, EnrollmentAdmin, SchoolAdmin } from '@/types/catalog.types';
 import type { AcademicPeriod, ClassGroup, Unit } from '@/types/structure.types';
 import { CourseHierarchyFields } from '../course-hierarchy-fields';
+import { CoursePricingPeriodFields } from '../course-pricing-period-fields';
 import {
   createCoursePricingInlineAction,
   deleteCourseAction,
@@ -106,7 +107,7 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
         <h2 className="text-sm font-semibold text-slate-900">Oferta e janelas de datas do curso</h2>
         <p className="mt-1 text-xs text-slate-500">
           {course.period_type === 'weekly'
-            ? 'Curso semanal: o app calcula valor por semana (per week) conforme duração selecionada em datas válidas.'
+            ? 'Curso semanal: o app cobra por semana (base price / week). Duração exibida automaticamente por seleção de janela semanal.'
             : 'Curso fixo: o app exibe total price da oferta para a janela selecionada.'}
         </p>
         <p className="mt-1 text-xs text-slate-500">
@@ -121,18 +122,26 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
                 <option value="">Turma interna</option>
                 {classGroups.map((group) => (
                   <option key={group.id} value={group.id}>
-                    {group.name} ({group.code})
+                  {group.name} ({group.code})
                   </option>
                 ))}
               </select>
-              <input name="startDate" type="date" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm" />
-              <input name="endDate" type="date" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm" />
+              <CoursePricingPeriodFields
+                periodType={course.period_type ?? 'fixed'}
+                startDate=""
+                endDate=""
+                duration=""
+                canWrite={canWrite}
+              />
               <input
-                name="duration"
-                placeholder={course.period_type === 'weekly' ? 'ex: 4-24 weeks' : 'ex: 16 weeks'}
+                name="basePrice"
+                type="number"
+                min={0}
+                step="0.01"
+                required
+                placeholder={course.period_type === 'weekly' ? 'Preço base por semana' : 'Preço base da janela'}
                 className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
               />
-              <input name="basePrice" type="number" min={0} step="0.01" required placeholder="Preço base" className="h-9 rounded-lg border border-slate-300 px-3 text-sm" />
               <input name="currency" defaultValue="CAD" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm" />
               <label className="flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm">
                 <input type="checkbox" name="isActive" defaultChecked />
@@ -157,21 +166,13 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
                   {row.academicPeriod?.endDate ? toDateInputValue(row.academicPeriod.endDate) : '-'}
                 </p>
               </div>
-              <input
-                name="startDate"
-                type="date"
-                defaultValue={row.academicPeriod?.startDate ? toDateInputValue(row.academicPeriod.startDate) : ''}
-                disabled={!canWrite}
-                className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100"
+              <CoursePricingPeriodFields
+                periodType={course.period_type ?? 'fixed'}
+                startDate={row.academicPeriod?.startDate ? toDateInputValue(row.academicPeriod.startDate) : ''}
+                endDate={row.academicPeriod?.endDate ? toDateInputValue(row.academicPeriod.endDate) : ''}
+                duration={row.duration ?? ''}
+                canWrite={canWrite}
               />
-              <input
-                name="endDate"
-                type="date"
-                defaultValue={row.academicPeriod?.endDate ? toDateInputValue(row.academicPeriod.endDate) : ''}
-                disabled={!canWrite}
-                className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100"
-              />
-              <input name="duration" defaultValue={row.duration ?? ''} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
               <input name="basePrice" type="number" min={0} step="0.01" defaultValue={Number(row.basePrice)} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
               <input name="currency" defaultValue={row.currency} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
               <div className="flex items-center gap-2">
