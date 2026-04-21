@@ -142,10 +142,11 @@ export function NewAccommodationOrderForm({
           throw new Error(body?.message ?? 'Não foi possível calcular o valor da acomodação.');
         }
 
-        const data = (body?.data ?? body) as { finalPrice?: number; basePrice?: number; currency?: string };
+        const data = (body?.data ??
+          body) as { finalPrice?: number; calculatedAmount?: number; basePrice?: number; currency?: string };
         if (!active) return;
         setPreview({
-          amount: Number(data.finalPrice ?? data.basePrice ?? 0),
+          amount: Number(data.finalPrice ?? data.calculatedAmount ?? data.basePrice ?? 0),
           currency: data.currency ?? 'CAD',
         });
       } catch (error) {

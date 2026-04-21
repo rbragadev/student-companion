@@ -514,6 +514,15 @@ export interface OrderAdmin {
       location?: string | null;
     } | null;
   }>;
+  payments?: Array<{
+    id: string;
+    type: string;
+    status: string;
+    amount: number;
+    currency: string;
+    paidAt?: string | null;
+    createdAt: string;
+  }>;
 }
 
 export interface FinancialOverviewAdmin {

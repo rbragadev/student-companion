@@ -194,9 +194,20 @@ export async function updateEnrollmentWorkflowAction(formData: FormData) {
 export async function syncEnrollmentOrderAction(formData: FormData) {
   await assertActionPermission('users.write');
   const enrollmentId = getText(formData, 'enrollmentId');
+  const downPaymentPercentage = getOptionalNumber(formData, 'downPaymentPercentage');
+  const downPaymentAmount = getOptionalNumber(formData, 'downPaymentAmount');
+
+  const body: Record<string, number> = {};
+  if (downPaymentPercentage !== undefined) {
+    body.downPaymentPercentage = downPaymentPercentage;
+  }
+  if (downPaymentAmount !== undefined) {
+    body.downPaymentAmount = downPaymentAmount;
+  }
 
   await apiFetch(`/enrollments/${enrollmentId}/sync-order`, {
     method: 'POST',
+    body: JSON.stringify(body),
   });
 
   redirect(`/enrollments/${enrollmentId}`);

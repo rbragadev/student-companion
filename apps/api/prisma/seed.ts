@@ -621,7 +621,7 @@ async function main() {
         id: ids.academicPeriods.spring2026,
         classGroupId: ids.classGroups.businessAfternoon,
         name: 'Spring 2026',
-        startDate: new Date('2026-03-01T00:00:00.000Z'),
+        startDate: new Date('2026-02-28T00:00:00.000Z'),
         endDate: new Date('2026-07-05T00:00:00.000Z'),
         status: RecordStatus.INACTIVE,
       },

@@ -52,6 +52,20 @@ export default async function AccommodationOperationDetailPage({ params }: Reado
   const accommodationMessages =
     enrollment?.messages?.filter((item) => (item.channel ?? 'enrollment') === 'accommodation') ?? [];
 
+  const orderPayments = order.payments ?? [];
+  const paidAmount = orderPayments
+    .filter((item) => item.status === 'paid')
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+  const pendingAmount = orderPayments
+    .filter((item) => item.status === 'pending')
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+  const failedAmount = orderPayments
+    .filter((item) => item.status === 'failed')
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+  const chargedAmount = paidAmount + pendingAmount;
+  const outstandingAmount = Math.max(0, Number(order.totalAmount) - paidAmount);
+  const paymentCoveragePercent = order.totalAmount > 0 ? (paidAmount / Number(order.totalAmount)) * 100 : 0;
+
   const isLinked = Boolean(enrollment?.id);
 
   return (
@@ -64,7 +78,7 @@ export default async function AccommodationOperationDetailPage({ params }: Reado
       />
       <PageHeader
         title="Venda da Acomodação"
-        description="Workflow e comunicação da acomodação como produto vendido, separado da matrícula."
+        description="Workflow, financeiro e comunicação da acomodação como produto vendido, separado da matrícula."
         actions={(
           <Link href="/accommodation-operations">
             <Button variant="outline" size="sm"><ArrowLeft size={14} />Voltar</Button>
@@ -140,83 +154,43 @@ export default async function AccommodationOperationDetailPage({ params }: Reado
             <p className="mt-2 text-xs text-slate-500">Sem matrícula vinculada (standalone).</p>
           )}
         </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Fluxo financeiro</h2>
+          <div className="mt-3 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            <p>Valor total da order: <strong>{money(order.totalAmount, order.currency)}</strong></p>
+            <p>Entrada esperada: <strong>{money(order.downPaymentAmount ?? 0, order.currency)}</strong></p>
+            <p>Saldo esperado: <strong>{money(order.remainingAmount ?? 0, order.currency)}</strong></p>
+            <p>Cobrado (paid + pending): <strong>{money(chargedAmount, order.currency)}</strong></p>
+            <p>Já pago: <strong>{money(paidAmount, order.currency)}</strong></p>
+            <p>Pendente: <strong>{money(pendingAmount, order.currency)}</strong></p>
+            {failedAmount > 0 ? <p>Falhas: <strong>{money(failedAmount, order.currency)}</strong></p> : null}
+            <p>
+              Falta receber: <strong>{money(outstandingAmount, order.currency)}</strong> ({paymentCoveragePercent.toFixed(2)}%)
+            </p>
+          </div>
+          <h3 className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Pagamentos registrados</h3>
+          <div className="mt-2 max-h-56 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
+            {orderPayments.length === 0 && <p className="text-xs text-slate-500">Nenhum pagamento registrado.</p>}
+            {orderPayments.map((payment) => (
+              <div key={payment.id} className="rounded border border-slate-200 bg-white p-2">
+                <p className="text-xs font-semibold text-slate-800">{payment.type} • {payment.status}</p>
+                <p className="text-xs text-slate-600">
+                  {money(payment.amount, payment.currency)} • {formatDateTimePtBr(payment.createdAt)}
+                </p>
+                {payment.paidAt ? (
+                  <p className="text-[11px] text-slate-500">Pago em {formatDateTimePtBr(payment.paidAt)}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </article>
       </section>
 
-      {isLinked ? (
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className="rounded-lg border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-900">Workflow da acomodação</h2>
-            <p className="mt-1 text-xs text-slate-500">Opera apenas o status da acomodação no contexto da venda.</p>
-            <form action={updateAccommodationOrderWorkflowAction} className="mt-4 grid gap-3">
-              <input type="hidden" name="orderId" value={order.id} />
-              <input type="hidden" name="enrollmentId" value={enrollment!.id} />
-              <label className="text-xs font-medium text-slate-600">
-                Status da acomodação
-                <select
-                  name="status"
-                  defaultValue={enrollment!.accommodationStatus}
-                  className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                >
-                  <option value="not_selected">Não selecionada</option>
-                  <option value="selected">Selecionada</option>
-                  <option value="approved">Aprovada</option>
-                  <option value="denied">Negada</option>
-                  <option value="closed">Fechada</option>
-                </select>
-              </label>
-              <label className="text-xs font-medium text-slate-600">
-                Motivo (opcional)
-                <textarea
-                  name="reason"
-                  rows={3}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  placeholder="Ex.: acomodação validada e pronta para operação"
-                />
-              </label>
-              <div>
-                <Button type="submit" size="sm">Atualizar workflow</Button>
-              </div>
-            </form>
-          </article>
-
-          <article className="rounded-lg border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-900">Chat da acomodação</h2>
-            <div className="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
-              {accommodationMessages.length ? (
-                accommodationMessages.map((message) => (
-                  <div key={message.id} className="rounded border border-slate-200 bg-white p-2">
-                    <p className="text-xs font-medium text-slate-800">
-                      {message.sender?.firstName} {message.sender?.lastName} • {formatDateTimePtBr(message.createdAt)}
-                    </p>
-                    <p className="text-xs text-slate-600">{message.message}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-slate-500">Sem mensagens de acomodação.</p>
-              )}
-            </div>
-            <form action={sendAccommodationOrderMessageAction} className="mt-3 grid gap-2">
-              <input type="hidden" name="orderId" value={order.id} />
-              <input type="hidden" name="enrollmentId" value={enrollment!.id} />
-              <textarea
-                name="message"
-                rows={3}
-                required
-                placeholder="Mensagem para equipe/aluno sobre a acomodação"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <div>
-                <Button type="submit" size="sm">Enviar mensagem</Button>
-              </div>
-            </form>
-          </article>
-        </section>
-      ) : (
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Workflow da order standalone</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Sem matrícula vinculada: você pode operar status comercial e pagamento direto na order.
-          </p>
+      <section className="grid gap-4 md:grid-cols-2">
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Status da order</h2>
+          <p className="mt-1 text-xs text-slate-500">Ajuste status da venda e do pagamento.</p>
           <form action={updateStandaloneAccommodationOrderStatusAction} className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <input type="hidden" name="orderId" value={order.id} />
             <label className="text-xs font-medium text-slate-600">
@@ -251,8 +225,79 @@ export default async function AccommodationOperationDetailPage({ params }: Reado
               <Button type="submit" size="sm">Salvar status da order</Button>
             </div>
           </form>
+        </article>
+
+        {isLinked ? (
+          <article className="rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-900">Workflow da acomodação</h2>
+            <p className="mt-1 text-xs text-slate-500">Opera apenas o status da acomodação no contexto da venda.</p>
+            <form action={updateAccommodationOrderWorkflowAction} className="mt-4 grid gap-3">
+              <input type="hidden" name="orderId" value={order.id} />
+              <input type="hidden" name="enrollmentId" value={enrollment!.id} />
+              <label className="text-xs font-medium text-slate-600">
+                Status da acomodação
+                <select
+                  name="status"
+                  defaultValue={enrollment!.accommodationStatus}
+                  className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                >
+                  <option value="not_selected">Não selecionada</option>
+                  <option value="selected">Selecionada</option>
+                  <option value="approved">Aprovada</option>
+                  <option value="denied">Negada</option>
+                  <option value="closed">Fechada</option>
+                </select>
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Motivo (opcional)
+                <textarea
+                  name="reason"
+                  rows={3}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="Ex.: acomodação validada e pronta para operação"
+                />
+              </label>
+              <div>
+                <Button type="submit" size="sm">Atualizar workflow</Button>
+              </div>
+            </form>
+          </article>
+        ) : null}
+      </section>
+
+      {isLinked ? (
+        <section className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Chat da acomodação</h2>
+          <div className="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
+            {accommodationMessages.length ? (
+              accommodationMessages.map((message) => (
+                <div key={message.id} className="rounded border border-slate-200 bg-white p-2">
+                  <p className="text-xs font-medium text-slate-800">
+                    {message.sender?.firstName} {message.sender?.lastName} • {formatDateTimePtBr(message.createdAt)}
+                  </p>
+                  <p className="text-xs text-slate-600">{message.message}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-500">Sem mensagens de acomodação.</p>
+            )}
+          </div>
+          <form action={sendAccommodationOrderMessageAction} className="mt-3 grid gap-2">
+            <input type="hidden" name="orderId" value={order.id} />
+            <input type="hidden" name="enrollmentId" value={enrollment!.id} />
+            <textarea
+              name="message"
+              rows={3}
+              required
+              placeholder="Mensagem para equipe/aluno sobre a acomodação"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <div>
+              <Button type="submit" size="sm">Enviar mensagem</Button>
+            </div>
+          </form>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

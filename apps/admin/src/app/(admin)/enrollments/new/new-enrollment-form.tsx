@@ -46,6 +46,15 @@ function formatMoney(value: number, currency: string) {
   return `${value.toFixed(2)} ${currency}`;
 }
 
+function calculateWeeks(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+  const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0 || diffDays % 7 !== 0) return null;
+  return diffDays / 7;
+}
+
 export function NewEnrollmentForm({
   students,
   courses,
@@ -69,6 +78,11 @@ export function NewEnrollmentForm({
   const [pricingError, setPricingError] = useState<string | null>(null);
 
   const offers = useMemo(() => offersByCourse[selectedCourseId] ?? [], [offersByCourse, selectedCourseId]);
+  const selectedCourse = useMemo(
+    () => courses.find((item) => item.id === selectedCourseId) ?? null,
+    [courses, selectedCourseId],
+  );
+  const isFixedPeriod = selectedCourse?.period_type !== 'weekly';
   const selectedOffer = useMemo(
     () => offers.find((offer) => offer.id === selectedOfferId) ?? offers[0] ?? null,
     [offers, selectedOfferId],
@@ -136,12 +150,17 @@ export function NewEnrollmentForm({
         const courseData = (courseBody?.data ?? courseBody) as {
           id: string;
           finalPrice?: number;
+          calculatedAmount?: number;
           basePrice?: number;
           currency?: string;
         };
+        const fallbackWeeklyWeeks = isFixedPeriod ? null : calculateWeeks(courseStartDate, courseEndDate);
+        const fallbackCourseAmount = isFixedPeriod
+          ? courseData.basePrice ?? 0
+          : Number(courseData.basePrice ?? 0) * (fallbackWeeklyWeeks ?? 0);
         const nextCourse: PricingPreview = {
           id: courseData.id,
-          amount: Number(courseData.finalPrice ?? courseData.basePrice ?? 0),
+          amount: Number(courseData.finalPrice ?? courseData.calculatedAmount ?? fallbackCourseAmount ?? 0),
           currency: courseData.currency ?? 'CAD',
         };
 
@@ -167,12 +186,18 @@ export function NewEnrollmentForm({
           const accommodationData = (accommodationBody?.data ?? accommodationBody) as {
             id: string;
             finalPrice?: number;
+            calculatedAmount?: number;
             basePrice?: number;
             currency?: string;
           };
           nextAccommodation = {
             id: accommodationData.id,
-            amount: Number(accommodationData.finalPrice ?? accommodationData.basePrice ?? 0),
+            amount: Number(
+              accommodationData.finalPrice ??
+                accommodationData.calculatedAmount ??
+                accommodationData.basePrice ??
+                0,
+            ),
             currency: accommodationData.currency ?? nextCourse.currency,
           };
         }
@@ -293,6 +318,7 @@ export function NewEnrollmentForm({
               <p className="mt-1">Turma: {selectedOffer.classGroupName} ({selectedOffer.classGroupCode})</p>
               <p>Período: {selectedOffer.academicPeriodName}</p>
               <p>Janela: {toDateOnly(selectedOffer.startDate)} até {toDateOnly(selectedOffer.endDate)}</p>
+              {isFixedPeriod ? <p>Período fixo: datas não editáveis.</p> : null}
             </>
           ) : (
             <p className="mt-1">Selecione um curso com oferta ativa.</p>
@@ -312,6 +338,8 @@ export function NewEnrollmentForm({
             type="date"
             required
             value={courseStartDate}
+            readOnly={isFixedPeriod}
+            title={isFixedPeriod ? 'Curso com período fixo: data não editável.' : undefined}
             onChange={(event) => setCourseStartDate(event.target.value)}
             className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
           />
@@ -323,6 +351,8 @@ export function NewEnrollmentForm({
             type="date"
             required
             value={courseEndDate}
+            readOnly={isFixedPeriod}
+            title={isFixedPeriod ? 'Curso com período fixo: data não editável.' : undefined}
             onChange={(event) => setCourseEndDate(event.target.value)}
             className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
           />

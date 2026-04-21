@@ -11,6 +11,7 @@ import type {
   EnrollmentAdmin,
   EnrollmentCheckoutAdmin,
   PaymentAdmin,
+  OrderAdmin,
   EnrollmentQuoteAdmin,
   EnrollmentTimelineEventAdmin,
 } from '@/types/catalog.types';
@@ -20,7 +21,6 @@ import {
   syncEnrollmentOrderAction,
   createEnrollmentInvoiceFromQuoteAction,
   updateEnrollmentAccommodationAction,
-  updateEnrollmentAccommodationWorkflowAction,
   createEnrollmentMessageAction,
   updateEnrollmentDocumentAction,
   updateEnrollmentPricingAction,
@@ -67,13 +67,6 @@ function getNextEnrollmentStatuses(
   return [currentStatus, ...(map[currentStatus] ?? [])];
 }
 
-const ACCOMMODATION_STATUS_OPTIONS = [
-  { value: 'not_selected', label: 'Não selecionada' },
-  { value: 'selected', label: 'Selecionada' },
-  { value: 'approved', label: 'Aprovada' },
-  { value: 'denied', label: 'Negada' },
-  { value: 'closed', label: 'Fechada (sem troca)' },
-];
 const ACCOMMODATION_EDITABLE_ENROLLMENT_STATUSES = new Set([
   'draft',
   'started',
@@ -134,6 +127,10 @@ export default async function EnrollmentDetailPage({
     apiFetch<EnrollmentCheckoutAdmin>(`/enrollments/${id}/checkout`).catch(() => null),
     apiFetch<PaymentAdmin[]>(`/payments?enrollmentId=${id}`).catch(() => []),
   ]);
+
+  const orders = await apiFetch<OrderAdmin[]>(`/orders?enrollmentId=${enrollment.id}`).catch(() => []);
+
+  const hasEnrollmentOrder = orders.some((item) => item.enrollmentId === enrollment.id);
 
   const sortedQuotes = [...quotes].sort((a, b) => {
     const left = Number(new Date(a.createdAt ?? 0).getTime());
@@ -204,9 +201,6 @@ export default async function EnrollmentDetailPage({
   const pricing = enrollment.pricing;
   const enrollmentMessages = (enrollment.messages ?? []).filter(
     (message) => (message.channel ?? 'enrollment') === 'enrollment',
-  );
-  const accommodationMessages = (enrollment.messages ?? []).filter(
-    (message) => message.channel === 'accommodation',
   );
   const isAccommodationClosed = enrollment.accommodationStatus === 'closed';
   const hasLinkedAccommodationOrder = Boolean(enrollment.accommodationOrder?.id);
@@ -585,42 +579,6 @@ export default async function EnrollmentDetailPage({
         </article>
 
         <article className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Workflow da Acomodação</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Aprovado/negado/fechado no contexto da matrícula. Ao fechar, não permite trocar.
-          </p>
-          <form action={updateEnrollmentAccommodationWorkflowAction} className="mt-4 grid gap-3">
-            <input type="hidden" name="enrollmentId" value={enrollment.id} />
-            <label className="text-xs font-medium text-slate-600">
-              Status da acomodação
-              <select
-                name="status"
-                defaultValue={enrollment.accommodationStatus}
-                className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
-              >
-                {ACCOMMODATION_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs font-medium text-slate-600">
-              Motivo (opcional)
-              <textarea
-                name="reason"
-                rows={3}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                placeholder="Ex.: acomodação aprovada e fechada para faturamento"
-              />
-            </label>
-            <div>
-              <Button type="submit" size="sm" disabled={!enrollment.accommodation && enrollment.accommodationStatus === 'not_selected'}>
-                Atualizar workflow da acomodação
-              </Button>
-            </div>
-          </form>
-        </article>
-
-        <article className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="text-sm font-semibold text-slate-900">Itens de venda da matrícula</h2>
           {!latestQuote ? (
             <p className="mt-2 text-xs text-slate-500">Nenhum item comercial associado à matrícula.</p>
@@ -668,21 +626,58 @@ export default async function EnrollmentDetailPage({
           </p>
           <div className="mt-3 grid gap-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
             <span>Valor consolidado a gerar: {formatMoney(checkoutExpectedTotal, checkoutAmountCurrency)}</span>
-            <span>Entrada esperada: {formatMoney(checkoutDownPaymentAmount, checkoutAmountCurrency)}</span>
-            <span>Saldo esperado: {formatMoney(checkoutRemainingAmountFromCheckout, checkoutAmountCurrency)}</span>
+            <span>Entrada padrão: {formatMoney(checkoutDownPaymentAmount, checkoutAmountCurrency)}</span>
+            <span>Saldo padrão: {formatMoney(checkoutRemainingAmountFromCheckout, checkoutAmountCurrency)}</span>
             <span>Já pago (somente status paid): {formatMoney(paidAmount, checkoutAmountCurrency)}</span>
             <span>Pendente (status pending): {formatMoney(pendingAmount, checkoutAmountCurrency)}</span>
             {failedAmount > 0 ? <span>Falhas: {formatMoney(failedAmount, checkoutAmountCurrency)}</span> : null}
             <span>Falta receber: {formatMoney(outstandingAmount, checkoutAmountCurrency)} ({paymentCoveragePercent.toFixed(2)}%)</span>
             <span>Checkout: {checkout?.state ?? 'indisponível'}</span>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <form action={syncEnrollmentOrderAction}>
+          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            <p className="mb-2 text-xs text-slate-700">
+              A ordem vem pré-preenchida da quote. Ajuste estes valores antes de gerar, se necessário.
+            </p>
+            <form action={syncEnrollmentOrderAction} className="grid gap-2">
               <input type="hidden" name="enrollmentId" value={enrollment.id} />
-              <Button type="submit" size="sm" variant="outline" disabled={!latestQuote}>
-                Gerar/Atualizar ordem(s) da matrícula
+              <label className="grid gap-1">
+                Percentual de entrada padrão (%)
+                <input
+                  name="downPaymentPercentage"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  max={100}
+                  defaultValue={Number(latestQuote?.downPaymentPercentage ?? 30).toFixed(2)}
+                  className="h-8 rounded-lg border border-slate-300 px-2.5 text-xs"
+                  placeholder="Ex.: 30"
+                />
+              </label>
+              <label className="grid gap-1">
+                Valor de entrada (override)
+                <input
+                  name="downPaymentAmount"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  className="h-8 rounded-lg border border-slate-300 px-2.5 text-xs"
+                  placeholder="Ex.: 108.00"
+                />
+              </label>
+              <p className="text-[11px] text-slate-500">
+                Regra de cálculo: se informar o valor, ele tem prioridade; caso contrário, usamos o percentual.
+              </p>
+              <Button
+                type="submit"
+                size="sm"
+                variant="outline"
+                disabled={!latestQuote || hasEnrollmentOrder}
+              >
+                {hasEnrollmentOrder ? 'Ordem já gerada para esta matrícula' : 'Gerar/Atualizar ordem(s) da matrícula'}
               </Button>
             </form>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
             {sortedQuotes.length > 0 &&
               sortedQuotes.map((quoteItem) => (
                 <form key={`${quoteItem.id}-invoice`} action={createEnrollmentInvoiceFromQuoteAction}>
@@ -696,6 +691,11 @@ export default async function EnrollmentDetailPage({
           </div>
           {!latestQuote ? (
             <p className="mt-2 text-xs text-amber-700">Gere o item comercial antes para habilitar geração financeira.</p>
+          ) : null}
+          {hasEnrollmentOrder ? (
+            <p className="mt-2 text-xs text-slate-500">
+              Ordem já existe para esta matrícula, então os valores acima foram congelados nesta versão. Gere uma nova via novo fluxo de cotação se necessário.
+            </p>
           ) : null}
         </article>
 
@@ -803,39 +803,6 @@ export default async function EnrollmentDetailPage({
               <p className="text-xs text-slate-500">Nenhuma mensagem registrada.</p>
             )}
             {enrollmentMessages.map((message) => (
-              <div key={message.id} className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs font-semibold text-slate-700">
-                  {message.sender ? `${message.sender.firstName} ${message.sender.lastName}` : 'Usuário'}
-                </p>
-                <p className="mt-1 text-sm text-slate-700">{message.message}</p>
-                <p className="mt-1 text-xs text-slate-500">{formatDateTime(message.createdAt)}</p>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Chat da Acomodação</h2>
-          <p className="mt-1 text-xs text-slate-500">Canal específico da acomodação vinculada à matrícula.</p>
-          <form action={createEnrollmentMessageAction} className="mt-4 grid gap-2 rounded-lg border border-slate-200 p-3">
-            <input type="hidden" name="enrollmentId" value={enrollment.id} />
-            <input type="hidden" name="channel" value="accommodation" />
-            <textarea
-              name="message"
-              required
-              rows={3}
-              placeholder="Digite uma mensagem sobre a acomodação..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-            <div>
-              <Button type="submit" size="sm">Enviar Mensagem de Acomodação</Button>
-            </div>
-          </form>
-          <div className="mt-4 max-h-80 space-y-3 overflow-y-auto pr-1">
-            {accommodationMessages.length === 0 && (
-              <p className="text-xs text-slate-500">Nenhuma mensagem de acomodação registrada.</p>
-            )}
-            {accommodationMessages.map((message) => (
               <div key={message.id} className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-semibold text-slate-700">
                   {message.sender ? `${message.sender.firstName} ${message.sender.lastName}` : 'Usuário'}

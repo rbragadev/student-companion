@@ -889,9 +889,15 @@ export class EnrollmentService {
     return updatedEnrollment;
   }
 
-  async syncOrder(id: string) {
+  async syncOrder(
+    id: string,
+    overrides?: {
+      downPaymentPercentage?: number;
+      downPaymentAmount?: number;
+    },
+  ) {
     await this.findOne(id);
-    const syncedQuoteIds = await this.enrollmentSalesService.syncOrdersForEnrollment(id);
+    const syncedQuoteIds = await this.enrollmentSalesService.syncOrdersForEnrollment(id, overrides);
     return { syncedQuoteIds };
   }
 

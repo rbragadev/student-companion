@@ -42,7 +42,13 @@ export async function createStandaloneAccommodationOrderAction(formData: FormDat
 
   let createdOrderId: string | null = null;
   try {
-    const pricing = await apiFetch<{ id: string; finalPrice?: number; basePrice?: number; currency?: string }>(
+    const pricing = await apiFetch<{
+      id: string;
+      finalPrice?: number;
+      calculatedAmount?: number;
+      basePrice?: number;
+      currency?: string;
+    }>(
       `/accommodation-pricing/resolve?${new URLSearchParams({
         accommodationId,
         periodOption,
@@ -51,7 +57,7 @@ export async function createStandaloneAccommodationOrderAction(formData: FormDat
       }).toString()}`,
     );
 
-    const amount = Number(pricing.finalPrice ?? pricing.basePrice ?? 0);
+    const amount = Number(pricing.finalPrice ?? pricing.calculatedAmount ?? pricing.basePrice ?? 0);
     const currency = pricing.currency ?? 'CAD';
 
     const created = await apiFetch<{ id: string }>(`/orders`, {

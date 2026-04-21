@@ -129,7 +129,13 @@ export class EnrollmentQuoteService {
     return 'package';
   }
 
-  private async syncOrderFromQuote(quoteId: string) {
+  private async syncOrderFromQuote(
+    quoteId: string,
+    overrides?: {
+      downPaymentPercentage?: number;
+      downPaymentAmount?: number;
+    },
+  ) {
     const quote = await this.prisma.enrollmentQuote.findUnique({
       where: { id: quoteId },
       include: {
@@ -162,6 +168,25 @@ export class EnrollmentQuoteService {
         ? 'pending'
         : 'pending';
 
+    const quoteDownPaymentPercentage = this.toNumber(quote.downPaymentPercentage);
+    const quoteTotalAmount = this.toNumber(quote.totalAmount);
+    const requestedDownPaymentPercentage = overrides?.downPaymentPercentage;
+    const requestedDownPaymentAmount = overrides?.downPaymentAmount;
+
+    const normalizedDownPaymentPercentage = Math.max(
+      0,
+      Math.min(100, requestedDownPaymentPercentage ?? quoteDownPaymentPercentage),
+    );
+    const normalizedDownPaymentAmount = (() => {
+      if (requestedDownPaymentAmount === undefined || Number.isNaN(requestedDownPaymentAmount)) {
+        return Number((quoteTotalAmount * (normalizedDownPaymentPercentage / 100)).toFixed(2));
+      }
+      return Number(
+        Math.max(0, Math.min(quoteTotalAmount, requestedDownPaymentAmount)).toFixed(2),
+      );
+    })();
+    const normalizedRemainingAmount = Number((quoteTotalAmount - normalizedDownPaymentAmount).toFixed(2));
+
     const order = await this.prisma.order.upsert({
       where: { enrollmentQuoteId: quote.id },
       create: {
@@ -175,9 +200,9 @@ export class EnrollmentQuoteService {
         fees: this.toNumber(quote.fees),
         discounts: this.toNumber(quote.discounts),
         totalAmount: this.toNumber(quote.totalAmount),
-        downPaymentPercentage: this.toNumber(quote.downPaymentPercentage),
-        downPaymentAmount: this.toNumber(quote.downPaymentAmount),
-        remainingAmount: this.toNumber(quote.remainingAmount),
+        downPaymentPercentage: normalizedDownPaymentPercentage,
+        downPaymentAmount: normalizedDownPaymentAmount,
+        remainingAmount: normalizedRemainingAmount,
         commissionPercentage: this.toNumber(quote.commissionPercentage),
         commissionAmount: this.toNumber(quote.commissionAmount),
         commissionCourseAmount: this.toNumber(quote.commissionCourseAmount),
@@ -195,9 +220,9 @@ export class EnrollmentQuoteService {
         fees: this.toNumber(quote.fees),
         discounts: this.toNumber(quote.discounts),
         totalAmount: this.toNumber(quote.totalAmount),
-        downPaymentPercentage: this.toNumber(quote.downPaymentPercentage),
-        downPaymentAmount: this.toNumber(quote.downPaymentAmount),
-        remainingAmount: this.toNumber(quote.remainingAmount),
+        downPaymentPercentage: normalizedDownPaymentPercentage,
+        downPaymentAmount: normalizedDownPaymentAmount,
+        remainingAmount: normalizedRemainingAmount,
         commissionPercentage: this.toNumber(quote.commissionPercentage),
         commissionAmount: this.toNumber(quote.commissionAmount),
         commissionCourseAmount: this.toNumber(quote.commissionCourseAmount),
@@ -239,7 +264,13 @@ export class EnrollmentQuoteService {
     }
   }
 
-  async syncOrderForEnrollment(enrollmentId: string) {
+  async syncOrderForEnrollment(
+    enrollmentId: string,
+    overrides?: {
+      downPaymentPercentage?: number;
+      downPaymentAmount?: number;
+    },
+  ) {
     const quotes = await this.prisma.enrollmentQuote.findMany({
       where: { enrollmentId },
       orderBy: { createdAt: 'asc' },
@@ -249,7 +280,7 @@ export class EnrollmentQuoteService {
     if (!quotes.length) return [];
 
     for (const quote of quotes) {
-      await this.syncOrderFromQuote(quote.id);
+      await this.syncOrderFromQuote(quote.id, overrides);
     }
 
     return quotes.map((quote) => quote.id);

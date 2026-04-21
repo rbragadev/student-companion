@@ -5,6 +5,7 @@ import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { SetEnrollmentAccommodationDto } from './dto/set-enrollment-accommodation.dto';
 import { UpdateEnrollmentAccommodationWorkflowDto } from './dto/update-enrollment-accommodation-workflow.dto';
 import { StartEnrollmentDto } from './dto/start-enrollment.dto';
+import { SyncEnrollmentOrderDto } from './dto/sync-enrollment-order.dto';
 
 @Controller('enrollments')
 export class EnrollmentController {
@@ -88,8 +89,8 @@ export class EnrollmentController {
   }
 
   @Post(':id/sync-order')
-  syncOrder(@Param('id') id: string) {
-    return this.enrollmentService.syncOrder(id);
+  syncOrder(@Param('id') id: string, @Body() dto: SyncEnrollmentOrderDto) {
+    return this.enrollmentService.syncOrder(id, dto);
   }
 
   @Get(':id')
