@@ -37,6 +37,14 @@ type FinanceItemRow = {
   transactions: FinanceTransactionRow[];
 };
 
+type EnrollmentDownPaymentRow = {
+  id: string;
+  amount: Prisma.Decimal | number;
+  currency: string;
+  paidAt: Date | null;
+  createdAt: Date;
+};
+
 type FinanceItemEnrollment = {
   id: string;
   status: string;
@@ -135,6 +143,34 @@ export class FinanceItemService {
 
   private roundMoney(value: number): number {
     return Number(value.toFixed(2));
+  }
+
+  private distributeAmount(total: number, items: Array<{ id: string; weight: number }>) {
+    const safeTotal = this.roundMoney(Math.max(0, total));
+    const validItems = items.filter((item) => item.weight > 0);
+    if (safeTotal <= 0 || validItems.length === 0) {
+      return new Map<string, number>();
+    }
+
+    const weightSum = validItems.reduce((sum, item) => sum + item.weight, 0);
+    if (weightSum <= 0) {
+      return new Map<string, number>();
+    }
+
+    const distribution = new Map<string, number>();
+    let allocated = 0;
+
+    validItems.forEach((item, index) => {
+      const isLast = index === validItems.length - 1;
+      const amount = isLast
+        ? this.roundMoney(safeTotal - allocated)
+        : this.roundMoney((safeTotal * item.weight) / weightSum);
+      const safeAmount = this.roundMoney(Math.max(0, amount));
+      distribution.set(item.id, safeAmount);
+      allocated = this.roundMoney(allocated + safeAmount);
+    });
+
+    return distribution;
   }
 
   private validateWeeklyRange(startDate: Date, endDate: Date) {
@@ -397,6 +433,123 @@ export class FinanceItemService {
     });
   }
 
+  private async getLatestPaidDownPayment(enrollmentId: string): Promise<EnrollmentDownPaymentRow | null> {
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        enrollmentId,
+        type: 'down_payment',
+        status: 'paid',
+      },
+      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        paidAt: true,
+        createdAt: true,
+      },
+    });
+
+    return payment as EnrollmentDownPaymentRow | null;
+  }
+
+  private async syncDownPaymentTransactions(enrollmentId: string) {
+    const paidDownPayment = await this.getLatestPaidDownPayment(enrollmentId);
+    if (!paidDownPayment) return;
+
+    await this.syncFromLatestQuote(enrollmentId);
+
+    const financeItems = await this.prisma.financeItem.findMany({
+      where: { enrollmentId, sourceType: 'quote_item' },
+      include: {
+        transactions: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (financeItems.length === 0) return;
+
+    const paymentReference = `checkout_down_payment:${paidDownPayment.id}`;
+    const paymentAmount = this.toNumber(paidDownPayment.amount);
+    if (paymentAmount <= 0) return;
+
+    const courseItems = financeItems.filter((item) => item.itemType === 'course');
+    const accommodationItems = financeItems.filter((item) => item.itemType === 'accommodation');
+
+    const courseTotal = this.roundMoney(
+      courseItems.reduce((sum, item) => sum + this.toNumber(item.amount), 0),
+    );
+    const accommodationTotal = this.roundMoney(
+      accommodationItems.reduce((sum, item) => sum + this.toNumber(item.amount), 0),
+    );
+    const total = this.roundMoney(courseTotal + accommodationTotal);
+    if (total <= 0) return;
+
+    let courseAllocation = 0;
+    let accommodationAllocation = 0;
+    if (courseTotal > 0 && accommodationTotal > 0) {
+      courseAllocation = this.roundMoney((paymentAmount * courseTotal) / total);
+      accommodationAllocation = this.roundMoney(paymentAmount - courseAllocation);
+    } else if (courseTotal > 0) {
+      courseAllocation = this.roundMoney(paymentAmount);
+    } else if (accommodationTotal > 0) {
+      accommodationAllocation = this.roundMoney(paymentAmount);
+    }
+
+    const allocationByItem = new Map<string, number>();
+    const courseDistribution = this.distributeAmount(
+      courseAllocation,
+      courseItems.map((item) => ({ id: item.id, weight: this.toNumber(item.amount) })),
+    );
+    const accommodationDistribution = this.distributeAmount(
+      accommodationAllocation,
+      accommodationItems.map((item) => ({ id: item.id, weight: this.toNumber(item.amount) })),
+    );
+
+    for (const [id, amount] of courseDistribution) {
+      allocationByItem.set(id, amount);
+    }
+    for (const [id, amount] of accommodationDistribution) {
+      allocationByItem.set(id, amount);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const item of financeItems) {
+        const alreadyPosted = item.transactions.some(
+          (transaction) => transaction.providerReference === paymentReference,
+        );
+        if (alreadyPosted) continue;
+
+        const allocatedAmount = this.roundMoney(allocationByItem.get(item.id) ?? 0);
+        if (allocatedAmount <= 0) continue;
+
+        const paidAmount = this.roundMoney(
+          item.transactions
+            .filter((transaction) => transaction.status === 'paid')
+            .reduce((sum, transaction) => sum + this.toNumber(transaction.amount), 0),
+        );
+        const remainingAmount = this.roundMoney(this.toNumber(item.amount) - paidAmount);
+        const postAmount = this.roundMoney(Math.min(allocatedAmount, Math.max(0, remainingAmount)));
+        if (postAmount <= 0) continue;
+
+        await tx.financeTransaction.create({
+          data: {
+            financeItemId: item.id,
+            amount: postAmount,
+            currency: item.currency,
+            status: 'paid',
+            type: 'down_payment',
+            provider: 'checkout',
+            providerReference: paymentReference,
+            paidAt: paidDownPayment.paidAt ?? paidDownPayment.createdAt,
+          },
+        });
+      }
+    });
+  }
+
   async listByEnrollment(enrollmentId: string) {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: enrollmentId },
@@ -405,6 +558,8 @@ export class FinanceItemService {
     if (!enrollment) {
       throw new NotFoundException(`Matrícula ${enrollmentId} não encontrada`);
     }
+
+    await this.syncDownPaymentTransactions(enrollmentId);
 
     const initialItems = await this.prisma.financeItem.findMany({
       where: { enrollmentId: enrollment.id },
@@ -435,7 +590,7 @@ export class FinanceItemService {
   }
 
   async getById(id: string) {
-    const item = await this.prisma.financeItem.findUnique({
+    let item = await this.prisma.financeItem.findUnique({
       where: { id },
       include: {
         transactions: {
@@ -457,6 +612,33 @@ export class FinanceItemService {
 
     if (!item) {
       throw new NotFoundException(`Item financeiro ${id} não encontrado`);
+    }
+
+    if (item.enrollmentId) {
+      await this.syncDownPaymentTransactions(item.enrollmentId);
+      item = await this.prisma.financeItem.findUnique({
+        where: { id },
+        include: {
+          transactions: {
+            orderBy: { createdAt: 'asc' },
+          },
+          enrollment: {
+            select: {
+              id: true,
+              status: true,
+              student: { select: { id: true, firstName: true, lastName: true, email: true } },
+              institution: { select: { id: true, name: true } },
+              school: { select: { id: true, name: true } },
+              course: { select: { id: true, program_name: true } },
+              accommodation: { select: { id: true, title: true, accommodationType: true } },
+            },
+          },
+        },
+      });
+
+      if (!item) {
+        throw new NotFoundException(`Item financeiro ${id} não encontrado`);
+      }
     }
 
     return this.withSummary(item as FinanceItemRowWithSummary);
