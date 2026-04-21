@@ -13,7 +13,6 @@ import {
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { CommissionConfigService } from './commission-config.service';
 import { EnrollmentQuoteService } from './enrollment-quote.service';
-import { EnrollmentSalesService } from './enrollment-sales.service';
 import { NotificationService } from '../notification/notification.service';
 import { StartEnrollmentDto } from './dto/start-enrollment.dto';
 
@@ -25,7 +24,6 @@ export class EnrollmentService {
     private readonly prisma: PrismaService,
     private readonly commissionConfigService: CommissionConfigService,
     private readonly enrollmentQuoteService: EnrollmentQuoteService,
-    private readonly enrollmentSalesService: EnrollmentSalesService,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -62,36 +60,6 @@ export class EnrollmentService {
         priceInCents: true,
         priceUnit: true,
         score: true,
-      },
-    },
-    accommodationOrder: {
-      select: {
-        id: true,
-        type: true,
-        status: true,
-        totalAmount: true,
-        currency: true,
-        paymentStatus: true,
-        items: {
-          select: {
-            id: true,
-            itemType: true,
-            startDate: true,
-            endDate: true,
-            amount: true,
-            accommodation: {
-              select: {
-                id: true,
-                title: true,
-                accommodationType: true,
-                location: true,
-                priceInCents: true,
-                priceUnit: true,
-                score: true,
-              },
-            },
-          },
-        },
       },
     },
     pricing: true,
@@ -224,13 +192,6 @@ export class EnrollmentService {
       },
     });
 
-    await tx.order.updateMany({
-      where: { enrollmentId },
-      data: {
-        status: 'cancelled',
-        paymentStatus: 'cancelled',
-      },
-    });
   }
 
   private async recalculateStudentStatus(tx: TransactionClient, studentId: string) {
@@ -889,18 +850,6 @@ export class EnrollmentService {
     return updatedEnrollment;
   }
 
-  async syncOrder(
-    id: string,
-    overrides?: {
-      downPaymentPercentage?: number;
-      downPaymentAmount?: number;
-    },
-  ) {
-    await this.findOne(id);
-    const syncedQuoteIds = await this.enrollmentSalesService.syncOrdersForEnrollment(id, overrides);
-    return { syncedQuoteIds };
-  }
-
   private async validateAccommodationForSchool(
     tx: TransactionClient,
     schoolId: string,
@@ -960,12 +909,6 @@ export class EnrollmentService {
       );
     }
 
-    if (enrollment.accommodationOrder?.id) {
-      throw new BadRequestException(
-        'Já existe order de acomodação vinculada. Este vínculo comercial deve ser gerenciado pela própria order',
-      );
-    }
-
     return this.prisma.$transaction(async (tx) => {
       const nextAccommodationId = await this.validateAccommodationForSchool(
         tx,
@@ -982,64 +925,6 @@ export class EnrollmentService {
         },
         include: this.includeDetailGraph,
       });
-
-      if (nextAccommodationId) {
-        const existingOrder = await tx.order.findFirst({
-          where: {
-            userId: enrollment.student.id,
-            items: {
-              some: {
-                itemType: 'accommodation',
-                accommodationId: nextAccommodationId,
-              },
-            },
-            OR: [{ enrollmentId: null }, { enrollmentId: enrollment.id }],
-          },
-          orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-          select: { id: true },
-        });
-
-        if (enrollment.accommodationOrder?.id && enrollment.accommodationOrder.id !== existingOrder?.id) {
-          await tx.order.updateMany({
-            where: {
-              id: enrollment.accommodationOrder.id,
-              enrollmentId: enrollment.id,
-            },
-            data: { enrollmentId: null },
-          });
-        }
-
-        if (existingOrder) {
-          await tx.order.update({
-            where: { id: existingOrder.id },
-            data: { enrollmentId: enrollment.id },
-          });
-
-          await tx.enrollment.update({
-            where: { id: enrollment.id },
-            data: { accommodationOrderId: existingOrder.id },
-          });
-        } else {
-          await tx.enrollment.update({
-            where: { id: enrollment.id },
-            data: { accommodationOrderId: null },
-          });
-        }
-      } else {
-        if (enrollment.accommodationOrder?.id) {
-          await tx.order.updateMany({
-            where: {
-              id: enrollment.accommodationOrder.id,
-              enrollmentId: enrollment.id,
-            },
-            data: { enrollmentId: null },
-          });
-        }
-        await tx.enrollment.update({
-          where: { id: enrollment.id },
-          data: { accommodationOrderId: null },
-        });
-      }
 
       const nextStatus = updated.accommodationStatus;
       if (nextStatus !== enrollment.accommodationStatus) {
@@ -1193,19 +1078,7 @@ export class EnrollmentService {
       institution: enrollment.institution,
       school: enrollment.school,
       course: enrollment.course,
-      accommodation:
-        enrollment.accommodationOrder?.items.find((item) => item.itemType === 'accommodation')
-          ?.accommodation ?? enrollment.accommodation,
-      accommodationOrder: enrollment.accommodationOrder
-        ? {
-            id: enrollment.accommodationOrder.id,
-            type: enrollment.accommodationOrder.type,
-            status: enrollment.accommodationOrder.status,
-            totalAmount: this.toNumber(enrollment.accommodationOrder.totalAmount),
-            currency: enrollment.accommodationOrder.currency,
-            paymentStatus: enrollment.accommodationOrder.paymentStatus,
-          }
-        : null,
+      accommodation: enrollment.accommodation,
       accommodationStatus: enrollment.accommodationStatus,
       accommodationClosedAt: enrollment.accommodationClosedAt,
       pricing: pricingSummary,

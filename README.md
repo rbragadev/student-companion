@@ -17,27 +17,21 @@ student-companion/
 
 - Curso e acomodação são **itens de venda independentes**.
 - A **matrícula** é o contexto operacional da operação do aluno.
-- Separação operacional foi adotada na navegação:
-  - `Curso` (item de curso)
-  - `Pacote` (curso + acomodação em um mesmo bundle comercial)
-  - `Acomodação` (item de acomodação)
+- A separação de contexto hoje é:
+  - `Matrícula`: orquestra curso + acompanhamento do aluno.
+  - `Acomodação`: item comercial separado, com operação própria.
 - A **matrícula** pode referenciar curso e/ou acomodação, mas ela não é o item financeiro.
-- A operação financeira é rastreada por `Order`:
-  - `course`
-  - `accommodation`
-  - `package`
-- A navegação "Operação" permite criar operação por contexto:
-  - `Curso`: gerar item financeiro independente (`order.type = course`) com curso e janela.
-  - `Pacote`: gerar a matrícula em contexto de pacote (curso + acomodação vinculados para o mesmo estudante), com rastreamento financeiro separado por item.
-  - `Acomodação`: gerar item financeiro independente (`order.type = accommodation`) com janela própria.
-- A **matrícula** pode referenciar curso e/ou acomodação, e isso organiza a operação comercial sem transformar matrícula em item financeiro.
+- O financeiro é acionado no contexto da matrícula de forma manual por item comercial (quote/invoice/pagamento), mantendo rastreabilidade independente:
+  - **item curso** e **item acomodação** podem ter status financeiros independentes.
+  - **Pacote** é apenas a composição operacional (curso + acomodação vinculadas), sem alterar as regras do financeiro.
 
 ### Fluxo financeiro atual
 
-- Criação de matrícula não gera invoice/order automaticamente.
-- Gerar ordem/item de venda pode ser feito manualmente pela operação correspondente (`Curso`, `Pacote` ou `Acomodação`) ou pela tela da matrícula.
-- Após gerar a ordem, gerar invoice.
-- Registrar o pagamento via checkout/fake apenas quando estiver no fluxo pretendido.
+- Não existe criação automática de order.
+- Criação de matrícula não gera order automaticamente.
+- Gerar faturamento por item é feito manualmente pela tela da matrícula (emissão de invoice por quote).
+- Pagamentos são registrados por item e refletem apenas o que foi realmente quitado naqueles itens.
+- A interface de operação da acomodação continua separada para status/fluxo operacional da hospedagem.
 
 ## Diretrizes de nomenclatura
 

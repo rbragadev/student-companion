@@ -691,8 +691,8 @@ async function main() {
   await prisma.payment.deleteMany();
   await prisma.invoiceItem.deleteMany();
   await prisma.invoice.deleteMany();
-  await prisma.orderItem.deleteMany();
-  await prisma.order.deleteMany();
+  await prisma.financeTransaction.deleteMany();
+  await prisma.financeItem.deleteMany();
   await prisma.enrollmentQuoteItem.deleteMany();
   await prisma.enrollmentQuote.deleteMany();
   await prisma.enrollmentMessageRead.deleteMany();
@@ -1210,112 +1210,70 @@ async function main() {
     });
   }
 
-  const quoteTypeToOrderType = (type: string): 'course' | 'accommodation' | 'package' => {
-    if (type === 'course_only') return 'course';
-    if (type === 'accommodation_only') return 'accommodation';
-    return 'package';
-  };
-
-  const quoteOwnerById: Record<string, string> = {
-    [ids.enrollmentQuotes.raphaelPendingCourseOnly]: ids.users.raphael,
-  };
-
-  const coursePricingRows = await prisma.coursePricing.findMany({
-    select: { id: true, courseId: true },
-  });
-  const accommodationPricingRows = await prisma.accommodationPricing.findMany({
-    select: { id: true, accommodationId: true },
-  });
-  const courseByPricingId = new Map(coursePricingRows.map((row) => [row.id, row.courseId]));
+  const courseByPricingId = new Map(
+    (await prisma.coursePricing.findMany({ select: { id: true, courseId: true } })).map((row) => [
+      row.id,
+      row.courseId,
+    ]),
+  );
   const accommodationByPricingId = new Map(
-    accommodationPricingRows.map((row) => [row.id, row.accommodationId]),
+    (
+      await prisma.accommodationPricing.findMany({ select: { id: true, accommodationId: true } })
+    ).map((row) => [row.id, row.accommodationId]),
+  );
+  const courseById = new Map(
+    (await prisma.course.findMany({ select: { id: true, program_name: true } })).map((row) => [
+      row.id,
+      row.program_name,
+    ]),
+  );
+  const accommodationById = new Map(
+    (await prisma.accommodation.findMany({ select: { id: true, title: true } })).map((row) => [
+      row.id,
+      row.title,
+    ]),
   );
 
-  const studentByEnrollmentId = new Map(enrollments.map((item) => [item.id, item.studentId]));
-  const orderByQuoteId = new Map<string, string>();
-
   for (const quote of quotes) {
-    const userId = quote.enrollmentId
-      ? studentByEnrollmentId.get(quote.enrollmentId)
-      : quoteOwnerById[quote.id];
-
-    if (!userId) {
-      throw new Error(`Seed inválido: quote ${quote.id} sem dono (userId) resolvido`);
-    }
-
-    const order = await prisma.order.upsert({
-      where: { enrollmentQuoteId: quote.id },
-      create: {
-        userId,
-        enrollmentId: quote.enrollmentId,
-        enrollmentQuoteId: quote.id,
-        type: quoteTypeToOrderType(quote.type),
-        status: 'submitted',
-        courseAmount: quote.courseAmount,
-        accommodationAmount: quote.accommodationAmount,
-        fees: quote.fees,
-        discounts: quote.discounts,
-        totalAmount: quote.totalAmount,
-        downPaymentPercentage: quote.downPaymentPercentage,
-        downPaymentAmount: quote.downPaymentAmount,
-        remainingAmount: quote.remainingAmount,
-        commissionPercentage: quote.commissionPercentage,
-        commissionAmount: quote.commissionAmount,
-        commissionCourseAmount: quote.commissionCourseAmount,
-        commissionAccommodationAmount: quote.commissionAccommodationAmount,
-        currency: quote.currency,
-        paymentStatus: 'pending',
-      },
-      update: {
-        userId,
-        enrollmentId: quote.enrollmentId,
-        type: quoteTypeToOrderType(quote.type),
-        courseAmount: quote.courseAmount,
-        accommodationAmount: quote.accommodationAmount,
-        fees: quote.fees,
-        discounts: quote.discounts,
-        totalAmount: quote.totalAmount,
-        downPaymentPercentage: quote.downPaymentPercentage,
-        downPaymentAmount: quote.downPaymentAmount,
-        remainingAmount: quote.remainingAmount,
-        commissionPercentage: quote.commissionPercentage,
-        commissionAmount: quote.commissionAmount,
-        commissionCourseAmount: quote.commissionCourseAmount,
-        commissionAccommodationAmount: quote.commissionAccommodationAmount,
-        currency: quote.currency,
-      },
-      select: { id: true },
-    });
-
-    orderByQuoteId.set(quote.id, order.id);
-
-    await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
+    if (!quote.enrollmentId) continue;
 
     const itemsForQuote = quoteItems.filter((item) => item.quoteId === quote.id);
-    if (itemsForQuote.length > 0) {
-      await prisma.orderItem.createMany({
-        data: itemsForQuote.map((item) => ({
-          orderId: order.id,
+    for (const item of itemsForQuote) {
+      const title =
+        item.itemType === 'course'
+          ? `Curso: ${
+              courseById.get(courseByPricingId.get(item.coursePricingId ?? '') ?? '') ?? 'Item de curso'
+            }`
+          : `Acomodação: ${
+              accommodationById.get(
+                accommodationByPricingId.get(item.accommodationPricingId ?? '') ?? '',
+              ) ?? 'Item de acomodação'
+            }`;
+
+      await prisma.financeItem.upsert({
+        where: { quoteItemId: item.id },
+        create: {
+          enrollmentId: quote.enrollmentId,
+          quoteItemId: item.id,
           itemType: item.itemType,
+          sourceType: 'quote_item',
+          title,
           referenceId: item.referenceId,
           startDate: item.startDate,
           endDate: item.endDate,
           amount: item.amount,
-          commissionAmount: item.commissionAmount,
-          courseId: item.coursePricingId ? courseByPricingId.get(item.coursePricingId) ?? null : null,
-          accommodationId: item.accommodationPricingId
-            ? accommodationByPricingId.get(item.accommodationPricingId) ?? null
-            : null,
-        })),
-      });
-    }
-
-    if (quote.enrollmentId) {
-      const hasAccommodationItem = itemsForQuote.some((item) => item.itemType === 'accommodation');
-      await prisma.enrollment.updateMany({
-        where: { id: quote.enrollmentId },
-        data: {
-          accommodationOrderId: hasAccommodationItem ? order.id : null,
+          currency: quote.currency,
+        },
+        update: {
+          enrollmentId: quote.enrollmentId,
+          itemType: item.itemType,
+          sourceType: 'quote_item',
+          title,
+          referenceId: item.referenceId,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          amount: item.amount,
+          currency: quote.currency,
         },
       });
     }
@@ -1394,28 +1352,9 @@ async function main() {
       where: { id: item.id },
       create: {
         ...item,
-        orderId: item.enrollmentQuoteId ? orderByQuoteId.get(item.enrollmentQuoteId) ?? null : null,
       },
       update: {
         ...item,
-        orderId: item.enrollmentQuoteId ? orderByQuoteId.get(item.enrollmentQuoteId) ?? null : null,
-      },
-    });
-  }
-
-  for (const quote of quotes) {
-    const orderId = orderByQuoteId.get(quote.id);
-    if (!orderId) continue;
-    const paid = payments.some((item) => item.enrollmentQuoteId === quote.id && item.status === 'paid');
-    const pending = payments.some(
-      (item) => item.enrollmentQuoteId === quote.id && item.status === 'pending',
-    );
-    const paymentStatus = paid ? 'paid' : pending ? 'pending' : 'pending';
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        paymentStatus,
-        status: paymentStatus === 'paid' ? 'paid' : 'submitted',
       },
     });
   }

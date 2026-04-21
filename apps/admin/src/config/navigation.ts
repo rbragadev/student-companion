@@ -81,7 +81,6 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { label: 'Alunos', href: '/students', icon: 'Users', permission: 'users.read' },
       { label: 'Matrículas', href: '/enrollments', icon: 'BadgeCheck', permission: 'users.read' },
-      { label: 'Acomodação', href: '/accommodation-operations', icon: 'Home', permission: 'users.read' },
     ],
   },
   {
@@ -96,7 +95,7 @@ export const navigationGroups: NavGroup[] = [
     title: 'Financeiro',
     items: [
       { label: 'Financeiro', href: '/finance', icon: 'Wallet', permission: 'users.read' },
-      { label: 'Vendas / Pacotes', href: '/finance/sales', icon: 'BadgeCheck', permission: 'users.read' },
+      { label: 'Vendas / Itens', href: '/finance/sales', icon: 'BadgeCheck', permission: 'users.read' },
       { label: 'Invoices', href: '/finance/invoices', icon: 'FileBadge2', permission: 'users.read' },
       { label: 'Pagamentos', href: '/finance/payments', icon: 'Wallet', permission: 'users.read' },
       { label: 'Comissões', href: '/finance/commissions', icon: 'CircleDollarSign', permission: 'users.read' },

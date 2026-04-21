@@ -103,13 +103,13 @@ export default function ProfileScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: orders = [] } = useQuery({
-    queryKey: ['orders', 'user', userId],
+  const { data: enrollmentPayments = [] } = useQuery({
+    queryKey: ['payments', 'enrollment', activeEnrollment?.id],
     queryFn: async () => {
-      const { data } = await apiClient.get(`/orders?userId=${userId}`);
+      const { data } = await apiClient.get(`/payments?enrollmentId=${activeEnrollment?.id}`);
       return Array.isArray(data) ? data : [];
     },
-    enabled: !!userId,
+    enabled: !!activeEnrollment?.id,
     refetchOnMount: true,
     refetchOnReconnect: true,
   });
@@ -254,28 +254,24 @@ export default function ProfileScreen() {
 
         <Card>
           <View className="gap-2">
-            <Text variant="body" className="font-semibold">Reservas / Orders</Text>
+            <Text variant="body" className="font-semibold">Pagamentos da Matrícula Ativa</Text>
             <Text variant="caption">
-              Total de vendas vinculadas ao seu perfil: {orders.length}
+              Registros: {activeEnrollment?.id ? enrollmentPayments.length : 0}
             </Text>
-            {orders.slice(0, 3).map((order: any) => (
-              <View key={order.id} className="rounded-lg border border-border bg-surfaceSecondary px-3 py-2">
+            {enrollmentPayments.slice(0, 3).map((payment: any) => (
+              <View key={payment.id} className="rounded-lg border border-border bg-surfaceSecondary px-3 py-2">
                 <Text variant="caption" className="font-medium">
-                  {order.type === 'accommodation'
-                    ? 'Acomodação'
-                    : order.type === 'course'
-                      ? 'Curso'
-                      : 'Pacote'}
+                  {payment.type}
                   {' • '}
-                  {Number(order.totalAmount ?? 0).toFixed(2)} {order.currency ?? 'CAD'}
+                  {Number(payment.amount ?? 0).toFixed(2)} {payment.currency ?? 'CAD'}
                 </Text>
-                <Text variant="caption">Status: {order.status}</Text>
-                <Text variant="caption">Pagamento: {order.paymentStatus}</Text>
+                <Text variant="caption">Status: {payment.status}</Text>
               </View>
             ))}
-            {orders.length === 0 ? (
-              <Text variant="caption">Nenhuma venda/reserva encontrada.</Text>
+            {activeEnrollment && enrollmentPayments.length === 0 ? (
+              <Text variant="caption">Nenhum pagamento registrado para esta matrícula.</Text>
             ) : null}
+            {!activeEnrollment ? <Text variant="caption">Abra uma matrícula para acompanhar os pagamentos.</Text> : null}
           </View>
         </Card>
 

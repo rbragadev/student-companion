@@ -65,42 +65,6 @@ export class PaymentService {
     }
   }
 
-  private async reconcileOrderPaymentStatus(orderId?: string | null) {
-    if (!orderId) return;
-
-    const [order, paidResult, pendingCount] = await Promise.all([
-      this.prisma.order.findUnique({ where: { id: orderId }, select: { id: true, totalAmount: true } }),
-      this.prisma.payment.aggregate({
-        where: { orderId, status: 'paid' },
-        _sum: { amount: true },
-      }),
-      this.prisma.payment.count({
-        where: { orderId, status: 'pending' },
-      }),
-    ]);
-    if (!order) return;
-
-    const paidAmount = this.toNumber(paidResult._sum.amount);
-    const totalAmount = this.toNumber(order.totalAmount);
-    const paymentStatus =
-      paidAmount >= totalAmount && totalAmount > 0
-        ? 'paid'
-        : paidAmount > 0
-          ? 'partially_paid'
-          : pendingCount > 0
-            ? 'pending'
-            : 'pending';
-    const status = paymentStatus === 'paid' ? 'paid' : 'submitted';
-
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        paymentStatus,
-        status,
-      },
-    });
-  }
-
   private async resolveCheckoutContext(enrollmentId: string) {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: enrollmentId },
@@ -122,14 +86,6 @@ export class PaymentService {
       throw new NotFoundException(`Matrícula ${enrollmentId} não encontrada`);
     }
 
-    const order = await this.prisma.order.findFirst({
-      where: { enrollmentId },
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        items: true,
-      },
-    });
-
     const quote =
       (await this.enrollmentQuoteService.findByEnrollment(enrollment.id).catch(() => null)) ?? null;
     const payments = await this.prisma.payment.findMany({
@@ -150,9 +106,9 @@ export class PaymentService {
     } else if (this.isRejectedStatus(enrollment.status)) {
       state = 'blocked_rejected';
       reason = 'A proposta foi rejeitada/cancelada e o checkout está bloqueado.';
-    } else if (!order) {
+    } else if (!quote) {
       state = 'blocked_missing_quote';
-      reason = 'Ainda não foi gerada a order comercial (fluxo manual).';
+      reason = 'Ainda não há quote ativa para esta matrícula.';
     } else if (
       !enrollment.course.auto_approve_intent &&
       !this.isApprovalReadyStatus(enrollment.status)
@@ -161,26 +117,17 @@ export class PaymentService {
       reason = 'Aguardando aprovação operacional para liberar checkout.';
     }
 
-    const currency = order?.currency ?? quote?.currency ?? enrollment.pricing?.currency ?? 'CAD';
-    const totalAmount = order
-      ? this.toNumber((order as any).totalAmount)
-      : quote
-        ? this.toNumber(quote.totalAmount)
-        : this.toNumber(enrollment.pricing?.packageTotalAmount ?? enrollment.pricing?.totalAmount);
-    const downPaymentAmount = order
-      ? this.toNumber((order as any).downPaymentAmount)
-      : quote
-        ? this.toNumber(quote.downPaymentAmount)
-        : Number((totalAmount * 0.3).toFixed(2));
-    const remainingAmount = order
-      ? this.toNumber((order as any).remainingAmount)
-      : quote
-        ? this.toNumber(quote.remainingAmount)
-        : Number((totalAmount - downPaymentAmount).toFixed(2));
+    const currency = quote?.currency ?? enrollment.pricing?.currency ?? 'CAD';
+    const totalAmount = quote ? this.toNumber(quote.totalAmount) : this.toNumber(enrollment.pricing?.packageTotalAmount ?? enrollment.pricing?.totalAmount);
+    const downPaymentAmount = quote
+      ? this.toNumber(quote.downPaymentAmount)
+      : Number((totalAmount * 0.3).toFixed(2));
+    const remainingAmount = quote
+      ? this.toNumber(quote.remainingAmount)
+      : Number((totalAmount - downPaymentAmount).toFixed(2));
 
     return {
       enrollment,
-      order,
       quote,
       payments,
       paidDownPayment,
@@ -211,28 +158,6 @@ export class PaymentService {
       academicPeriod: context.enrollment.academicPeriod,
       accommodation: context.enrollment.accommodation,
       enrollmentStatus: context.enrollment.status,
-      order: context.order
-        ? {
-            id: context.order.id,
-            type: context.order.type,
-            status: context.order.status,
-            paymentStatus: context.order.paymentStatus,
-            courseAmount: this.toNumber((context.order as any).courseAmount),
-            accommodationAmount: this.toNumber((context.order as any).accommodationAmount),
-            fees: this.toNumber((context.order as any).fees),
-            discounts: this.toNumber((context.order as any).discounts),
-            totalAmount: this.toNumber((context.order as any).totalAmount),
-            downPaymentPercentage: this.toNumber((context.order as any).downPaymentPercentage),
-            downPaymentAmount: this.toNumber((context.order as any).downPaymentAmount),
-            remainingAmount: this.toNumber((context.order as any).remainingAmount),
-            commissionPercentage: this.toNumber((context.order as any).commissionPercentage),
-            commissionAmount: this.toNumber((context.order as any).commissionAmount),
-            commissionCourseAmount: this.toNumber((context.order as any).commissionCourseAmount),
-            commissionAccommodationAmount: this.toNumber(
-              (context.order as any).commissionAccommodationAmount,
-            ),
-          }
-        : null,
       quote: context.quote,
       packageStatus:
         context.state === 'paid'
@@ -294,12 +219,6 @@ export class PaymentService {
         data: {
           enrollmentId,
           enrollmentQuoteId: context.quote?.id ?? null,
-          orderId: context.quote?.id
-            ? (await tx.order.findUnique({
-                where: { enrollmentQuoteId: context.quote.id },
-                select: { id: true },
-              }))?.id ?? context.order?.id ?? null
-            : context.order?.id ?? null,
           type: 'down_payment',
           amount,
           currency: context.financial.currency,
@@ -369,8 +288,6 @@ export class PaymentService {
         currency: payment.currency,
       },
     });
-
-    await this.reconcileOrderPaymentStatus(payment.orderId);
 
     return {
       payment,
@@ -478,15 +395,6 @@ export class PaymentService {
         invoiceId: dto.invoiceId ?? null,
         enrollmentId: dto.enrollmentId ?? invoice?.enrollmentId ?? null,
         enrollmentQuoteId: dto.enrollmentQuoteId ?? invoice?.enrollmentQuoteId ?? null,
-        orderId:
-          (
-            await this.prisma.order.findFirst({
-              where: {
-                enrollmentQuoteId: dto.enrollmentQuoteId ?? invoice?.enrollmentQuoteId ?? undefined,
-              },
-              select: { id: true },
-            })
-          )?.id ?? null,
         type: dto.type ?? 'down_payment',
         amount: dto.amount,
         currency: dto.currency ?? invoice?.currency ?? 'CAD',
@@ -519,7 +427,6 @@ export class PaymentService {
     });
 
     await this.reconcileInvoiceStatus(created.invoiceId);
-    await this.reconcileOrderPaymentStatus(created.orderId);
     return created;
   }
 
@@ -563,7 +470,6 @@ export class PaymentService {
     });
 
     await this.reconcileInvoiceStatus(updated.invoiceId);
-    await this.reconcileOrderPaymentStatus(updated.orderId);
     return updated;
   }
 

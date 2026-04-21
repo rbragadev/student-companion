@@ -66,9 +66,6 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
           <p className="font-medium text-slate-900">{row.course.program_name}</p>
           <p className="text-xs text-slate-500">{row.institution.name} {'>'} {row.school.name}</p>
           <p className="text-xs text-slate-500">{row.accommodation?.title ?? 'Sem acomodação'}</p>
-          <p className="text-xs text-slate-500">
-            Ordem: {row.packageOrderType ? `${row.packageOrderType}` : 'Sem ordem'}
-          </p>
         </div>
       ),
     },
@@ -114,7 +111,7 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Vendas / Itens"
-        description="Acompanhe vendas por matrícula com curso e/ou acomodação vinculados por ordem comercial."
+        description="Acompanhe vendas por matrícula com itens de curso e/ou acomodação no fluxo operacional atual."
       />
 
       <form className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-5">
@@ -164,9 +161,7 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
         columns={columns}
         data={sales}
         keyExtractor={(row) => row.id}
-        getRowHref={(row) =>
-          row.packageOrderId ? `/orders/${row.packageOrderId}` : `/enrollments/${row.id}`
-        }
+        getRowHref={(row) => `/enrollments/${row.id}`}
         emptyTitle="Nenhuma venda encontrada"
         emptyDescription="Ajuste os filtros ou avance no fluxo de matrícula para gerar vendas por item."
       />

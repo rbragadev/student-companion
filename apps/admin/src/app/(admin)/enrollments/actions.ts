@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { assertActionPermission } from '@/lib/authorization';
+import { requireSession } from '@/lib/session';
 
 function getText(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -25,6 +26,18 @@ function getOptionalText(formData: FormData, key: string): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : undefined;
+}
+
+function getInt(formData: FormData, key: string): number {
+  const value = formData.get(key);
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`Campo obrigatório: ${key}`);
+  }
+  const parsed = Number(value);
+  if (Number.isNaN(parsed) || !Number.isInteger(parsed)) {
+    throw new Error(`Valor inteiro inválido: ${key}`);
+  }
+  return parsed;
 }
 
 function getOptionalBoolean(formData: FormData, key: string): boolean {
@@ -191,28 +204,6 @@ export async function updateEnrollmentWorkflowAction(formData: FormData) {
   redirect(`/enrollments/${enrollmentId}`);
 }
 
-export async function syncEnrollmentOrderAction(formData: FormData) {
-  await assertActionPermission('users.write');
-  const enrollmentId = getText(formData, 'enrollmentId');
-  const downPaymentPercentage = getOptionalNumber(formData, 'downPaymentPercentage');
-  const downPaymentAmount = getOptionalNumber(formData, 'downPaymentAmount');
-
-  const body: Record<string, number> = {};
-  if (downPaymentPercentage !== undefined) {
-    body.downPaymentPercentage = downPaymentPercentage;
-  }
-  if (downPaymentAmount !== undefined) {
-    body.downPaymentAmount = downPaymentAmount;
-  }
-
-  await apiFetch(`/enrollments/${enrollmentId}/sync-order`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-
-  redirect(`/enrollments/${enrollmentId}`);
-}
-
 export async function createEnrollmentInvoiceAction(formData: FormData) {
   await assertActionPermission('users.write');
   const enrollmentId = getText(formData, 'enrollmentId');
@@ -354,6 +345,45 @@ export async function createEnrollmentMessageAction(formData: FormData) {
       message,
       channel,
     }),
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}
+
+export async function createFinanceTransactionAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const enrollmentId = getText(formData, 'enrollmentId');
+  const financeItemId = getText(formData, 'financeItemId');
+  const installmentAmount = getOptionalNumber(formData, 'installmentAmount');
+  const installments = getInt(formData, 'installments');
+
+  if (installmentAmount === undefined || installmentAmount <= 0) {
+    throw new Error('Valor da parcela inválido.');
+  }
+
+  const dueDateOffsetDays = getOptionalNumber(formData, 'dueDateOffsetDays');
+
+  await apiFetch(`/finance-items/${financeItemId}/transactions`, {
+    method: 'POST',
+    body: JSON.stringify({
+      installmentAmount,
+      installments,
+      dueDateOffsetDays: dueDateOffsetDays ?? undefined,
+    }),
+  });
+
+  redirect(`/enrollments/${enrollmentId}`);
+}
+
+export async function updateFinanceTransactionStatusAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const enrollmentId = getText(formData, 'enrollmentId');
+  const transactionId = getText(formData, 'transactionId');
+  const status = getText(formData, 'status');
+
+  await apiFetch(`/finance-transactions/${transactionId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
   });
 
   redirect(`/enrollments/${enrollmentId}`);

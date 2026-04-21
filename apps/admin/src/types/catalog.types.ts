@@ -151,30 +151,6 @@ export interface EnrollmentAdmin {
     priceUnit: string;
     score?: number | null;
   } | null;
-  accommodationOrder?: {
-    id: string;
-    type: string;
-    status: string;
-    totalAmount: number;
-    currency: string;
-    paymentStatus: string;
-    items: Array<{
-      id: string;
-      itemType: string;
-      startDate: string;
-      endDate: string;
-      amount: number;
-      accommodation?: {
-        id: string;
-        title: string;
-        accommodationType: string;
-        location: string;
-        priceInCents: number;
-        priceUnit: string;
-        score?: number | null;
-      } | null;
-    }>;
-  } | null;
   pricing?: EnrollmentPricingAdmin | null;
   documents?: EnrollmentDocumentAdmin[];
   messages?: EnrollmentMessageAdmin[];
@@ -255,6 +231,40 @@ export interface EnrollmentTimelineEventAdmin {
     lastName: string;
     role: 'STUDENT' | 'ADMIN' | 'SUPER_ADMIN';
   };
+}
+
+export interface FinanceTransactionAdmin {
+  id: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'paid' | 'failed' | 'cancelled';
+  type: string;
+  provider?: string;
+  providerReference?: string | null;
+  paidAt?: string | null;
+  dueDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceItemAdmin {
+  id: string;
+  enrollmentId: string;
+  itemType: string;
+  sourceType: string;
+  title: string;
+  referenceId: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  amount: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  paidAmount: number;
+  pendingAmount: number;
+  remainingAmount: number;
+  paidRate: number;
+  transactions: FinanceTransactionAdmin[];
 }
 
 export interface EnrollmentCheckoutAdmin {
@@ -463,68 +473,6 @@ export interface EnrollmentQuoteAdmin {
   }>;
 }
 
-export interface OrderAdmin {
-  id: string;
-  userId: string;
-  enrollmentId?: string | null;
-  enrollmentQuoteId?: string | null;
-  type: 'course' | 'accommodation' | 'package' | string;
-  status: string;
-  courseAmount?: number;
-  accommodationAmount?: number;
-  fees?: number;
-  discounts?: number;
-  totalAmount: number;
-  downPaymentPercentage?: number;
-  downPaymentAmount?: number;
-  remainingAmount?: number;
-  commissionPercentage?: number;
-  commissionAmount?: number;
-  commissionCourseAmount?: number;
-  commissionAccommodationAmount?: number;
-  currency: string;
-  paymentStatus: string;
-  createdAt: string;
-  updatedAt: string;
-  user?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-  enrollment?: {
-    id: string;
-    status: string;
-    school?: { id: string; name: string };
-    institution?: { id: string; name: string };
-  } | null;
-  items: Array<{
-    id: string;
-    itemType: 'course' | 'accommodation' | string;
-    referenceId: string;
-    startDate: string;
-    endDate: string;
-    amount: number;
-    commissionAmount?: number;
-    course?: { id: string; program_name: string } | null;
-    accommodation?: {
-      id: string;
-      title: string;
-      accommodationType: string;
-      location?: string | null;
-    } | null;
-  }>;
-  payments?: Array<{
-    id: string;
-    type: string;
-    status: string;
-    amount: number;
-    currency: string;
-    paidAt?: string | null;
-    createdAt: string;
-  }>;
-}
-
 export interface FinancialOverviewAdmin {
   totals: {
     totalSold: number;
@@ -548,8 +496,6 @@ export interface SalesRowAdmin {
   school: EnrollmentAdmin['school'];
   course: EnrollmentAdmin['course'];
   accommodation: EnrollmentAdmin['accommodation'];
-  packageOrderId?: string | null;
-  packageOrderType?: string | null;
   courseAmount?: number;
   accommodationAmount?: number;
   commercialStatus: string;
