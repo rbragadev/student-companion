@@ -84,7 +84,7 @@ export default function EnrollmentCheckoutScreen() {
         <View>
           <Text variant="h2" className="font-semibold">Checkout do pacote</Text>
           <Text variant="bodySecondary" className="mt-1">
-            Revise valores da entrada e conclua o pagamento.
+            MVP: cobramos somente a entrada (30%). O restante fica pendente para cobrança operacional.
           </Text>
         </View>
 
@@ -158,12 +158,34 @@ export default function EnrollmentCheckoutScreen() {
                 <Text variant="caption">
                   Saldo: {money(checkout.financial.remainingAmount, checkout.financial.currency)}
                 </Text>
+                {checkout.financialBreakdown ? (
+                  <>
+                    <Text variant="caption" className="mt-2 font-medium text-textPrimary">
+                      Rateio interno da entrada (1 cobrança)
+                    </Text>
+                    <Text variant="caption">
+                      Entrada Curso: {money(checkout.financialBreakdown.downPayment.course, checkout.financial.currency)}
+                    </Text>
+                    <Text variant="caption">
+                      Entrada Acomodação: {money(checkout.financialBreakdown.downPayment.accommodation, checkout.financial.currency)}
+                    </Text>
+                    <Text variant="caption" className="mt-2 font-medium text-textPrimary">
+                      Saldos pendentes por item
+                    </Text>
+                    <Text variant="caption">
+                      Saldo Curso: {money(checkout.financialBreakdown.remaining.course, checkout.financial.currency)}
+                    </Text>
+                    <Text variant="caption">
+                      Saldo Acomodação: {money(checkout.financialBreakdown.remaining.accommodation, checkout.financial.currency)}
+                    </Text>
+                  </>
+                ) : null}
               </View>
             </Card>
 
             {checkout.state === 'available' && (
               <Button onPress={() => payMutation.mutate()} disabled={payMutation.isPending}>
-                {payMutation.isPending ? 'Processando pagamento...' : 'Pagar entrada (fake)'}
+                {payMutation.isPending ? 'Processando pagamento...' : 'Pagar entrada (30%)'}
               </Button>
             )}
 

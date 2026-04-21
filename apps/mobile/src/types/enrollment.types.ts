@@ -311,6 +311,23 @@ export interface EnrollmentCheckoutState {
     downPaymentAmount: number;
     remainingAmount: number;
   };
+  financialBreakdown?: {
+    base: {
+      courseAmount: number;
+      accommodationAmount: number;
+      totalAmount: number;
+    };
+    downPayment: {
+      total: number;
+      course: number;
+      accommodation: number;
+    };
+    remaining: {
+      total: number;
+      course: number;
+      accommodation: number;
+    };
+  };
   payments: CheckoutPayment[];
 }
 

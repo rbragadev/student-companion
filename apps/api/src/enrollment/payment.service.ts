@@ -13,6 +13,24 @@ type CheckoutState =
   | 'blocked_missing_quote'
   | 'paid';
 
+type DownPaymentAllocation = {
+  base: {
+    courseAmount: number;
+    accommodationAmount: number;
+    totalAmount: number;
+  };
+  downPayment: {
+    total: number;
+    course: number;
+    accommodation: number;
+  };
+  remaining: {
+    total: number;
+    course: number;
+    accommodation: number;
+  };
+};
+
 @Injectable()
 export class PaymentService {
   constructor(
@@ -63,6 +81,116 @@ export class PaymentService {
         data: { status },
       });
     }
+  }
+
+  private allocateDownPayment(
+    courseAmount: number,
+    accommodationAmount: number,
+    downPaymentAmount: number,
+  ): DownPaymentAllocation {
+    const safeCourse = Math.max(0, Number(courseAmount || 0));
+    const safeAccommodation = Math.max(0, Number(accommodationAmount || 0));
+    const safeTotal = Math.max(0, Number((safeCourse + safeAccommodation).toFixed(2)));
+    const safeDownPayment = Math.max(0, Number(downPaymentAmount || 0));
+
+    if (safeTotal <= 0 || safeDownPayment <= 0) {
+      return {
+        base: {
+          courseAmount: safeCourse,
+          accommodationAmount: safeAccommodation,
+          totalAmount: safeTotal,
+        },
+        downPayment: {
+          total: safeDownPayment,
+          course: 0,
+          accommodation: 0,
+        },
+        remaining: {
+          total: safeTotal,
+          course: safeCourse,
+          accommodation: safeAccommodation,
+        },
+      };
+    }
+
+    if (safeAccommodation <= 0) {
+      const courseDownPayment = Math.min(safeCourse, safeDownPayment);
+      return {
+        base: {
+          courseAmount: safeCourse,
+          accommodationAmount: 0,
+          totalAmount: safeTotal,
+        },
+        downPayment: {
+          total: safeDownPayment,
+          course: Number(courseDownPayment.toFixed(2)),
+          accommodation: 0,
+        },
+        remaining: {
+          total: Number((safeTotal - courseDownPayment).toFixed(2)),
+          course: Number((safeCourse - courseDownPayment).toFixed(2)),
+          accommodation: 0,
+        },
+      };
+    }
+
+    if (safeCourse <= 0) {
+      const accommodationDownPayment = Math.min(safeAccommodation, safeDownPayment);
+      return {
+        base: {
+          courseAmount: 0,
+          accommodationAmount: safeAccommodation,
+          totalAmount: safeTotal,
+        },
+        downPayment: {
+          total: safeDownPayment,
+          course: 0,
+          accommodation: Number(accommodationDownPayment.toFixed(2)),
+        },
+        remaining: {
+          total: Number((safeTotal - accommodationDownPayment).toFixed(2)),
+          course: 0,
+          accommodation: Number((safeAccommodation - accommodationDownPayment).toFixed(2)),
+        },
+      };
+    }
+
+    const courseRatio = safeCourse / safeTotal;
+    const rawCourseDownPayment = safeDownPayment * courseRatio;
+    let courseDownPayment = Number(rawCourseDownPayment.toFixed(2));
+    let accommodationDownPayment = Number((safeDownPayment - courseDownPayment).toFixed(2));
+
+    // Clamp to avoid negative remnants with rounding edge-cases.
+    if (courseDownPayment > safeCourse) {
+      courseDownPayment = safeCourse;
+      accommodationDownPayment = Number((safeDownPayment - courseDownPayment).toFixed(2));
+    }
+    if (accommodationDownPayment > safeAccommodation) {
+      accommodationDownPayment = safeAccommodation;
+      courseDownPayment = Number((safeDownPayment - accommodationDownPayment).toFixed(2));
+    }
+
+    const courseRemaining = Number((safeCourse - courseDownPayment).toFixed(2));
+    const accommodationRemaining = Number((safeAccommodation - accommodationDownPayment).toFixed(2));
+    const totalRemaining = Number((safeTotal - safeDownPayment).toFixed(2));
+
+    return {
+      base: {
+        courseAmount: safeCourse,
+        accommodationAmount: safeAccommodation,
+        totalAmount: safeTotal,
+      },
+      downPayment: {
+        total: safeDownPayment,
+        course: courseDownPayment,
+        accommodation: accommodationDownPayment,
+      },
+      remaining: {
+        total: totalRemaining,
+        course: courseRemaining,
+        accommodation: accommodationRemaining,
+      },
+    };
   }
 
   private async resolveCheckoutContext(enrollmentId: string) {
@@ -144,6 +272,18 @@ export class PaymentService {
 
   async getCheckout(enrollmentId: string) {
     const context = await this.resolveCheckoutContext(enrollmentId);
+    const courseAmount = context.quote
+      ? this.toNumber(context.quote.courseAmount)
+      : this.toNumber(context.enrollment.pricing?.enrollmentAmount);
+    const accommodationAmount = context.quote
+      ? this.toNumber(context.quote.accommodationAmount)
+      : this.toNumber(context.enrollment.pricing?.accommodationAmount);
+    const allocation = this.allocateDownPayment(
+      courseAmount,
+      accommodationAmount,
+      context.financial.downPaymentAmount,
+    );
+
     return {
       enrollmentId: context.enrollment.id,
       state: context.state,
@@ -182,6 +322,7 @@ export class PaymentService {
                 ? 'Prosseguir com pagamento da entrada.'
                 : 'Gerar ou atualizar quote para liberar checkout.',
       financial: context.financial,
+      financialBreakdown: allocation,
       payments: context.payments,
     };
   }
