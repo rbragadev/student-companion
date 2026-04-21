@@ -15,7 +15,7 @@ import { updateSchoolAccommodationRecommendationAction } from './actions';
 import { AccommodationsView } from './view';
 
 export default async function AccommodationsPage() {
-  const session = await requirePermission('structure.read');
+  const session = await requirePermission('users.read');
   const canWrite = session.permissions.includes('admin.full') || session.permissions.includes('structure.write');
 
   const [accommodations, schools, enrollments, standaloneQuotes] = await Promise.all([

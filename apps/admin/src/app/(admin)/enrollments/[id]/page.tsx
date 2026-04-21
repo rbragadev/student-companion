@@ -6,8 +6,9 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
-import { formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
+import { formatDatePtBr, formatDateTimePtBr, toDateInputValue } from '@/lib/date';
 import type {
+  AccommodationPricingAdmin,
   EnrollmentAdmin,
   FinanceItemAdmin,
   EnrollmentTimelineEventAdmin,
@@ -15,6 +16,7 @@ import type {
 import {
   createEnrollmentDocumentAction,
   createFinanceTransactionAction,
+  createStandaloneAccommodationFinanceItemAction,
   updateFinanceTransactionStatusAction,
   updateEnrollmentAccommodationAction,
   createEnrollmentMessageAction,
@@ -144,10 +146,11 @@ export default async function EnrollmentDetailPage({
   await requirePermission('users.read');
   const { id } = await params;
 
-  const [enrollment, timeline, financeItems] = await Promise.all([
+  const [enrollment, timeline, financeItems, accommodationPricings] = await Promise.all([
     apiFetch<EnrollmentAdmin>(`/enrollments/${id}`).catch(() => null),
     apiFetch<EnrollmentTimelineEventAdmin[]>(`/enrollments/${id}/timeline`).catch(() => []),
     apiFetch<FinanceItemAdmin[]>(`/enrollments/${id}/finance-items`).catch(() => []),
+    apiFetch<AccommodationPricingAdmin[]>('/accommodation-pricing').catch(() => []),
   ]);
 
   if (!enrollment) notFound();
@@ -217,6 +220,9 @@ export default async function EnrollmentDetailPage({
     enrollment.status,
     Boolean(enrollment.course.auto_approve_intent),
   );
+  const enrollmentDefaultAccommodationStartDate = toDateInputValue(enrollment.academicPeriod.startDate);
+  const enrollmentDefaultAccommodationEndDate = toDateInputValue(enrollment.academicPeriod.endDate);
+  const activeAccommodationPricings = accommodationPricings.filter((item) => item.isActive);
   const quickActionTargets = [
     { status: 'approved', label: 'Aprovar' },
     { status: 'rejected', label: 'Rejeitar' },
@@ -513,9 +519,85 @@ export default async function EnrollmentDetailPage({
             </p>
           </div>
 
+          <form
+            action={createStandaloneAccommodationFinanceItemAction}
+            className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3"
+          >
+            <p className="text-xs font-medium text-slate-700">
+              Criar acomodação standalone para esta matrícula (opcionalmente vinculada)
+            </p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Use aqui para registrar uma venda separada de acomodação. O item criado fica visível neste painel.
+            </p>
+            <input type="hidden" name="enrollmentId" value={enrollment.id} />
+            <input type="hidden" name="returnTo" value={`/enrollments/${enrollment.id}`} />
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              <label className="text-xs font-medium text-slate-600">
+                Opção de preço
+                <select
+                  name="accommodationPricingId"
+                  required
+                  className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                  defaultValue=""
+                >
+                  <option value="">Selecione</option>
+                  {activeAccommodationPricings.length === 0 ? (
+                    <option value="" disabled>
+                      Sem preço de acomodação ativo
+                    </option>
+                  ) : (
+                    activeAccommodationPricings.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.accommodation?.title ?? 'Acomodação'} • {item.periodOption} ({item.basePrice} {item.currency})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Observação (opcional)
+                <input
+                  name="title"
+                  placeholder="Nome customizado"
+                  className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                />
+              </label>
+            </div>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              <label className="text-xs font-medium text-slate-600">
+                Data início
+                <input
+                  required
+                  name="startDate"
+                  type="date"
+                  defaultValue={enrollmentDefaultAccommodationStartDate}
+                  className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                />
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Data fim
+                <input
+                  required
+                  name="endDate"
+                  type="date"
+                  defaultValue={enrollmentDefaultAccommodationEndDate}
+                  className="mt-1 h-9 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                />
+              </label>
+            </div>
+            <Button
+              type="submit"
+              size="sm"
+              className="mt-3"
+              disabled={activeAccommodationPricings.length === 0}
+            >
+              Criar item de acomodação
+            </Button>
+          </form>
+
           {financeItems.length === 0 && (
             <p className="mt-3 text-xs text-amber-700">
-              Nenhum item financeiro encontrado. Gere uma matrícula com curso e/ou acomodação para criar itens.
+              Nenhum item financeiro encontrado. Se não houver itens, use o formulário acima para criar uma acomodação standalone.
             </p>
           )}
 

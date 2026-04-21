@@ -3,6 +3,7 @@ import { Prisma, FinanceTransaction } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFinanceTransactionDto } from './dto/create-finance-transaction.dto';
 import { UpdateFinanceTransactionStatusDto } from './dto/update-finance-transaction-status.dto';
+import { CreateStandaloneAccommodationFinanceItemDto } from './dto/create-standalone-finance-item.dto';
 
 type FinanceTransactionRow = {
   id: string;
@@ -21,7 +22,7 @@ type FinanceTransactionRow = {
 
 type FinanceItemRow = {
   id: string;
-  enrollmentId: string;
+  enrollmentId: string | null;
   quoteItemId?: string | null;
   itemType: string;
   sourceType: string;
@@ -49,6 +50,15 @@ type FinanceItemEnrollment = {
   school: { id: string; name: string };
   course: { id: string; program_name: string };
   accommodation: { id: string; title: string; accommodationType?: string | null } | null;
+} | null;
+
+type StandaloneCreateInput = Pick<
+  CreateStandaloneAccommodationFinanceItemDto,
+  'accommodationPricingId' | 'startDate' | 'endDate' | 'enrollmentId' | 'title'
+>;
+
+type FinanceItemRowWithSummary = FinanceItemRow & {
+  enrollment?: FinanceItemEnrollment | null;
 };
 
 @Injectable()
@@ -62,6 +72,26 @@ export class FinanceItemService {
 
   private roundMoney(value: number): number {
     return Number(value.toFixed(2));
+  }
+
+  private toDate(value: string): Date {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('Data inválida.');
+    }
+    return date;
+  }
+
+  private validateWeeklyRange(startDate: Date, endDate: Date) {
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    const isSundayToSunday = startDate.getUTCDay() === 0 && endDate.getUTCDay() === 0;
+    if (diffDays <= 0 || diffDays % 7 !== 0 || !isSundayToSunday) {
+      throw new BadRequestException(
+        'Período semanal inválido: use intervalo múltiplo de 7 dias e datas de domingo a domingo',
+      );
+    }
+    return diffDays / 7;
   }
 
   private calculateFinanceSummary(item: Pick<FinanceItemRow, 'amount' | 'transactions'>) {
@@ -82,6 +112,142 @@ export class FinanceItemService {
       remainingAmount,
       paidRate,
     };
+  }
+
+  private withSummary(item: FinanceItemRowWithSummary) {
+    const summary = this.calculateFinanceSummary(item);
+    return {
+      ...item,
+      amount: summary.totalAmount,
+      paidAmount: summary.paidAmount,
+      pendingAmount: summary.pendingAmount,
+      remainingAmount: summary.remainingAmount,
+      paidRate: summary.paidRate,
+      transactions: item.transactions.map((transaction) => ({
+        ...transaction,
+        amount: this.toNumber(transaction.amount),
+      })),
+    };
+  }
+
+  async createStandaloneAccommodation(dto: StandaloneCreateInput) {
+    const pricing = await this.prisma.accommodationPricing.findUnique({
+      where: { id: dto.accommodationPricingId },
+      include: {
+        accommodation: {
+          select: { id: true, title: true, accommodationType: true },
+        },
+      },
+    });
+    if (!pricing) {
+      throw new NotFoundException(
+        `Pricing de acomodação ${dto.accommodationPricingId} não encontrado`,
+      );
+    }
+
+    const startDate = this.toDate(dto.startDate);
+    const endDate = this.toDate(dto.endDate);
+    if (endDate <= startDate) {
+      throw new BadRequestException('endDate deve ser maior que startDate.');
+    }
+
+    const weeks = this.validateWeeklyRange(startDate, endDate);
+    const amount = this.roundMoney(this.toNumber(pricing.basePrice) * weeks);
+
+    if (dto.enrollmentId) {
+      const enrollment = await this.prisma.enrollment.findUnique({
+        where: { id: dto.enrollmentId },
+        select: { id: true },
+      });
+      if (!enrollment) {
+        throw new NotFoundException(`Matrícula ${dto.enrollmentId} não encontrada`);
+      }
+    }
+
+    const title =
+      dto.title?.trim() || `Acomodação: ${pricing.accommodation?.title ?? 'Item de acomodação'}`;
+
+    const item = await this.prisma.financeItem.create({
+      data: {
+        enrollmentId: dto.enrollmentId ?? null,
+        itemType: 'accommodation',
+        sourceType: 'standalone_accommodation',
+        title,
+        referenceId: pricing.id,
+        startDate,
+        endDate,
+        amount,
+        currency: pricing.currency,
+      },
+      include: {
+        transactions: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    return this.withSummary({
+      ...(item as FinanceItemRow),
+      enrollment: null,
+    } as FinanceItemRowWithSummary);
+  }
+
+  async linkEnrollment(financeItemId: string, enrollmentId: string | null) {
+    const existing = await this.prisma.financeItem.findUnique({
+      where: { id: financeItemId },
+      include: {
+        transactions: {
+          orderBy: { createdAt: 'asc' },
+        },
+        enrollment: {
+          select: {
+            id: true,
+            status: true,
+            student: { select: { id: true, firstName: true, lastName: true, email: true } },
+            institution: { select: { id: true, name: true } },
+            school: { select: { id: true, name: true } },
+            course: { select: { id: true, program_name: true } },
+            accommodation: { select: { id: true, title: true, accommodationType: true } },
+          },
+        },
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Item financeiro ${financeItemId} não encontrado`);
+    }
+
+    if (enrollmentId) {
+      const enrollment = await this.prisma.enrollment.findUnique({
+        where: { id: enrollmentId },
+        select: { id: true },
+      });
+      if (!enrollment) {
+        throw new NotFoundException(`Matrícula ${enrollmentId} não encontrada`);
+      }
+    }
+
+    const updated = await this.prisma.financeItem.update({
+      where: { id: financeItemId },
+      data: { enrollmentId },
+      include: {
+        transactions: {
+          orderBy: { createdAt: 'asc' },
+        },
+        enrollment: {
+          select: {
+            id: true,
+            status: true,
+            student: { select: { id: true, firstName: true, lastName: true, email: true } },
+            institution: { select: { id: true, name: true } },
+            school: { select: { id: true, name: true } },
+            course: { select: { id: true, program_name: true } },
+            accommodation: { select: { id: true, title: true, accommodationType: true } },
+          },
+        },
+      },
+    });
+
+    return this.withSummary(updated as FinanceItemRowWithSummary);
   }
 
   private async syncFromLatestQuote(enrollmentId: string) {
@@ -201,19 +367,7 @@ export class FinanceItemService {
         });
 
     return items.map((item) => {
-      const summary = this.calculateFinanceSummary(item);
-      return {
-        ...item,
-        amount: summary.totalAmount,
-        paidAmount: summary.paidAmount,
-        pendingAmount: summary.pendingAmount,
-        remainingAmount: summary.remainingAmount,
-        paidRate: summary.paidRate,
-        transactions: item.transactions.map((transaction) => ({
-          ...transaction,
-          amount: this.toNumber(transaction.amount),
-        })),
-      };
+      return this.withSummary(item as FinanceItemRowWithSummary);
     });
   }
 
@@ -238,25 +392,11 @@ export class FinanceItemService {
       },
     });
 
-    if (!item || !item.enrollment) {
+    if (!item) {
       throw new NotFoundException(`Item financeiro ${id} não encontrado`);
     }
 
-    const summary = this.calculateFinanceSummary(item);
-
-    return {
-      ...item,
-      amount: summary.totalAmount,
-      paidAmount: summary.paidAmount,
-      pendingAmount: summary.pendingAmount,
-      remainingAmount: summary.remainingAmount,
-      paidRate: summary.paidRate,
-      enrollment: item.enrollment as FinanceItemEnrollment,
-      transactions: item.transactions.map((transaction) => ({
-        ...transaction,
-        amount: this.toNumber(transaction.amount),
-      })),
-    };
+    return this.withSummary(item as FinanceItemRowWithSummary);
   }
 
   async createTransactions(

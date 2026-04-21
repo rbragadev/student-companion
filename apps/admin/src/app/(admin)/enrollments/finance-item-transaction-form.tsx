@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 type CreateAction = (formData: FormData) => void;
 
 type Props = {
-  enrollmentId: string;
+  enrollmentId?: string;
   financeItemId: string;
   totalAmount: number;
   remainingAmount: number;
@@ -100,7 +100,7 @@ export default function FinanceItemTransactionForm({
 
   return (
     <form action={action} className="mt-3 border border-dashed border-slate-200 p-3">
-      <input type="hidden" name="enrollmentId" value={enrollmentId} />
+      {enrollmentId ? <input type="hidden" name="enrollmentId" value={enrollmentId} /> : null}
       <input type="hidden" name="financeItemId" value={financeItemId} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <input type="hidden" name="installmentAmount" value={installmentAmount.toFixed(2)} />

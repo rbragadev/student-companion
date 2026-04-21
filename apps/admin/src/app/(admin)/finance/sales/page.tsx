@@ -1,13 +1,14 @@
+import Link from 'next/link';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { PageHeader } from '@/components/ui/page-header';
+import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import type {
   CourseAdmin,
-  EnrollmentQuoteAdmin,
   InstitutionAdmin,
-  SalesRowAdmin,
   SchoolAdmin,
+  SalesRowAdmin,
 } from '@/types/catalog.types';
 
 function money(amount: number, currency: string) {
@@ -39,12 +40,11 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
   if (status) query.set('status', status);
   if (hasAccommodation) query.set('hasAccommodation', hasAccommodation);
 
-  const [sales, institutions, schools, courses, standaloneQuotes] = await Promise.all([
+  const [sales, institutions, schools, courses] = await Promise.all([
     apiFetch<SalesRowAdmin[]>(`/sales${query.toString() ? `?${query.toString()}` : ''}`).catch(() => []),
     apiFetch<InstitutionAdmin[]>('/institution').catch(() => []),
     apiFetch<SchoolAdmin[]>('/school').catch(() => []),
     apiFetch<CourseAdmin[]>('/course').catch(() => []),
-    apiFetch<EnrollmentQuoteAdmin[]>('/quotes?type=accommodation_only').catch(() => []),
   ]);
 
   const columns: Column<SalesRowAdmin>[] = [
@@ -53,8 +53,10 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
       label: 'Aluno',
       render: (row) => (
         <div>
-          <p className="font-medium text-slate-900">{row.student.firstName} {row.student.lastName}</p>
-          <p className="text-xs text-slate-500">{row.student.email}</p>
+          <p className="font-medium text-slate-900">
+            {row.student ? `${row.student.firstName} ${row.student.lastName}` : 'Sem aluno vinculado'}
+          </p>
+          <p className="text-xs text-slate-500">{row.student?.email ?? '-'}</p>
         </div>
       ),
     },
@@ -63,11 +65,13 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
       label: 'Contexto',
       render: (row) => (
         <div>
-          <p className="font-medium text-slate-900">{row.course.program_name}</p>
+          <p className="font-medium text-slate-900">{row.course?.program_name ?? 'Item financeiro'}</p>
           <p className="text-xs font-medium text-slate-500">
             Item: {row.itemType ?? 'item'}{row.itemTitle ? ` • ${row.itemTitle}` : ''}
           </p>
-          <p className="text-xs text-slate-500">{row.institution.name} {'>'} {row.school.name}</p>
+          <p className="text-xs text-slate-500">
+            {row.institution?.name ?? 'Sem instituição'} {'>'} {row.school?.name ?? 'Sem escola'}
+          </p>
           <p className="text-xs text-slate-500">{row.accommodation?.title ?? 'Sem acomodação'}</p>
         </div>
       ),
@@ -101,9 +105,9 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
       label: 'Vínculo',
       render: (row) => (
         <span className="text-xs text-slate-500">
-          {row.id
-            ? `Item financeiro: ${row.id.slice(0, 8)}`
-            : 'Sem item financeiro'}
+          {row.enrollmentId
+            ? `Matrícula: ${row.enrollmentId.slice(0, 8)}`
+            : 'Sem vínculo de matrícula'}
         </span>
       ),
     },
@@ -113,7 +117,14 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Vendas / Itens"
-        description="Acompanhe cada item financeiro (curso ou acomodação) da matrícula, com emissão, pagamento e saldo."
+        description="Acompanhe cada item financeiro (curso ou acomodação), com emissão, pagamento e saldo."
+        actions={
+          <Link href="/accommodation-operations">
+            <Button size="sm" variant="outline">
+              + Operação de venda de acomodação
+            </Button>
+          </Link>
+        }
       />
 
       <form className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-5">
@@ -165,32 +176,8 @@ export default async function FinanceSalesPage({ searchParams }: Readonly<PagePr
         keyExtractor={(row) => row.id}
         getRowHref={(row) => `/finance/sales-items/${row.id}`}
         emptyTitle="Nenhuma venda encontrada"
-        emptyDescription="Ajuste os filtros ou avance no fluxo de matrícula para gerar vendas por item."
+        emptyDescription="Ajuste os filtros ou inicie uma venda pela operação de acomodação/curso."
       />
-
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="text-base font-semibold text-slate-900">Vendas standalone de acomodação</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Fechamentos sem matrícula (tipo <code>accommodation_only</code>).
-        </p>
-        <div className="mt-3 space-y-2">
-          {standaloneQuotes.map((quote) => (
-            <div key={quote.id} className="rounded border border-slate-200 p-3">
-              <p className="text-sm font-medium text-slate-900">
-                {quote.accommodationPricing?.accommodation?.title ?? 'Acomodação'}
-              </p>
-              <p className="text-xs text-slate-500">
-                Total: {money(quote.totalAmount, quote.currency)} • Entrada:{' '}
-                {money(quote.downPaymentAmount, quote.currency)} • Saldo:{' '}
-                {money(quote.remainingAmount, quote.currency)}
-              </p>
-            </div>
-          ))}
-          {standaloneQuotes.length === 0 && (
-            <p className="text-xs text-slate-500">Nenhuma venda standalone de acomodação encontrada.</p>
-          )}
-        </div>
-      </section>
     </div>
   );
 }

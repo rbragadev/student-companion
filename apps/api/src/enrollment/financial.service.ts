@@ -87,21 +87,61 @@ export class FinancialService {
     status?: string;
     hasAccommodation?: string;
   }) {
+    const hasEnrollmentFilter = Boolean(filters?.institutionId || filters?.schoolId || filters?.courseId || filters?.status);
+
+    const enrollmentWhere: Prisma.EnrollmentWhereInput = {
+      ...(filters?.institutionId ? { institutionId: filters.institutionId } : {}),
+      ...(filters?.schoolId ? { schoolId: filters.schoolId } : {}),
+      ...(filters?.courseId ? { courseId: filters.courseId } : {}),
+      ...(filters?.status ? { status: filters.status } : {}),
+    };
+
+    const where: Prisma.FinanceItemWhereInput = (() => {
+      if (!filters?.hasAccommodation) {
+        return hasEnrollmentFilter
+          ? { enrollment: enrollmentWhere }
+          : {};
+      }
+
+      if (filters.hasAccommodation === 'with') {
+        if (hasEnrollmentFilter) {
+          return {
+            enrollment: {
+              ...enrollmentWhere,
+              accommodation: {
+                isNot: null,
+              },
+            },
+          };
+        }
+
+        return {
+          OR: [
+            { itemType: 'accommodation' },
+            { enrollment: { accommodation: { isNot: null } } },
+          ],
+        };
+      }
+
+      if (hasEnrollmentFilter) {
+        return {
+          enrollment: {
+            ...enrollmentWhere,
+            accommodation: null,
+          },
+        };
+      }
+
+      return {
+        OR: [
+          { itemType: { not: 'accommodation' } },
+          { enrollment: { accommodation: null } },
+        ],
+      };
+    })();
+
     const rows = await this.prisma.financeItem.findMany({
-      where: {
-        enrollment: {
-          institutionId: filters?.institutionId,
-          schoolId: filters?.schoolId,
-          courseId: filters?.courseId,
-          status: filters?.status,
-          accommodationId:
-          filters?.hasAccommodation === 'with'
-            ? { not: null }
-            : filters?.hasAccommodation === 'without'
-              ? null
-              : undefined,
-        },
-      },
+      where,
       include: {
         enrollment: {
           select: {
@@ -110,7 +150,7 @@ export class FinancialService {
             student: { select: { id: true, firstName: true, lastName: true, email: true } },
             institution: { select: { id: true, name: true } },
             school: { select: { id: true, name: true } },
-            course: { select: { id: true, program_name: true } },
+            course: { select: { id: true, program_name: true, auto_approve_intent: true } },
             accommodation: { select: { id: true, title: true, accommodationType: true } },
           },
         },
@@ -125,6 +165,7 @@ export class FinancialService {
     });
 
     return rows.map((item) => {
+      const hasEnrollment = !!item.enrollment;
       const paidAmount = item.transactions
         .filter((transaction) => transaction.status === 'paid')
         .reduce((sum, transaction) => sum + this.toNumber(transaction.amount), 0);
@@ -152,16 +193,42 @@ export class FinancialService {
 
       const isCourse = item.itemType === 'course';
       const isAccommodation = item.itemType === 'accommodation';
+      const enrollment = item.enrollment;
+
+      const student = enrollment?.student;
+      const institution = enrollment?.institution;
+      const school = enrollment?.school;
+      const course = enrollment?.course;
+      const accommodation = enrollment?.accommodation;
 
       return {
         id: item.id,
-        enrollmentId: item.enrollment.id,
-        student: item.enrollment.student,
-        institution: item.enrollment.institution,
-        school: item.enrollment.school,
-        course: item.enrollment.course,
-        accommodation: item.enrollment.accommodation,
-        commercialStatus: item.enrollment.status,
+        enrollmentId: enrollment?.id,
+        student: student
+          ? {
+              id: student.id,
+              firstName: student.firstName,
+              lastName: student.lastName,
+              email: student.email,
+            }
+          : null,
+        institution: institution
+          ? { id: institution.id, name: institution.name }
+          : null,
+        school: school
+          ? { id: school.id, name: school.name }
+          : null,
+        course: course
+          ? { id: course.id, program_name: course.program_name, auto_approve_intent: course.auto_approve_intent }
+          : null,
+        accommodation: accommodation
+          ? {
+              id: accommodation.id,
+              title: accommodation.title,
+              accommodationType: accommodation.accommodationType,
+            }
+          : null,
+        commercialStatus: hasEnrollment ? item.enrollment!.status : 'not_selected',
         financialStatus,
         totalAmount: total,
         downPaymentAmount: this.toNumber(emittedAmount),
@@ -244,23 +311,27 @@ export class FinancialService {
     const byAccommodation = new Map<string, { accommodationId: string; accommodation: string; total: number }>();
 
     for (const sale of sales) {
-      const institutionKey = sale.institution.id;
-      const inst = byInstitution.get(institutionKey) ?? {
-        institutionId: institutionKey,
-        institution: sale.institution.name,
-        total: 0,
-      };
-      inst.total += this.toNumber(sale.totalAmount);
-      byInstitution.set(institutionKey, inst);
+      if (sale.institution) {
+        const institutionKey = sale.institution.id;
+        const inst = byInstitution.get(institutionKey) ?? {
+          institutionId: institutionKey,
+          institution: sale.institution.name,
+          total: 0,
+        };
+        inst.total += this.toNumber(sale.totalAmount);
+        byInstitution.set(institutionKey, inst);
+      }
 
-      const courseKey = sale.course.id;
-      const course = byCourse.get(courseKey) ?? {
-        courseId: courseKey,
-        course: sale.course.program_name,
-        total: 0,
-      };
-      course.total += this.toNumber(sale.totalAmount);
-      byCourse.set(courseKey, course);
+      if (sale.course) {
+        const courseKey = sale.course.id;
+        const course = byCourse.get(courseKey) ?? {
+          courseId: courseKey,
+          course: sale.course.program_name,
+          total: 0,
+        };
+        course.total += this.toNumber(sale.totalAmount);
+        byCourse.set(courseKey, course);
+      }
 
       if (sale.accommodation) {
         const accommodationKey = sale.accommodation.id;

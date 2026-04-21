@@ -76,13 +76,14 @@ export const navigationGroups: NavGroup[] = [
       { label: 'Lugares', href: '/places', icon: 'MapPin', permission: 'structure.read' },
     ],
   },
-  {
-    title: 'Operação',
-    items: [
-      { label: 'Alunos', href: '/students', icon: 'Users', permission: 'users.read' },
-      { label: 'Matrículas', href: '/enrollments', icon: 'BadgeCheck', permission: 'users.read' },
-    ],
-  },
+    {
+      title: 'Operação',
+      items: [
+        { label: 'Alunos', href: '/students', icon: 'Users', permission: 'users.read' },
+        { label: 'Matrículas', href: '/enrollments', icon: 'BadgeCheck', permission: 'users.read' },
+        { label: 'Operação de Venda de Acomodação', href: '/accommodation-operations', icon: 'ShoppingCart', permission: 'users.read' },
+      ],
+    },
   {
     title: 'Acesso e Segurança',
     items: [

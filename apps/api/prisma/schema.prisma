@@ -566,7 +566,7 @@ model Payment {
 
 model FinanceItem {
   id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  enrollmentId      String              @map("enrollment_id") @db.Uuid
+  enrollmentId      String?             @map("enrollment_id") @db.Uuid
   quoteItemId       String?             @unique @map("quote_item_id") @db.Uuid
   itemType          String              @db.VarChar(20)
   sourceType        String              @default("quote_item") @db.VarChar(30)
@@ -578,7 +578,7 @@ model FinanceItem {
   currency          String              @default("CAD") @db.VarChar(10)
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
-  enrollment        Enrollment          @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  enrollment        Enrollment?         @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   transactions      FinanceTransaction[]
 
   @@index([enrollmentId])

@@ -7,9 +7,13 @@ import { PageHeader } from '@/components/ui/page-header';
 import { apiFetch } from '@/lib/api';
 import { requirePermission } from '@/lib/authorization';
 import { formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
-import { updateFinanceTransactionStatusAction, createFinanceTransactionAction } from '../../../enrollments/actions';
+import {
+  createFinanceTransactionAction,
+  linkFinanceItemEnrollmentAction,
+  updateFinanceTransactionStatusAction,
+} from '../../../enrollments/actions';
 import FinanceItemTransactionForm from '../../../enrollments/finance-item-transaction-form';
-import type { FinanceItemDetailAdmin } from '@/types/catalog.types';
+import type { EnrollmentAdmin, FinanceItemDetailAdmin } from '@/types/catalog.types';
 
 function money(value: number, currency: string) {
   return `${Number(value ?? 0).toFixed(2)} ${currency}`;
@@ -35,6 +39,7 @@ export default async function FinanceSalesItemPage({
   await requirePermission('users.read');
   const { id } = await params;
   const item = await apiFetch<FinanceItemDetailAdmin>(`/finance-items/${id}`).catch(() => null);
+  const enrollments = await apiFetch<EnrollmentAdmin[]>('/enrollments').catch(() => []);
 
   if (!item) notFound();
 
@@ -55,7 +60,7 @@ export default async function FinanceSalesItemPage({
         items={[
           { label: 'Financeiro', href: '/finance' },
           { label: 'Vendas / Itens', href: '/finance/sales' },
-          { label: item.enrollment.course.program_name },
+          { label: item.enrollment?.course?.program_name ?? 'Item financeiro' },
         ]}
       />
       <PageHeader
@@ -99,25 +104,57 @@ export default async function FinanceSalesItemPage({
         </article>
         <article className="rounded-lg border border-slate-200 bg-white p-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Vínculo da matrícula</p>
-          <p className="mt-2 text-sm text-slate-900">
-            {item.enrollment.student.firstName} {item.enrollment.student.lastName}
-          </p>
-          <p className="text-xs text-slate-500">{item.enrollment.student.email}</p>
-          <p className="mt-1 text-xs text-slate-500">{item.enrollment.institution.name}</p>
-          <p className="text-xs text-slate-500">
-            {item.enrollment.school.name} • {item.enrollment.course.program_name}
-          </p>
-          <p
-            className={`mt-2 inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${toneByStatus(item.enrollment.status)}`}
-          >
-            {item.enrollment.status}
-          </p>
-          <Link
-            href={`/enrollments/${item.enrollment.id}`}
-            className="mt-3 inline-block text-xs text-blue-600 hover:underline"
-          >
-            Abrir matrícula
-          </Link>
+            {item.enrollment ? (
+              <>
+              <p className="mt-2 text-sm text-slate-900">
+                {item.enrollment.student.firstName} {item.enrollment.student.lastName}
+              </p>
+              <p className="text-xs text-slate-500">{item.enrollment.student.email}</p>
+              <p className="mt-1 text-xs text-slate-500">{item.enrollment.institution?.name ?? ''}</p>
+              <p className="text-xs text-slate-500">
+                {(item.enrollment.school?.name ?? '-') + ' • ' + (item.enrollment.course?.program_name ?? '-')}
+              </p>
+              <p
+                className={`mt-2 inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${toneByStatus(item.enrollment.status)}`}
+              >
+                {item.enrollment.status}
+              </p>
+              <Link
+                href={`/enrollments/${item.enrollment.id}`}
+                className="mt-3 inline-block text-xs text-blue-600 hover:underline"
+              >
+                Abrir matrícula
+              </Link>
+            </>
+          ) : (
+            <p className="mt-2 text-xs text-slate-500">Item sem vínculo de matrícula no momento.</p>
+          )}
+          {item.itemType === 'accommodation' ? (
+            <Link
+              href={`/accommodation-operations/${item.id}`}
+              className="mt-3 inline-block text-xs text-blue-600 hover:underline"
+            >
+              Abrir operação da acomodação
+            </Link>
+          ) : null}
+
+          <form action={linkFinanceItemEnrollmentAction} className="mt-4 space-y-2">
+            <input type="hidden" name="financeItemId" value={item.id} />
+            <input type="hidden" name="returnTo" value={returnTo} />
+            <select
+              name="enrollmentId"
+              defaultValue={item.enrollment?.id ?? ''}
+              className="h-9 w-full rounded border border-slate-300 px-2 text-xs"
+            >
+              <option value="">Sem vínculo</option>
+              {enrollments.map((enrollment) => (
+                <option key={enrollment.id} value={enrollment.id}>
+                  {enrollment.student.firstName} {enrollment.student.lastName} • {enrollment.status}
+                </option>
+              ))}
+            </select>
+            <Button size="sm">Salvar vínculo</Button>
+          </form>
         </article>
       </section>
 
@@ -143,7 +180,7 @@ export default async function FinanceSalesItemPage({
                     {transaction.paidAt ? ` • pago ${formatDateTimePtBr(transaction.paidAt)}` : ''}
                   </p>
                   <form action={updateFinanceTransactionStatusAction} className="flex items-center gap-1">
-                    <input type="hidden" name="enrollmentId" value={item.enrollment.id} />
+                    {item.enrollment ? <input type="hidden" name="enrollmentId" value={item.enrollment.id} /> : null}
                     <input type="hidden" name="transactionId" value={transaction.id} />
                     <input type="hidden" name="returnTo" value={returnTo} />
                     <select
@@ -175,7 +212,7 @@ export default async function FinanceSalesItemPage({
             <p className="mt-1 text-xs text-emerald-700">Item concluído: sem valor pendente de emissão.</p>
           ) : (
             <FinanceItemTransactionForm
-              enrollmentId={item.enrollment.id}
+              enrollmentId={item.enrollment?.id}
               financeItemId={item.id}
               totalAmount={Number(item.amount)}
               emittedAmount={Number(item.paidAmount) + Number(item.pendingAmount)}

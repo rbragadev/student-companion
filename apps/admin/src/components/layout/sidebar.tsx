@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { GraduationCap } from 'lucide-react';
 import { getSession } from '@/lib/session';
-import { hasPermission } from '@/lib/permissions';
+import { hasPermission, isAdminRole } from '@/lib/permissions';
 import { navigationGroups, type NavDependency } from '@/config/navigation';
 import { apiFetch } from '@/lib/api';
 import { NavItem } from './nav-item';
@@ -25,11 +25,16 @@ export async function Sidebar() {
     courses,
   };
 
+  const canSeeRestrictedItems = isAdminRole(session?.role ?? '');
+
   const visibleGroups = navigationGroups
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        const hasAccess = item.permission === null || hasPermission(permissions, item.permission);
+        const hasAccess =
+          item.permission === null ||
+          canSeeRestrictedItems ||
+          hasPermission(permissions, item.permission);
         if (!hasAccess) return false;
         if (!item.dependsOn || item.dependsOn.length === 0) return true;
         return item.dependsOn.every((dep) => dependencyCount[dep] > 0);

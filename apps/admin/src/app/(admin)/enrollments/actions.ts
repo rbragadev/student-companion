@@ -350,9 +350,34 @@ export async function createEnrollmentMessageAction(formData: FormData) {
   redirect(`/enrollments/${enrollmentId}`);
 }
 
+export async function createAccommodationOperationMessageAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const session = await requireSession();
+  const enrollmentId = getText(formData, 'enrollmentId');
+  const message = getText(formData, 'message');
+  const channelValue = formData.get('channel');
+  const returnTo = getOptionalText(formData, 'returnTo');
+  const channel =
+    typeof channelValue === 'string' && channelValue.trim() !== ''
+      ? channelValue.trim()
+      : 'accommodation';
+
+  await apiFetch('/enrollment-messages', {
+    method: 'POST',
+    body: JSON.stringify({
+      enrollmentId,
+      senderId: session.sub,
+      message,
+      channel,
+    }),
+  });
+
+  redirect(returnTo?.trim() || `/enrollments/${enrollmentId}`);
+}
+
 export async function createFinanceTransactionAction(formData: FormData) {
   await assertActionPermission('users.write');
-  const enrollmentId = getText(formData, 'enrollmentId');
+  const enrollmentId = getOptionalText(formData, 'enrollmentId');
   const financeItemId = getText(formData, 'financeItemId');
   const installmentAmount = getOptionalNumber(formData, 'installmentAmount');
   const installments = getInt(formData, 'installments');
@@ -373,12 +398,12 @@ export async function createFinanceTransactionAction(formData: FormData) {
     }),
   });
 
-  redirect(returnTo?.trim() || `/enrollments/${enrollmentId}`);
+  redirect(returnTo?.trim() || (enrollmentId ? `/enrollments/${enrollmentId}` : `/finance/sales-items/${financeItemId}`));
 }
 
 export async function updateFinanceTransactionStatusAction(formData: FormData) {
   await assertActionPermission('users.write');
-  const enrollmentId = getText(formData, 'enrollmentId');
+  const enrollmentId = getOptionalText(formData, 'enrollmentId');
   const transactionId = getText(formData, 'transactionId');
   const status = getText(formData, 'status');
   const returnTo = getOptionalText(formData, 'returnTo');
@@ -388,7 +413,52 @@ export async function updateFinanceTransactionStatusAction(formData: FormData) {
     body: JSON.stringify({ status }),
   });
 
+  if (!returnTo && !enrollmentId) {
+    throw new Error('Contexto inválido: envie returnTo ou enrollmentId.');
+  }
+
   redirect(returnTo?.trim() || `/enrollments/${enrollmentId}`);
+}
+
+export async function createStandaloneAccommodationFinanceItemAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const accommodationPricingId = getText(formData, 'accommodationPricingId');
+  const startDate = getText(formData, 'startDate');
+  const endDate = getText(formData, 'endDate');
+  const enrollmentId = getOptionalText(formData, 'enrollmentId');
+  const title = getOptionalText(formData, 'title');
+  const returnTo = getOptionalText(formData, 'returnTo');
+
+  const created = await apiFetch<{ id: string }>(`/finance-items/standalone/accommodation`, {
+    method: 'POST',
+    body: JSON.stringify({
+      accommodationPricingId,
+      startDate: toDateOnlyIso(startDate),
+      endDate: toDateOnlyIso(endDate),
+      ...(enrollmentId ? { enrollmentId } : {}),
+      ...(title ? { title } : {}),
+    }),
+  });
+
+  redirect(returnTo?.trim() || `/finance/sales-items/${created.id}`);
+}
+
+export async function linkFinanceItemEnrollmentAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const financeItemId = getText(formData, 'financeItemId');
+  const enrollmentId = getOptionalText(formData, 'enrollmentId');
+  const returnTo = getOptionalText(formData, 'returnTo');
+
+  await apiFetch(`/finance-items/${financeItemId}/link-enrollment`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enrollmentId: enrollmentId || null }),
+  });
+
+  if (!returnTo) {
+    throw new Error('returnTo é obrigatório para atualização de vínculo.');
+  }
+
+  redirect(returnTo);
 }
 
 export async function updateEnrollmentAccommodationAction(formData: FormData) {
@@ -428,6 +498,27 @@ export async function updateEnrollmentAccommodationWorkflowAction(formData: Form
   });
 
   redirect(`/enrollments/${enrollmentId}`);
+}
+
+export async function updateAccommodationWorkflowFromOperationAction(formData: FormData) {
+  await assertActionPermission('users.write');
+  const session = await requireSession();
+  const enrollmentId = getText(formData, 'enrollmentId');
+  const status = getText(formData, 'status');
+  const reasonValue = formData.get('reason');
+  const reason = typeof reasonValue === 'string' ? reasonValue.trim() : '';
+  const returnTo = getOptionalText(formData, 'returnTo');
+
+  await apiFetch(`/enrollments/${enrollmentId}/accommodation-workflow`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status,
+      reason: reason || undefined,
+      changedById: session.sub,
+    }),
+  });
+
+  redirect(returnTo?.trim() || `/enrollments/${enrollmentId}`);
 }
 
 export async function confirmEnrollmentFakePaymentAction(formData: FormData) {
