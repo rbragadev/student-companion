@@ -23,7 +23,10 @@ interface CoursePricingPeriodFieldsProps {
 }
 
 function toDate(value: string) {
-  return new Date(`${value}T00:00:00.000Z`);
+  const [datePart] = value.split('T');
+  const [year, month, day] = datePart.split('-').map((part) => Number(part));
+  if (!year || !month || !day) return new Date(NaN);
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
 }
 
 function getWeeklyWeeks(startDate: string, endDate: string) {
@@ -50,6 +53,13 @@ function getWeeklyWeeks(startDate: string, endDate: string) {
   };
 }
 
+function isSunday(value: string) {
+  if (!value) return false;
+  const date = toDate(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getUTCDay() === 0;
+}
+
 export function CoursePricingPeriodFields({
   periodType,
   startDate: initialStartDate,
@@ -74,6 +84,9 @@ export function CoursePricingPeriodFields({
 
   const weeklyInfo = useMemo(() => (isWeekly ? getWeeklyWeeks(startDate, endDate) : null), [isWeekly, startDate, endDate]);
   const finalDuration = isWeekly ? (weeklyInfo?.label ?? '') : manualDuration;
+  const isStartSunday = isWeekly ? isSunday(startDate) : true;
+  const isEndSunday = isWeekly ? isSunday(endDate) : true;
+  const hasWrongWeekday = isWeekly && (!isStartSunday || !isEndSunday);
 
   const disabledClass = 'disabled:bg-slate-100';
   const finalDurationClass = `${durationClassName} ${canWrite ? '' : disabledClass}`;
@@ -92,7 +105,7 @@ export function CoursePricingPeriodFields({
             value={startDate}
             onChange={(event) => setStartDate(event.target.value)}
             disabled={!canWrite}
-            className={baseDateClass}
+            className={`${baseDateClass} ${hasWrongWeekday && !isStartSunday ? 'border-red-300' : ''}`}
           />
         </div>
         <div className={`space-y-1 ${endDateFieldClassName}`}>
@@ -104,7 +117,7 @@ export function CoursePricingPeriodFields({
             value={endDate}
             onChange={(event) => setEndDate(event.target.value)}
             disabled={!canWrite}
-            className={baseEndDateClass}
+            className={`${baseEndDateClass} ${hasWrongWeekday && !isEndSunday ? 'border-red-300' : ''}`}
           />
         </div>
         <div className={`space-y-1 ${durationFieldClassName}`}>
@@ -115,10 +128,12 @@ export function CoursePricingPeriodFields({
             readOnly
             required={required}
             className={finalDurationClass}
+            aria-label="Duração em semanas"
+            title="Duração calculada pela janela semanal selecionada"
           />
           <p className="text-xs text-slate-500">
             {weeklyInfo && weeklyInfo.isValid
-              ? 'Janela válida: domingo a domingo.'
+              ? `Janela válida: domingo a domingo (${weeklyInfo.label}).`
               : 'Selecione janelas semanais (domingo a domingo, múltiplos de 7 dias).'}
           </p>
         </div>

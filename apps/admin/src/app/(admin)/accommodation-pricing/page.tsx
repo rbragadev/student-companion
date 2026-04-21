@@ -12,6 +12,20 @@ function money(value: number, currency: string) {
   return `${Number(value).toFixed(2)} ${currency}`;
 }
 
+function toDate(value?: string | null) {
+  if (!value) return '—';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toISOString().slice(0, 10);
+}
+
+function toDateInputValue(value?: string | null) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString().slice(0, 10);
+}
+
 export default async function AccommodationPricingPage() {
   await requirePermission('structure.read');
 
@@ -37,7 +51,34 @@ export default async function AccommodationPricingPage() {
     {
       key: 'price',
       label: 'Preço',
-      render: (item) => money(item.basePrice, item.currency),
+      render: (item) => `${money(item.basePrice, item.currency)} (base/semana)`,
+    },
+    {
+      key: 'pricePerDay',
+      label: 'Preço por dia',
+      render: (item) => (item.pricePerDay && item.pricePerDay > 0 ? money(item.pricePerDay, item.currency) : '—'),
+    },
+    {
+      key: 'mode',
+      label: 'Modo',
+      render: (item) =>
+        item.pricePerDay && item.pricePerDay > 0
+          ? `Por dia • mínimo ${item.minimumStayDays ?? 1} dias`
+          : 'Semanal',
+    },
+    {
+      key: 'window',
+      label: 'Janela',
+      render: (item) => {
+        const start = toDate(item.windowStartDate);
+        const end = toDate(item.windowEndDate);
+        return `${start} → ${end}`;
+      },
+    },
+    {
+      key: 'minimumStayDays',
+      label: 'Mín. dias',
+      render: (item) => String(item.minimumStayDays ?? 1),
     },
     {
       key: 'status',
@@ -64,6 +105,34 @@ export default async function AccommodationPricingPage() {
             className="h-8 w-24 rounded border border-slate-300 px-2 text-xs"
           />
           <input
+            name="pricePerDay"
+            type="number"
+            step="0.01"
+            min={0}
+            defaultValue={item.pricePerDay ?? ''}
+            placeholder="Opcional"
+            className="h-8 w-24 rounded border border-slate-300 px-2 text-xs"
+          />
+          <input
+            name="minimumStayDays"
+            type="number"
+            min={1}
+            defaultValue={item.minimumStayDays ?? 1}
+            className="h-8 w-20 rounded border border-slate-300 px-2 text-xs"
+          />
+            <input
+              name="windowStartDate"
+              type="date"
+              defaultValue={toDateInputValue(item.windowStartDate)}
+              className="h-8 w-32 rounded border border-slate-300 px-2 text-xs"
+            />
+            <input
+              name="windowEndDate"
+              type="date"
+              defaultValue={toDateInputValue(item.windowEndDate)}
+              className="h-8 w-32 rounded border border-slate-300 px-2 text-xs"
+            />
+          <input
             name="currency"
             defaultValue={item.currency}
             className="h-8 w-16 rounded border border-slate-300 px-2 text-xs"
@@ -84,7 +153,7 @@ export default async function AccommodationPricingPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Preço de Acomodação por Período"
-        description="Configura preço de acomodação por opção de período (ex.: Fall 2026)."
+        description="Preencha preço base por semana e, opcionalmente, preço por dia (com mínimo + janela) para cálculo diário."
       />
 
       <section className="rounded-lg border border-slate-200 bg-white p-4">
@@ -107,6 +176,29 @@ export default async function AccommodationPricingPage() {
           <label className="text-xs text-slate-600">
             Preço base
             <input name="basePrice" type="number" step="0.01" min={0} className="mt-1 h-9 w-full rounded border border-slate-300 px-3 text-sm" />
+          </label>
+          <label className="text-xs text-slate-600">
+            Preço por dia
+            <input name="pricePerDay" type="number" step="0.01" min={0} className="mt-1 h-9 w-full rounded border border-slate-300 px-3 text-sm" />
+          </label>
+          <label className="text-xs text-slate-600">
+            Mín. permanência (dias)
+            <input name="minimumStayDays" type="number" min={1} defaultValue={1} className="mt-1 h-9 w-full rounded border border-slate-300 px-3 text-sm" />
+          </label>
+          <label className="text-xs text-slate-600">
+            Janela início (opcional)
+            <input name="windowStartDate" type="date" className="mt-1 h-9 w-full rounded border border-slate-300 px-3 text-sm" />
+          </label>
+          <label className="text-xs text-slate-600">
+            Janela fim (opcional)
+            <input name="windowEndDate" type="date" className="mt-1 h-9 w-full rounded border border-slate-300 px-3 text-sm" />
+          </label>
+          <label className="text-xs text-slate-500 md:col-span-2">
+            Regra da janela
+            <p className="mt-1 text-[11px]">
+              Se preencher valor por dia, o sistema soma por diária e valida permanência mínima + janela. Se não preencher,
+              o cálculo será por semana (domingo a domingo).
+            </p>
           </label>
           <label className="text-xs text-slate-600">
             Moeda

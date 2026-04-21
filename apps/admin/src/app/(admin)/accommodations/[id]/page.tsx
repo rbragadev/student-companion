@@ -25,6 +25,13 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+function toDateInputValue(value?: string | null) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString().slice(0, 10);
+}
+
 export default async function AccommodationDetailPage({ params }: Readonly<PageProps>) {
   const { id } = await params;
   const session = await requirePermission('structure.read');
@@ -227,38 +234,88 @@ export default async function AccommodationDetailPage({ params }: Readonly<PageP
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-slate-900">Pricing por período</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Configure valores por período/opção textual usados no cálculo de pacote e quote.
+          Configure o preço base semanal e, opcionalmente, a regra de diária (mínimo e janela). Sem
+          preço por dia, o cálculo é semanal.
         </p>
 
         <form
           action={createAccommodationPricingInlineAction.bind(null, accommodation.id)}
-          className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-5"
+          className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-8"
         >
-          <input
-            name="periodOption"
-            required
-            placeholder="Fall 2026"
-            className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
-          />
-          <input
-            name="basePrice"
-            type="number"
-            min={0}
-            step="0.01"
-            required
-            placeholder="1200"
-            className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
-          />
-          <input
-            name="currency"
-            defaultValue="CAD"
-            required
-            className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
-          />
-          <label className="flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm">
-            <input type="checkbox" name="isActive" defaultChecked />
-            Ativo
+          <label className="text-xs text-slate-600">
+            Período (texto)
+            <input
+              name="periodOption"
+              required
+              placeholder="Fall 2026"
+              className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm"
+            />
           </label>
+          <label className="text-xs text-slate-600">
+            Preço base (semanal)
+            <input
+              name="basePrice"
+              type="number"
+              min={0}
+              step="0.01"
+              required
+              placeholder="1200"
+              className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs text-slate-600">
+            Preço por dia (opcional)
+            <input
+              name="pricePerDay"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="Opcional"
+              className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs text-slate-600">
+            Mín. permanência (dias)
+            <input
+              name="minimumStayDays"
+              type="number"
+              min={1}
+              defaultValue={1}
+              className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm"
+              placeholder="7"
+            />
+          </label>
+          <label className="text-xs text-slate-600">
+            Janela início (opcional)
+            <input name="windowStartDate" type="date" className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm" />
+          </label>
+          <label className="text-xs text-slate-600">
+            Janela fim (opcional)
+            <input name="windowEndDate" type="date" className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm" />
+          </label>
+          <label className="text-xs text-slate-600">
+            Moeda
+            <input
+              name="currency"
+              defaultValue="CAD"
+              required
+              className="mt-1 h-9 rounded-lg border border-slate-300 px-3 text-sm"
+            />
+          </label>
+          <div className="mt-5 sm:mt-0 sm:self-end">
+            <label className="flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-3 text-xs text-slate-600">
+              <input type="checkbox" name="isActive" defaultChecked />
+              Ativo
+            </label>
+          </div>
+          <div className="text-xs text-slate-500 sm:col-span-8">
+            Regras:
+            <ul className="mt-1 list-disc pl-5">
+              <li>Se preencher <strong>Preço por dia</strong>, usamos regra de diária + janela + mínimo.</li>
+              <li>Sem <strong>Preço por dia</strong>, o cálculo é semanal usando <strong>Preço base</strong>.</li>
+            </ul>
+          </div>
+
           <Button type="submit" disabled={!canWrite}>
             Adicionar preço
           </Button>
@@ -269,7 +326,7 @@ export default async function AccommodationDetailPage({ params }: Readonly<PageP
             <form
               key={item.id}
               action={updateAccommodationPricingInlineAction}
-              className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-6"
+              className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-8"
             >
               <input type="hidden" name="id" value={item.id} />
               <input type="hidden" name="accommodationId" value={accommodation.id} />
@@ -285,6 +342,38 @@ export default async function AccommodationDetailPage({ params }: Readonly<PageP
                 min={0}
                 step="0.01"
                 defaultValue={Number(item.basePrice)}
+                className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
+                disabled={!canWrite}
+              />
+              <input
+                name="pricePerDay"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={item.pricePerDay ?? ''}
+                placeholder="Opcional"
+                className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
+                disabled={!canWrite}
+              />
+              <input
+                name="minimumStayDays"
+                type="number"
+                min={1}
+                defaultValue={item.minimumStayDays ?? 1}
+                className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
+                disabled={!canWrite}
+              />
+              <input
+                name="windowStartDate"
+                type="date"
+                defaultValue={toDateInputValue(item.windowStartDate)}
+                className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
+                disabled={!canWrite}
+              />
+              <input
+                name="windowEndDate"
+                type="date"
+                defaultValue={toDateInputValue(item.windowEndDate)}
                 className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
                 disabled={!canWrite}
               />

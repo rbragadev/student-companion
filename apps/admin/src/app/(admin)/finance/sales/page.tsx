@@ -9,7 +9,7 @@ import type {
   InstitutionAdmin,
   SchoolAdmin,
   SalesRowAdmin,
-} from '@/types/catalog.types';
+  } from '@/types/catalog.types';
 
 function money(amount: number, currency: string) {
   return `${Number(amount ?? 0).toFixed(2)} ${currency}`;

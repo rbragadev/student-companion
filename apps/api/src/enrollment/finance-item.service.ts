@@ -63,23 +63,78 @@ type FinanceItemRowWithSummary = FinanceItemRow & {
 
 @Injectable()
 export class FinanceItemService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   private toNumber(value: Prisma.Decimal | number | null | undefined): number {
     if (value === null || value === undefined) return 0;
     return typeof value === 'number' ? value : value.toNumber();
   }
 
-  private roundMoney(value: number): number {
-    return Number(value.toFixed(2));
+  private toDateOnly(value: string): Date {
+    const parsed = this.parseIsoDate(value);
+    return parsed;
   }
 
-  private toDate(value: string): Date {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
+  private parseIsoDate(value: string): Date {
+    const trimmed = value.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed) || !trimmed.includes('T')) {
+      const [year, month, day] = trimmed.split('-').map((part) => Number(part));
+      if ([year, month, day].some((part) => Number.isNaN(part))) {
+        throw new BadRequestException('Data inválida.');
+      }
+      return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+    }
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) {
       throw new BadRequestException('Data inválida.');
     }
-    return date;
+    return parsed;
+  }
+
+  private calculateStayDays(startDate: Date, endDate: Date) {
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const stayDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    if (stayDays <= 0) {
+      throw new BadRequestException('A data final deve ser maior que a data inicial.');
+    }
+    return stayDays;
+  }
+
+  private validateMinimumStay(stayDays: number, minimumStayDays: number, accommodationLabel: string) {
+    if (minimumStayDays <= 0) {
+      throw new BadRequestException(`Configuração inválida de permanência mínima para ${accommodationLabel}.`);
+    }
+
+    if (stayDays < minimumStayDays) {
+      throw new BadRequestException(
+        `A permanência mínima para ${accommodationLabel} é de ${minimumStayDays} dias.`,
+      );
+    }
+  }
+
+  private validateWindow(
+    startDate: Date,
+    endDate: Date,
+    windowStartDate: Date | null,
+    windowEndDate: Date | null,
+  ) {
+    if (windowStartDate && startDate < windowStartDate) {
+      throw new BadRequestException(
+        `A data inicial está antes da janela da acomodação (${windowStartDate.toISOString().slice(0, 10)}).`,
+      );
+    }
+
+    if (windowEndDate && endDate > windowEndDate) {
+      throw new BadRequestException(
+        `A data final está depois da janela da acomodação (${windowEndDate.toISOString().slice(0, 10)}).`,
+      );
+    }
+  }
+
+  private roundMoney(value: number): number {
+    return Number(value.toFixed(2));
   }
 
   private validateWeeklyRange(startDate: Date, endDate: Date) {
@@ -145,14 +200,22 @@ export class FinanceItemService {
       );
     }
 
-    const startDate = this.toDate(dto.startDate);
-    const endDate = this.toDate(dto.endDate);
-    if (endDate <= startDate) {
-      throw new BadRequestException('endDate deve ser maior que startDate.');
-    }
+    const startDate = this.toDateOnly(dto.startDate);
+    const endDate = this.toDateOnly(dto.endDate);
+    this.validateWindow(
+      startDate,
+      endDate,
+      pricing.windowStartDate ?? null,
+      pricing.windowEndDate ?? null,
+    );
 
-    const weeks = this.validateWeeklyRange(startDate, endDate);
-    const amount = this.roundMoney(this.toNumber(pricing.basePrice) * weeks);
+    const stayDays = this.calculateStayDays(startDate, endDate);
+    this.validateMinimumStay(stayDays, pricing.minimumStayDays, pricing.accommodation?.title ?? 'acomodação');
+
+    const isPricePerDay = this.toNumber(pricing.pricePerDay) > 0;
+    const amount = isPricePerDay
+      ? this.roundMoney(this.toNumber(pricing.pricePerDay) * stayDays)
+      : this.roundMoney(this.toNumber(pricing.basePrice) * this.validateWeeklyRange(startDate, endDate));
 
     if (dto.enrollmentId) {
       const enrollment = await this.prisma.enrollment.findUnique({

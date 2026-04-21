@@ -1,4 +1,14 @@
-import { IsBoolean, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class CreateAccommodationPricingDto {
   @IsUUID()
@@ -11,6 +21,24 @@ export class CreateAccommodationPricingDto {
   @IsNumber()
   @Min(0)
   basePrice!: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  pricePerDay?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  minimumStayDays?: number;
+
+  @IsOptional()
+  @IsDateString()
+  windowStartDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  windowEndDate?: string;
 
   @IsOptional()
   @IsString()

@@ -321,7 +321,13 @@ export default async function AccommodationOperationsPage({ searchParams }: Read
                   <ul className="mt-2 text-xs text-slate-700">
                     {rows.map((item) => (
                       <li key={item.id}>
-                        {item.periodOption}: {money(item.basePrice, item.currency)} • semana
+                        {item.periodOption}: {money(item.basePrice, item.currency)}
+                        {item.pricePerDay && item.pricePerDay > 0
+                          ? ` • ${money(item.pricePerDay, item.currency)}/dia • mínimo ${item.minimumStayDays ?? 1} dias`
+                          : ' • semanal'}
+                        <span className="block text-slate-500">
+                          Janela: {item.windowStartDate ?? '—'} → {item.windowEndDate ?? '—'}
+                        </span>
                       </li>
                     ))}
                   </ul>

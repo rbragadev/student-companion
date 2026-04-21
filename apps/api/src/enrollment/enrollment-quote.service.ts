@@ -47,6 +47,23 @@ export class EnrollmentQuoteService {
     }
   }
 
+  private parseQuoteDate(value: string): Date {
+    if (!value) throw new BadRequestException('Data ausente para item da cotação.');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value) && !value.includes('T')) {
+      const [year, month, day] = value.split('-').map((part) => Number(part));
+      if (!year || !month || !day) {
+        throw new BadRequestException(`Data inválida: ${value}`);
+      }
+      return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException(`Data inválida: ${value}`);
+    }
+    return parsed;
+  }
+
   private validateWeeklyRange(startDate: Date, endDate: Date, label: string) {
     const diffMs = endDate.getTime() - startDate.getTime();
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
@@ -62,6 +79,42 @@ export class EnrollmentQuoteService {
     const diffMs = endDate.getTime() - startDate.getTime();
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
     return diffDays / 7;
+  }
+
+  private calculateStayDays(startDate: Date, endDate: Date) {
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const stayDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    if (stayDays <= 0) {
+      throw new BadRequestException('A data de fim deve ser maior que a data de início para acomodação.');
+    }
+    return stayDays;
+  }
+
+  private validateMinimumStay(stayDays: number, minimumStayDays: number, label: string) {
+    if (minimumStayDays > 0 && stayDays < minimumStayDays) {
+      throw new BadRequestException(
+        `Permanência mínima não atendida para item ${label}: mínimo ${minimumStayDays} dias.`,
+      );
+    }
+  }
+
+  private validateAccommodationWindow(
+    startDate: Date,
+    endDate: Date,
+    windowStartDate: Date | null,
+    windowEndDate: Date | null,
+    label: string,
+  ) {
+    if (windowStartDate && startDate < windowStartDate) {
+      throw new BadRequestException(
+        `Início fora da janela da acomodação para item ${label}: mínimo ${this.toDateOnly(windowStartDate)}.`,
+      );
+    }
+    if (windowEndDate && endDate > windowEndDate) {
+      throw new BadRequestException(
+        `Fim fora da janela da acomodação para item ${label}: máximo ${this.toDateOnly(windowEndDate)}.`,
+      );
+    }
   }
 
   private toDateOnly(date: Date): string {
@@ -436,8 +489,8 @@ export class EnrollmentQuoteService {
       resolvedIntent?.course.school.institutionId ?? coursePricing?.course.school.institutionId ?? null;
 
     for (const [index, rawItem] of normalizedItems.entries()) {
-      const startDate = new Date(rawItem.startDate);
-      const endDate = new Date(rawItem.endDate);
+      const startDate = this.parseQuoteDate(rawItem.startDate);
+      const endDate = this.parseQuoteDate(rawItem.endDate);
       const itemLabel = `${rawItem.itemType}#${index + 1}`;
       this.validateDateRange(startDate, endDate, itemLabel);
 
@@ -517,7 +570,25 @@ export class EnrollmentQuoteService {
         throw new NotFoundException(`Preço de acomodação não encontrado para item ${itemLabel}`);
       }
 
-      this.validateWeeklyRange(startDate, endDate, itemLabel);
+      this.validateAccommodationWindow(
+        startDate,
+        endDate,
+        resolvedAccommodationPricing.windowStartDate ?? null,
+        resolvedAccommodationPricing.windowEndDate ?? null,
+        itemLabel,
+      );
+
+      const stayDays = this.calculateStayDays(startDate, endDate);
+      this.validateMinimumStay(
+        stayDays,
+        this.toNumber(resolvedAccommodationPricing.minimumStayDays),
+        itemLabel,
+      );
+
+      const isPricePerDay = this.toNumber(resolvedAccommodationPricing.pricePerDay) > 0;
+      if (!isPricePerDay) {
+        this.validateWeeklyRange(startDate, endDate, itemLabel);
+      }
 
       const cfg = await this.commissionConfigService.resolveForAccommodation({
         accommodationId: resolvedAccommodationPricing.accommodation.id,
@@ -527,8 +598,10 @@ export class EnrollmentQuoteService {
       const fixed = this.toNumber(cfg?.fixedAmount ?? 0);
       const amount = Number(
         (
-          this.toNumber(resolvedAccommodationPricing.basePrice) *
-          this.weeksBetween(startDate, endDate)
+          isPricePerDay
+            ? this.toNumber(resolvedAccommodationPricing.pricePerDay) * stayDays
+            : this.toNumber(resolvedAccommodationPricing.basePrice) *
+              this.weeksBetween(startDate, endDate)
         ).toFixed(2),
       );
       const commissionAmount = Number((amount * (pct / 100) + fixed).toFixed(2));

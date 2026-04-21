@@ -107,7 +107,7 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
         <h2 className="text-sm font-semibold text-slate-900">Oferta e janelas de datas do curso</h2>
         <p className="mt-1 text-xs text-slate-500">
           {course.period_type === 'weekly'
-            ? 'Curso semanal: o app cobra por semana (base price / week). Duração exibida automaticamente por seleção de janela semanal.'
+            ? 'Curso semanal: preço base por semana. A duração é calculada pela seleção de janela semanal.'
             : 'Curso fixo: o app exibe total price da oferta para a janela selecionada.'}
         </p>
         <p className="mt-1 text-xs text-slate-500">
@@ -139,7 +139,7 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
                 min={0}
                 step="0.01"
                 required
-                placeholder={course.period_type === 'weekly' ? 'Preço base por semana' : 'Preço base da janela'}
+                placeholder={course.period_type === 'weekly' ? 'Preço base (por semana)' : 'Preço base da janela'}
                 className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
               />
               <input name="currency" defaultValue="CAD" required className="h-9 rounded-lg border border-slate-300 px-3 text-sm" />
@@ -173,7 +173,16 @@ export default async function CourseDetailPage({ params }: Readonly<PageProps>) 
                 duration={row.duration ?? ''}
                 canWrite={canWrite}
               />
-              <input name="basePrice" type="number" min={0} step="0.01" defaultValue={Number(row.basePrice)} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
+              <input
+                name="basePrice"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={Number(row.basePrice)}
+                disabled={!canWrite}
+                className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100"
+                title={course.period_type === 'weekly' ? 'Preço base por semana' : 'Preço base da janela'}
+              />
               <input name="currency" defaultValue={row.currency} disabled={!canWrite} className="h-9 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100" />
               <div className="flex items-center gap-2">
                 <label className="flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm">

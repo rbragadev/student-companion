@@ -7,6 +7,12 @@ import { UpdateCoursePricingDto } from './dto/update-course-pricing.dto';
 export class CoursePricingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private normalizeCoursePeriodType(
+    periodType?: string | null,
+  ): 'fixed' | 'weekly' {
+    return periodType === 'weekly' ? 'weekly' : 'fixed';
+  }
+
   private parseIsoDate(value?: string): Date | null {
     if (!value) return null;
     const date =
@@ -18,7 +24,7 @@ export class CoursePricingService {
 
   private parseIsoDateOnly(value: string): Date {
     const [year, month, day] = value.split('-').map((part) => Number(part));
-    return new Date(Date.UTC(year, month - 1, day));
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
   }
 
   private formatDateIso(date: Date): string {
@@ -65,63 +71,6 @@ export class CoursePricingService {
     return classGroup;
   }
 
-  private async resolveAcademicPeriodForCoursePricing(params: {
-    courseId: string;
-    academicPeriodId?: string;
-    classGroupId?: string;
-    startDate?: string;
-    endDate?: string;
-  }) {
-    const { courseId, academicPeriodId, classGroupId, startDate, endDate } = params;
-
-    if (academicPeriodId) {
-      const period = await this.prisma.academicPeriod.findUnique({
-        where: { id: academicPeriodId },
-        select: { id: true, classGroup: { select: { courseId: true } } },
-      });
-      if (!period) throw new NotFoundException(`Janela ${academicPeriodId} não encontrada`);
-      if (period.classGroup.courseId !== courseId) {
-        throw new BadRequestException('Janela não pertence ao curso informado');
-      }
-      return period.id;
-    }
-
-    const parsedStartDate = this.parseIsoDate(startDate);
-    const parsedEndDate = this.parseIsoDate(endDate);
-    if (!parsedStartDate || !parsedEndDate) {
-      throw new BadRequestException(
-        'Informe startDate e endDate para configurar a janela de datas do curso',
-      );
-    }
-    if (parsedEndDate <= parsedStartDate) {
-      throw new BadRequestException('endDate deve ser maior que startDate');
-    }
-
-    const classGroup = await this.resolveClassGroupForCourse(courseId, classGroupId);
-    const existing = await this.prisma.academicPeriod.findFirst({
-      where: {
-        classGroupId: classGroup.id,
-        startDate: parsedStartDate,
-        endDate: parsedEndDate,
-      },
-      select: { id: true },
-    });
-    if (existing) return existing.id;
-
-    const rangeLabel = `${this.formatDateIso(parsedStartDate)} a ${this.formatDateIso(parsedEndDate)}`;
-    const created = await this.prisma.academicPeriod.create({
-      data: {
-        classGroupId: classGroup.id,
-        name: `Oferta ${rangeLabel}`,
-        startDate: parsedStartDate,
-        endDate: parsedEndDate,
-        status: 'ACTIVE',
-      },
-      select: { id: true },
-    });
-    return created.id;
-  }
-
   private validateWeeklyRange(startDate: Date, endDate: Date) {
     const diffMs = endDate.getTime() - startDate.getTime();
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
@@ -137,9 +86,15 @@ export class CoursePricingService {
   async create(dto: CreateCoursePricingDto) {
     const course = await this.prisma.course.findUnique({
       where: { id: dto.courseId },
-      select: { id: true },
+      select: { id: true, period_type: true },
     });
     if (!course) throw new NotFoundException(`Curso ${dto.courseId} não encontrado`);
+    const coursePeriodType = this.normalizeCoursePeriodType(course.period_type);
+
+    const resolvedDuration =
+      coursePeriodType === 'weekly'
+        ? this.deriveWeeklyDuration(dto.startDate, dto.endDate)
+        : dto.duration;
 
     const resolvedAcademicPeriodId = await this.resolveAcademicPeriodForCoursePricing({
       courseId: dto.courseId,
@@ -147,6 +102,7 @@ export class CoursePricingService {
       classGroupId: dto.classGroupId,
       startDate: dto.startDate,
       endDate: dto.endDate,
+      periodType: coursePeriodType,
     });
 
     return this.prisma.coursePricing.upsert({
@@ -159,13 +115,13 @@ export class CoursePricingService {
       create: {
         courseId: dto.courseId,
         academicPeriodId: resolvedAcademicPeriodId,
-        duration: dto.duration,
+        duration: resolvedDuration,
         basePrice: dto.basePrice,
         currency: dto.currency ?? 'CAD',
         isActive: dto.isActive ?? true,
       },
       update: {
-        duration: dto.duration,
+        duration: resolvedDuration,
         basePrice: dto.basePrice,
         currency: dto.currency ?? 'CAD',
         isActive: dto.isActive ?? true,
@@ -282,6 +238,9 @@ export class CoursePricingService {
     const current = await this.prisma.coursePricing.findUnique({
       where: { id },
       include: {
+        course: {
+          select: { period_type: true },
+        },
         academicPeriod: {
           select: {
             id: true,
@@ -294,6 +253,15 @@ export class CoursePricingService {
     if (!current) throw new NotFoundException(`Course pricing ${id} não encontrado`);
 
     const courseId = dto.courseId ?? current.courseId;
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { period_type: true },
+    });
+    const coursePeriodType = this.normalizeCoursePeriodType(
+      course?.period_type ?? current.course.period_type,
+    );
+    const resolvedDuration =
+      coursePeriodType === 'weekly' ? this.deriveWeeklyDuration(dto.startDate, dto.endDate) : dto.duration;
     const academicPeriodId =
       dto.academicPeriodId ||
       dto.startDate ||
@@ -305,6 +273,7 @@ export class CoursePricingService {
             classGroupId: dto.classGroupId ?? current.academicPeriod.classGroupId,
             startDate: dto.startDate,
             endDate: dto.endDate,
+            periodType: coursePeriodType,
           })
         : current.academicPeriod.id;
 
@@ -313,7 +282,7 @@ export class CoursePricingService {
       data: {
         courseId,
         academicPeriodId,
-        duration: dto.duration,
+        duration: resolvedDuration,
         basePrice: dto.basePrice,
         currency: dto.currency,
         isActive: dto.isActive,
@@ -332,5 +301,80 @@ export class CoursePricingService {
         },
       },
     });
+  }
+
+  private deriveWeeklyDuration(startDate?: string, endDate?: string) {
+    if (!startDate || !endDate) {
+      return undefined;
+    }
+
+    const parsedStartDate = this.parseIsoDate(startDate);
+    const parsedEndDate = this.parseIsoDate(endDate);
+    if (!parsedStartDate || !parsedEndDate) {
+      return undefined;
+    }
+
+    const weeks = this.validateWeeklyRange(parsedStartDate, parsedEndDate);
+    return `1-${weeks} weeks`;
+  }
+
+  private async resolveAcademicPeriodForCoursePricing(params: {
+    courseId: string;
+    academicPeriodId?: string;
+    classGroupId?: string;
+    startDate?: string;
+    endDate?: string;
+    periodType?: 'fixed' | 'weekly';
+  }) {
+    const { courseId, academicPeriodId, classGroupId, startDate, endDate, periodType } = params;
+
+    if (academicPeriodId) {
+      const period = await this.prisma.academicPeriod.findUnique({
+        where: { id: academicPeriodId },
+        select: { id: true, classGroup: { select: { courseId: true } } },
+      });
+      if (!period) throw new NotFoundException(`Janela ${academicPeriodId} não encontrada`);
+      if (period.classGroup.courseId !== courseId) {
+        throw new BadRequestException('Janela não pertence ao curso informado');
+      }
+      return period.id;
+    }
+
+    const parsedStartDate = this.parseIsoDate(startDate);
+    const parsedEndDate = this.parseIsoDate(endDate);
+    if (!parsedStartDate || !parsedEndDate) {
+      throw new BadRequestException(
+        'Informe startDate e endDate para configurar a janela de datas do curso',
+      );
+    }
+    if (periodType === 'weekly') {
+      this.validateWeeklyRange(parsedStartDate, parsedEndDate);
+    } else if (parsedEndDate <= parsedStartDate) {
+      throw new BadRequestException('endDate deve ser maior que startDate');
+    }
+
+    const classGroup = await this.resolveClassGroupForCourse(courseId, classGroupId);
+    const existing = await this.prisma.academicPeriod.findFirst({
+      where: {
+        classGroupId: classGroup.id,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+      },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+
+    const rangeLabel = `${this.formatDateIso(parsedStartDate)} a ${this.formatDateIso(parsedEndDate)}`;
+    const created = await this.prisma.academicPeriod.create({
+      data: {
+        classGroupId: classGroup.id,
+        name: `Oferta ${rangeLabel}`,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        status: 'ACTIVE',
+      },
+      select: { id: true },
+    });
+    return created.id;
   }
 }

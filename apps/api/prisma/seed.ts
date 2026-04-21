@@ -19,6 +19,12 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg(pool),
 });
 
+function seedDate(value: string) {
+  const [year, month, day] = value.split('-').map((part) => Number(part));
+  if (!year || !month || !day) return new Date();
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+}
+
 const ids = {
   users: {
     raphael: 'a8ee8202-7adb-48d9-a2c7-6a03ffc75b48',
@@ -444,7 +450,7 @@ async function main() {
         id: ids.courses.generalEnglishIlsc,
         unitId: ids.units.downtown,
         school_id: ids.schools.ilsc,
-        program_name: 'ILSC Vancouver - General English',
+        program_name: 'ILSC Vancouver - English Starter A1 (Janela fixa 4-24w)',
         weekly_hours: 30,
         price_in_cents: 135000,
         price_unit: 'week',
@@ -467,7 +473,7 @@ async function main() {
         id: ids.courses.businessEnglishIlsc,
         unitId: ids.units.downtown,
         school_id: ids.schools.ilsc,
-        program_name: 'ILSC Vancouver - Business English (8-16 weeks)',
+        program_name: 'ILSC Vancouver - Business English (Semanal 8-24w)',
         weekly_hours: 24,
         price_in_cents: 155000,
         price_unit: 'week',
@@ -490,7 +496,7 @@ async function main() {
         id: ids.courses.ieltsVgc,
         unitId: ids.units.burnaby,
         school_id: ids.schools.vgc,
-        program_name: 'VanWest College - IELTS English (4-12 weeks)',
+        program_name: 'VanWest College - IELTS English (Semanal 4-12w)',
         weekly_hours: 28,
         price_in_cents: 145000,
         price_unit: 'week',
@@ -513,7 +519,7 @@ async function main() {
         id: ids.courses.speakingVgc,
         unitId: ids.units.burnaby,
         school_id: ids.schools.vgc,
-        program_name: 'VanWest College - Speaking Confidence Lab (2-8 weeks)',
+        program_name: 'VanWest College - Speaking Confidence Lab (Semanal 2-8w)',
         weekly_hours: 20,
         price_in_cents: 98000,
         price_unit: 'week',
@@ -536,7 +542,7 @@ async function main() {
         id: ids.courses.hospitalityCornerstone,
         unitId: ids.units.toronto,
         school_id: ids.schools.cornerstone,
-        program_name: 'ILAC Vancouver - Pathway Program',
+        program_name: 'ILAC Vancouver - Pathway Program (Janela fixa 12m)',
         weekly_hours: 30,
         price_in_cents: 185000,
         price_unit: 'month',
@@ -559,7 +565,7 @@ async function main() {
         id: ids.courses.digitalMarketingCornerstone,
         unitId: ids.units.toronto,
         school_id: ids.schools.cornerstone,
-        program_name: 'Digital Marketing Diploma',
+        program_name: 'Cornerstone - Digital Marketing (Janela fixa 12m)',
         weekly_hours: 26,
         price_in_cents: 175000,
         price_unit: 'month',
@@ -621,24 +627,24 @@ async function main() {
         id: ids.academicPeriods.spring2026,
         classGroupId: ids.classGroups.businessAfternoon,
         name: 'Spring 2026',
-        startDate: new Date('2026-03-01T00:00:00.000Z'),
-        endDate: new Date('2026-07-05T00:00:00.000Z'),
+        startDate: seedDate('2026-03-01'),
+        endDate: seedDate('2026-07-26'),
         status: RecordStatus.INACTIVE,
       },
       {
         id: ids.academicPeriods.fall2026,
         classGroupId: ids.classGroups.engA1Morning,
         name: 'Fall 2026',
-        startDate: new Date('2026-08-02T00:00:00.000Z'),
-        endDate: new Date('2026-12-20T00:00:00.000Z'),
+        startDate: seedDate('2026-07-26'),
+        endDate: seedDate('2026-12-20'),
         status: RecordStatus.ACTIVE,
       },
       {
         id: ids.academicPeriods.winter2027,
         classGroupId: ids.classGroups.engB2Evening,
         name: 'Winter 2027',
-        startDate: new Date('2027-01-03T00:00:00.000Z'),
-        endDate: new Date('2027-03-21T00:00:00.000Z'),
+        startDate: seedDate('2027-01-03'),
+        endDate: seedDate('2027-03-21'),
         status: RecordStatus.ACTIVE,
       },
     ],
@@ -1031,6 +1037,10 @@ async function main() {
     accommodationId: string;
     periodOption: string;
     basePrice: number;
+    pricePerDay?: number;
+    minimumStayDays?: number;
+    windowStartDate?: string;
+    windowEndDate?: string;
     currency: string;
     isActive: boolean;
   }> = [
@@ -1038,7 +1048,11 @@ async function main() {
       id: ids.accommodationPricing.downtownFall,
       accommodationId: ids.accommodations.downtownShared,
       periodOption: 'Fall 2026',
-      basePrice: 290,
+      pricePerDay: 290,
+      minimumStayDays: 28,
+      windowStartDate: '2026-07-26T00:00:00.000Z',
+      windowEndDate: '2026-12-20T00:00:00.000Z',
+      basePrice: 5800,
       currency: 'CAD',
       isActive: true,
     },
@@ -1046,7 +1060,11 @@ async function main() {
       id: ids.accommodationPricing.burnabyWinter,
       accommodationId: ids.accommodations.burnabyStudio,
       periodOption: 'Winter 2027',
-      basePrice: 320,
+      pricePerDay: 320,
+      minimumStayDays: 28,
+      windowStartDate: '2027-01-03T00:00:00.000Z',
+      windowEndDate: '2027-03-21T00:00:00.000Z',
+      basePrice: 5760,
       currency: 'CAD',
       isActive: true,
     },
@@ -1054,7 +1072,11 @@ async function main() {
       id: ids.accommodationPricing.richmondSpring,
       accommodationId: ids.accommodations.richmondApartment,
       periodOption: 'Spring 2026',
-      basePrice: 430,
+      pricePerDay: 430,
+      minimumStayDays: 28,
+      windowStartDate: '2026-03-01T00:00:00.000Z',
+      windowEndDate: '2026-07-26T00:00:00.000Z',
+      basePrice: 7740,
       currency: 'CAD',
       isActive: true,
     },
@@ -1062,7 +1084,11 @@ async function main() {
       id: ids.accommodationPricing.kitsFall,
       accommodationId: ids.accommodations.kitsHomestay,
       periodOption: 'Fall 2026',
-      basePrice: 360,
+      pricePerDay: 360,
+      minimumStayDays: 21,
+      windowStartDate: '2026-07-26T00:00:00.000Z',
+      windowEndDate: '2026-12-20T00:00:00.000Z',
+      basePrice: 5880,
       currency: 'CAD',
       isActive: true,
     },
@@ -1070,7 +1096,11 @@ async function main() {
       id: ids.accommodationPricing.gastownFall,
       accommodationId: ids.accommodations.gastownStudio,
       periodOption: 'Fall 2026',
-      basePrice: 520,
+      pricePerDay: 520,
+      minimumStayDays: 21,
+      windowStartDate: '2026-07-26T00:00:00.000Z',
+      windowEndDate: '2026-12-20T00:00:00.000Z',
+      basePrice: 8400,
       currency: 'CAD',
       isActive: true,
     },
@@ -1078,7 +1108,11 @@ async function main() {
       id: ids.accommodationPricing.commercialWinter,
       accommodationId: ids.accommodations.commercialShared,
       periodOption: 'Winter 2027',
-      basePrice: 335,
+      pricePerDay: 335,
+      minimumStayDays: 14,
+      windowStartDate: '2027-01-03T00:00:00.000Z',
+      windowEndDate: '2027-03-21T00:00:00.000Z',
+      basePrice: 5950,
       currency: 'CAD',
       isActive: true,
     },
@@ -1090,6 +1124,21 @@ async function main() {
     { name: 'Fall 2026', factor: 1 },
     { name: 'Winter 2027', factor: 1.05 },
   ] as const;
+
+  const periodWindowDates: Record<string, { windowStartDate: string; windowEndDate: string }> = {
+    'Spring 2026': {
+      windowStartDate: '2026-03-01T00:00:00.000Z',
+      windowEndDate: '2026-07-26T00:00:00.000Z',
+    },
+    'Fall 2026': {
+      windowStartDate: '2026-07-26T00:00:00.000Z',
+      windowEndDate: '2026-12-20T00:00:00.000Z',
+    },
+    'Winter 2027': {
+      windowStartDate: '2027-01-03T00:00:00.000Z',
+      windowEndDate: '2027-03-21T00:00:00.000Z',
+    },
+  } as const;
   const baseAccommodationWeeklyPrice: Record<string, number> = {
     [ids.accommodations.kitsHomestay]: 360,
     [ids.accommodations.downtownShared]: 290,
@@ -1108,7 +1157,11 @@ async function main() {
       accommodationPricingSeed.push({
         accommodationId,
         periodOption: period.name,
-        basePrice: Number((basePrice * period.factor).toFixed(2)),
+        pricePerDay: Number((basePrice * period.factor).toFixed(2)),
+        minimumStayDays: 14,
+        windowStartDate: periodWindowDates[period.name].windowStartDate,
+        windowEndDate: periodWindowDates[period.name].windowEndDate,
+        basePrice: Number((basePrice * 4 * period.factor).toFixed(2)),
         currency: 'CAD',
         isActive: true,
       });
@@ -1128,10 +1181,18 @@ async function main() {
         accommodationId: item.accommodationId,
         periodOption: item.periodOption,
         basePrice: item.basePrice,
+        pricePerDay: item.pricePerDay,
+        minimumStayDays: item.minimumStayDays ?? 1,
+        windowStartDate: item.windowStartDate ? new Date(item.windowStartDate) : null,
+        windowEndDate: item.windowEndDate ? new Date(item.windowEndDate) : null,
         currency: item.currency,
         isActive: item.isActive,
       },
       update: {
+        pricePerDay: item.pricePerDay,
+        minimumStayDays: item.minimumStayDays ?? 1,
+        windowStartDate: item.windowStartDate ? new Date(item.windowStartDate) : null,
+        windowEndDate: item.windowEndDate ? new Date(item.windowEndDate) : null,
         basePrice: item.basePrice,
         currency: item.currency,
         isActive: item.isActive,
@@ -1195,7 +1256,7 @@ async function main() {
       referenceId: ids.coursePricing.ilscFallGeneral,
       coursePricingId: ids.coursePricing.ilscFallGeneral,
       accommodationPricingId: null,
-      startDate: new Date('2026-08-02T00:00:00.000Z'),
+      startDate: new Date('2026-07-26T00:00:00.000Z'),
       endDate: new Date('2026-12-20T00:00:00.000Z'),
       amount: 5550,
       commissionAmount: 471.75,

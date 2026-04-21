@@ -401,6 +401,10 @@ export interface AccommodationPricingAdmin {
   accommodationId: string;
   periodOption: string;
   basePrice: number;
+  pricePerDay?: number | null;
+  minimumStayDays?: number;
+  windowStartDate?: string | null;
+  windowEndDate?: string | null;
   currency: string;
   isActive: boolean;
   createdAt: string;

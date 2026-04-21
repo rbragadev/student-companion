@@ -18,6 +18,20 @@ function getNumber(formData: FormData, key: string): number {
   return value;
 }
 
+function getOptionalNumber(formData: FormData, key: string): number | undefined {
+  const raw = formData.get(key);
+  if (raw === null || String(raw).trim() === '') return undefined;
+  const value = Number(String(raw));
+  if (Number.isNaN(value)) throw new Error(`Número inválido: ${key}`);
+  return value;
+}
+
+function getOptionalText(formData: FormData, key: string): string | undefined {
+  const raw = formData.get(key);
+  if (raw === null || String(raw).trim() === '') return undefined;
+  return String(raw).trim();
+}
+
 export async function createAccommodationPricingAction(formData: FormData) {
   await assertActionPermission('structure.write');
 
@@ -27,6 +41,10 @@ export async function createAccommodationPricingAction(formData: FormData) {
       accommodationId: getText(formData, 'accommodationId'),
       periodOption: getText(formData, 'periodOption'),
       basePrice: getNumber(formData, 'basePrice'),
+      pricePerDay: getOptionalNumber(formData, 'pricePerDay'),
+      minimumStayDays: getOptionalNumber(formData, 'minimumStayDays'),
+      windowStartDate: getOptionalText(formData, 'windowStartDate'),
+      windowEndDate: getOptionalText(formData, 'windowEndDate'),
       currency: getText(formData, 'currency'),
       isActive: (formData.get('isActive') as string | null) === 'on',
     }),
@@ -44,6 +62,10 @@ export async function updateAccommodationPricingAction(formData: FormData) {
     body: JSON.stringify({
       periodOption: getText(formData, 'periodOption'),
       basePrice: getNumber(formData, 'basePrice'),
+      pricePerDay: getOptionalNumber(formData, 'pricePerDay'),
+      minimumStayDays: getOptionalNumber(formData, 'minimumStayDays'),
+      windowStartDate: getOptionalText(formData, 'windowStartDate'),
+      windowEndDate: getOptionalText(formData, 'windowEndDate'),
       currency: getText(formData, 'currency'),
       isActive: (formData.get('isActive') as string | null) === 'on',
     }),

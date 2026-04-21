@@ -23,6 +23,12 @@ interface PricingPreview {
   amount: number;
   currency: string;
   itemType?: 'course' | 'accommodation';
+  minimumStayDays?: number;
+  windowStartDate?: string;
+  windowEndDate?: string;
+  basePrice?: number;
+  basePriceMode?: 'per_day' | 'weekly';
+  pricingLabel?: string;
 }
 
 interface Props {
@@ -47,12 +53,32 @@ function formatMoney(value: number, currency: string) {
 }
 
 function calculateWeeks(startDate: string, endDate: string) {
-  const start = new Date(`${startDate}T00:00:00.000Z`);
-  const end = new Date(`${endDate}T00:00:00.000Z`);
+  const start = parseDateOnlyUtcMidday(startDate);
+  const end = parseDateOnlyUtcMidday(endDate);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
   const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays <= 0 || diffDays % 7 !== 0) return null;
   return diffDays / 7;
+}
+
+function calculateDays(startDate: string, endDate: string) {
+  const start = parseDateOnlyUtcMidday(startDate);
+  const end = parseDateOnlyUtcMidday(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function formatDate(value: string) {
+  if (!value) return '';
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function parseDateOnlyUtcMidday(value: string) {
+  const [datePart] = value.split('T');
+  const [year, month, day] = datePart.split('-').map((part) => Number(part));
+  if (!year || !month || !day) return new Date(NaN);
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
 }
 
 export function NewEnrollmentForm({
@@ -76,6 +102,7 @@ export function NewEnrollmentForm({
   const [accommodationPreview, setAccommodationPreview] = useState<PricingPreview | null>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingError, setPricingError] = useState<string | null>(null);
+  const [accommodationRuleError, setAccommodationRuleError] = useState<string | null>(null);
 
   const offers = useMemo(() => offersByCourse[selectedCourseId] ?? [], [offersByCourse, selectedCourseId]);
   const selectedCourse = useMemo(
@@ -88,6 +115,34 @@ export function NewEnrollmentForm({
     [offers, selectedOfferId],
   );
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+
+  const accommodationMinimumStayDays = accommodationPreview?.minimumStayDays ?? 0;
+  const accommodationWindowStart = accommodationPreview?.windowStartDate
+    ? toDateOnly(accommodationPreview.windowStartDate)
+    : '';
+  const accommodationWindowEnd = accommodationPreview?.windowEndDate
+    ? toDateOnly(accommodationPreview.windowEndDate)
+    : '';
+  const selectedAccommodationDatesAreAligned =
+    selectedAccommodationId && accommodationStartDate && accommodationEndDate
+      ? accommodationStartDate === courseStartDate && accommodationEndDate === courseEndDate
+      : true;
+  const accommodationDateRangeDays = calculateDays(accommodationStartDate, accommodationEndDate);
+  const isAccommodationDateOutOfWindow =
+    !!accommodationPreview &&
+    !!accommodationStartDate &&
+    !!accommodationEndDate &&
+    !!accommodationWindowStart &&
+    !!accommodationWindowEnd &&
+    (accommodationStartDate < accommodationWindowStart || accommodationEndDate > accommodationWindowEnd);
+  const isAccommodationDateShorterThanMinimum =
+    !!accommodationDateRangeDays &&
+    accommodationMinimumStayDays > 0 &&
+    accommodationDateRangeDays < accommodationMinimumStayDays;
+  const selectedAccommodation = useMemo(
+    () => accommodations.find((item) => item.id === selectedAccommodationId) ?? null,
+    [accommodations, selectedAccommodationId],
+  );
 
   useEffect(() => {
     if (!selectedOffer && offers.length === 0) {
@@ -121,6 +176,7 @@ export function NewEnrollmentForm({
       setCoursePreview(null);
       setAccommodationPreview(null);
       setPricingError(null);
+      setAccommodationRuleError(null);
       return;
     }
 
@@ -183,32 +239,45 @@ export function NewEnrollmentForm({
           if (!accommodationRes.ok) {
             throw new Error(accommodationBody?.message ?? 'Não foi possível resolver pricing da acomodação.');
           }
-          const accommodationData = (accommodationBody?.data ?? accommodationBody) as {
-            id: string;
-            finalPrice?: number;
-            calculatedAmount?: number;
-            basePrice?: number;
-            currency?: string;
-          };
-          nextAccommodation = {
-            id: accommodationData.id,
-            amount: Number(
-              accommodationData.finalPrice ??
-                accommodationData.calculatedAmount ??
+        const accommodationData = (accommodationBody?.data ?? accommodationBody) as {
+          id: string;
+          finalPrice?: number;
+          calculatedAmount?: number;
+          basePrice?: number;
+          currency?: string;
+          basePriceMode?: 'per_day' | 'weekly';
+          pricingLabel?: string;
+          minimumStayDays?: number;
+          windowStartDate?: string;
+          windowEndDate?: string;
+        };
+        nextAccommodation = {
+          id: accommodationData.id,
+          amount: Number(
+            accommodationData.finalPrice ??
+              accommodationData.calculatedAmount ??
                 accommodationData.basePrice ??
                 0,
-            ),
-            currency: accommodationData.currency ?? nextCourse.currency,
-          };
+          ),
+          currency: accommodationData.currency ?? nextCourse.currency,
+          basePrice: accommodationData.basePrice,
+          basePriceMode: accommodationData.basePriceMode,
+          pricingLabel: accommodationData.pricingLabel,
+          minimumStayDays: accommodationData.minimumStayDays,
+          windowStartDate: accommodationData.windowStartDate,
+          windowEndDate: accommodationData.windowEndDate,
+        };
         }
 
         if (!active) return;
         setCoursePreview(nextCourse);
         setAccommodationPreview(nextAccommodation);
+        setAccommodationRuleError(null);
       } catch (error) {
         if (!active) return;
         const message = error instanceof Error ? error.message : 'Erro ao calcular valores';
         setPricingError(message);
+        setAccommodationRuleError(null);
         setCoursePreview(null);
         setAccommodationPreview(null);
       } finally {
@@ -233,6 +302,42 @@ export function NewEnrollmentForm({
     selectedOffer?.academicPeriodName,
   ]);
 
+  useEffect(() => {
+    if (!selectedAccommodationId) {
+      setAccommodationRuleError(null);
+      return;
+    }
+
+    const messages: string[] = [];
+
+    if (!selectedAccommodationDatesAreAligned) {
+      messages.push('As datas de acomodação foram alteradas em relação ao curso.');
+    }
+
+    if (isAccommodationDateOutOfWindow) {
+      messages.push('As datas escolhidas estão fora da janela da acomodação selecionada.');
+    }
+
+    if (isAccommodationDateShorterThanMinimum) {
+      messages.push(`A permanência mínima é de ${accommodationMinimumStayDays} dias.`);
+    }
+
+    if (messages.length === 0) {
+      setAccommodationRuleError(null);
+      return;
+    }
+
+    setAccommodationRuleError(messages.join(' '));
+  }, [
+    accommodationMinimumStayDays,
+    accommodationStartDate,
+    accommodationEndDate,
+    isAccommodationDateOutOfWindow,
+    isAccommodationDateShorterThanMinimum,
+    selectedAccommodationDatesAreAligned,
+    selectedAccommodationId,
+  ]);
+
   const previewCurrency = coursePreview?.currency ?? accommodationPreview?.currency ?? 'CAD';
   const courseAmount = coursePreview?.amount ?? 0;
   const accommodationAmount = accommodationPreview?.amount ?? 0;
@@ -241,9 +346,15 @@ export function NewEnrollmentForm({
   const remaining = totalAmount - downPayment;
   const packageItemsLabel = isPackageMode
     ? ' (contexto de pacote)'
-    : createPackage
-      ? ' (vínculo único)'
-      : ' (itens separados)';
+      : createPackage
+        ? ' (vínculo único)'
+        : ' (itens separados)';
+  const accommodationPriceSummary = accommodationPreview
+    ? `${formatMoney(
+        accommodationPreview.basePrice ?? accommodationPreview.amount,
+        accommodationPreview.currency,
+      )} ${accommodationPreview.basePriceMode === 'per_day' || accommodationPreview.pricingLabel === 'per day' ? '/dia' : '/semana'}`
+    : '';
 
   return (
     <form action={createEnrollmentFromAdminAction} className="grid gap-5 rounded-xl border border-slate-200 bg-white p-5">
@@ -371,11 +482,26 @@ export function NewEnrollmentForm({
             <option value="">Sem acomodação</option>
             {accommodations.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.title} ({item.accommodationType}) • {(item.priceInCents / 100).toFixed(0)}/{item.priceUnit}
+                {item.title} ({item.accommodationType})
               </option>
             ))}
           </select>
         </label>
+        {selectedAccommodation ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 md:col-span-3">
+            <p className="font-semibold text-slate-700">Janela e regra da acomodação</p>
+            <p>
+              Janela: {formatDate(accommodationWindowStart) || 'não definida'} até{' '}
+              {formatDate(accommodationWindowEnd) || 'não definida'}
+            </p>
+            <p>Permanência mínima: {accommodationMinimumStayDays || 0} dias</p>
+            <p>
+              Cobrança:{' '}
+              {accommodationPriceSummary ||
+                'Aguardando datas para calcular a regra da acomodação selecionada.'}
+            </p>
+          </div>
+        ) : null}
 
         <label className="text-sm font-medium text-slate-700 md:col-span-3">
           {isPackageMode ? (
@@ -401,6 +527,8 @@ export function NewEnrollmentForm({
           <input
             name="accommodationStartDate"
             type="date"
+            min={accommodationWindowStart || undefined}
+            max={accommodationWindowEnd || undefined}
             value={accommodationStartDate}
             onChange={(event) => setAccommodationStartDate(event.target.value)}
             disabled={!selectedAccommodationId}
@@ -412,12 +540,17 @@ export function NewEnrollmentForm({
           <input
             name="accommodationEndDate"
             type="date"
+            min={accommodationWindowStart || undefined}
+            max={accommodationWindowEnd || undefined}
             value={accommodationEndDate}
             onChange={(event) => setAccommodationEndDate(event.target.value)}
             disabled={!selectedAccommodationId}
             className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100"
           />
         </label>
+        {accommodationRuleError ? (
+          <p className="text-xs text-amber-700 md:col-span-3">{accommodationRuleError}</p>
+        ) : null}
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
           {isPackageMode
             ? selectedAccommodationId
