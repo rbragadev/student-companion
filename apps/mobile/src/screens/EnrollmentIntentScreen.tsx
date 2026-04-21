@@ -55,6 +55,15 @@ function alignToNextSunday(isoDate: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+function alignToPreviousSunday(isoDate: string): string {
+  if (!isIsoDate(isoDate)) return isoDate;
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  const day = date.getUTCDay();
+  if (day === 0) return isoDate;
+  date.setUTCDate(date.getUTCDate() - day);
+  return date.toISOString().slice(0, 10);
+}
+
 function listSundaysBetween(startIso: string, endIso: string, limit = 12): string[] {
   if (!isIsoDate(startIso) || !isIsoDate(endIso)) return [];
   const values: string[] = [];
@@ -82,6 +91,18 @@ function isWeeklyRangeValid(startIso: string, endIso: string): boolean {
 
 function formatMoney(value: number, currency: string): string {
   return `${Number(value).toFixed(2)} ${currency}`;
+}
+
+function isoDateOnly(value?: string | null): string | null {
+  if (!value) return null;
+  const dateOnly = value.slice(0, 10);
+  return isIsoDate(dateOnly) ? dateOnly : null;
+}
+
+function formatIsoDate(isoDate: string): string {
+  if (!isIsoDate(isoDate)) return isoDate;
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
 }
 
 export default function EnrollmentIntentScreen() {
@@ -122,10 +143,31 @@ export default function EnrollmentIntentScreen() {
   const [allAccommodations, setAllAccommodations] = React.useState<Accommodation[]>([]);
   const [showAllAccommodations, setShowAllAccommodations] = React.useState(false);
   const [selectedAccommodationId, setSelectedAccommodationId] = React.useState('');
+  const [accommodationAvailability, setAccommodationAvailability] = React.useState<
+    Record<
+      string,
+      {
+        available: boolean;
+        calculatedAmount?: number;
+        currency?: string;
+      }
+    >
+  >({});
+  const [accommodationAvailabilityLoading, setAccommodationAvailabilityLoading] = React.useState(false);
   const [acceptedNonRecommendedAccommodation, setAcceptedNonRecommendedAccommodation] =
     React.useState(false);
   const [accommodationStartDate, setAccommodationStartDate] = React.useState(todayIso);
   const [accommodationEndDate, setAccommodationEndDate] = React.useState(plus28Iso);
+  const [accommodationWindowStartDate, setAccommodationWindowStartDate] = React.useState<string | null>(
+    null,
+  );
+  const [accommodationWindowEndDate, setAccommodationWindowEndDate] = React.useState<string | null>(
+    null,
+  );
+  const [accommodationMinimumStayDays, setAccommodationMinimumStayDays] = React.useState(1);
+  const [accommodationBasePriceMode, setAccommodationBasePriceMode] = React.useState<
+    'per_day' | 'weekly'
+  >('weekly');
   const [accommodationPricing, setAccommodationPricing] = React.useState<AccommodationPricing | null>(
     null,
   );
@@ -165,19 +207,7 @@ export default function EnrollmentIntentScreen() {
     );
   }, [selectedOffer]);
 
-  const weeklyAccommodationOptions = React.useMemo(() => {
-    if (!isIsoDate(accommodationStartDate)) return [];
-    return [1, 2, 4, 8, 12, 16].map((weeks) => ({
-      weeks,
-      endDate: addDays(accommodationStartDate, weeks * 7),
-    }));
-  }, [accommodationStartDate]);
-
-  const weeklyAccommodationStartOptions = React.useMemo(() => {
-    if (!isIsoDate(courseStartDate)) return [];
-    const alignedCourseStart = alignToNextSunday(courseStartDate);
-    return [0, 1, 2, 3, 4, 5, 6].map((offset) => addDays(alignedCourseStart, offset * 7));
-  }, [courseStartDate]);
+  const isAccommodationWeekly = accommodationBasePriceMode !== 'per_day';
 
   const isSelectedAccommodationRecommended = React.useMemo(() => {
     if (!selectedAccommodationId) return true;
@@ -187,6 +217,168 @@ export default function EnrollmentIntentScreen() {
   const topScoreAccommodations = React.useMemo(
     () => [...allAccommodations].sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0)).slice(0, 5),
     [allAccommodations],
+  );
+
+  React.useEffect(() => {
+    if (!isIsoDate(courseStartDate) || !isIsoDate(courseEndDate)) return;
+    setAccommodationStartDate(courseStartDate);
+    setAccommodationEndDate(courseEndDate);
+  }, [courseStartDate, courseEndDate]);
+
+  React.useEffect(() => {
+    const run = async () => {
+      if (!selectedOffer || !isIsoDate(courseStartDate) || !isIsoDate(courseEndDate)) {
+        setAccommodationAvailability({});
+        setAccommodationAvailabilityLoading(false);
+        return;
+      }
+
+      const candidates = [...recommendedAccommodations, ...topScoreAccommodations];
+      const unique = Array.from(new Map(candidates.map((item) => [item.id, item])).values());
+      if (!unique.length) {
+        setAccommodationAvailability({});
+        setAccommodationAvailabilityLoading(false);
+        return;
+      }
+
+      setAccommodationAvailabilityLoading(true);
+      const periodName = selectedOffer.academicPeriodName;
+      const courseDays = diffDays(courseStartDate, courseEndDate);
+      const isCourseRangeWeekly = isWeeklyRangeValid(courseStartDate, courseEndDate);
+      const entries = await Promise.all(
+        unique.map(async (item) => {
+          try {
+            const options = await enrollmentIntentApi.getAccommodationPricingOptions(item.id);
+            const activeOptions = options.filter((option) => option.isActive !== false);
+            const normalizedPeriod = periodName?.trim().toLowerCase();
+            const selectedOption =
+              activeOptions.find((option) => option.periodOption.trim().toLowerCase() === normalizedPeriod) ??
+              activeOptions.find((option) => option.periodOption.trim().toLowerCase().includes(normalizedPeriod)) ??
+              activeOptions[0] ??
+              null;
+
+            if (!selectedOption) {
+              return [item.id, { available: false }] as const;
+            }
+
+            const windowStart = isoDateOnly(selectedOption.windowStartDate ?? null);
+            const windowEnd = isoDateOnly(selectedOption.windowEndDate ?? null);
+            const minimumStayDays = Math.max(1, Number(selectedOption.minimumStayDays ?? 1));
+            const isPerDay = Number(selectedOption.pricePerDay ?? 0) > 0;
+
+            let available = true;
+            if (windowStart && courseStartDate < windowStart) available = false;
+            if (windowEnd && courseEndDate > windowEnd) available = false;
+            if (courseDays < minimumStayDays) available = false;
+            if (!isPerDay && !isCourseRangeWeekly) available = false;
+
+            if (!available) {
+              return [item.id, { available: false }] as const;
+            }
+
+            const calculatedAmount = isPerDay
+              ? Number((Number(selectedOption.pricePerDay ?? 0) * courseDays).toFixed(2))
+              : Number((Number(selectedOption.basePrice ?? 0) * (courseDays / 7)).toFixed(2));
+            return [
+              item.id,
+              {
+                available: true,
+                calculatedAmount,
+                currency: selectedOption.currency,
+              },
+            ] as const;
+          } catch {
+            return [item.id, { available: false }] as const;
+          }
+        }),
+      );
+
+      setAccommodationAvailability(Object.fromEntries(entries));
+      setAccommodationAvailabilityLoading(false);
+    };
+
+    void run();
+  }, [selectedOffer, courseStartDate, courseEndDate, recommendedAccommodations, topScoreAccommodations]);
+
+  React.useEffect(() => {
+    if (!selectedAccommodationId) return;
+    if (accommodationAvailability[selectedAccommodationId]?.available === false) {
+      setSelectedAccommodationId('');
+      setAccommodationPricing(null);
+      setError('Acomodação removida: indisponível para as datas do curso selecionado.');
+    }
+  }, [selectedAccommodationId, accommodationAvailability]);
+
+  const isDateInsideAccommodationWindow = React.useCallback(
+    (iso: string) => {
+      if (!isIsoDate(iso)) return false;
+      if (accommodationWindowStartDate && iso < accommodationWindowStartDate) return false;
+      if (accommodationWindowEndDate && iso > accommodationWindowEndDate) return false;
+      return true;
+    },
+    [accommodationWindowEndDate, accommodationWindowStartDate],
+  );
+
+  const normalizeAccommodationDates = React.useCallback(
+    (startIso: string, endIso: string) => {
+      if (!isIsoDate(startIso) || !isIsoDate(endIso)) return null;
+
+      let start = startIso;
+      let end = endIso;
+      const minStayDays = Math.max(1, accommodationMinimumStayDays);
+
+      if (accommodationWindowStartDate && start < accommodationWindowStartDate) {
+        start = accommodationWindowStartDate;
+      }
+      if (accommodationWindowEndDate && start > accommodationWindowEndDate) {
+        return null;
+      }
+
+      if (isAccommodationWeekly) {
+        start = alignToNextSunday(start);
+        if (accommodationWindowEndDate && start > accommodationWindowEndDate) {
+          return null;
+        }
+        const minWeeks = Math.max(1, Math.ceil(minStayDays / 7));
+        if (!isWeeklyRangeValid(start, end) || diffDays(start, end) / 7 < minWeeks) {
+          end = addDays(start, minWeeks * 7);
+        }
+        if (accommodationWindowEndDate && end > accommodationWindowEndDate) {
+          const maxSunday = alignToPreviousSunday(accommodationWindowEndDate);
+          if (
+            !isIsoDate(maxSunday) ||
+            maxSunday <= start ||
+            diffDays(start, maxSunday) / 7 < minWeeks
+          ) {
+            return null;
+          }
+          end = maxSunday;
+        }
+        if (!isWeeklyRangeValid(start, end)) return null;
+      } else {
+        const minEnd = addDays(start, minStayDays);
+        if (end <= start || diffDays(start, end) < minStayDays) {
+          end = minEnd;
+        }
+        if (accommodationWindowEndDate && end > accommodationWindowEndDate) {
+          if (diffDays(start, accommodationWindowEndDate) < minStayDays) return null;
+          end = accommodationWindowEndDate;
+        }
+      }
+
+      if (!isDateInsideAccommodationWindow(start) || !isDateInsideAccommodationWindow(end)) {
+        return null;
+      }
+
+      return { start, end };
+    },
+    [
+      accommodationMinimumStayDays,
+      accommodationWindowEndDate,
+      accommodationWindowStartDate,
+      isAccommodationWeekly,
+      isDateInsideAccommodationWindow,
+    ],
   );
 
   const hydrateFromQuote = React.useCallback(
@@ -333,19 +525,61 @@ export default function EnrollmentIntentScreen() {
     const run = async () => {
       if (!selectedAccommodationId) {
         setAccommodationPricing(null);
+        setAccommodationWindowStartDate(null);
+        setAccommodationWindowEndDate(null);
+        setAccommodationMinimumStayDays(1);
+        setAccommodationBasePriceMode('weekly');
+        return;
+      }
+
+      if (accommodationAvailability[selectedAccommodationId]?.available === false) {
+        setAccommodationPricing(null);
         return;
       }
 
       try {
         const periodName = selectedOffer?.academicPeriodName;
-        const pricing = await enrollmentIntentApi.getAccommodationPricing(
+        const pricingContext = await enrollmentIntentApi.getAccommodationPricing(
           selectedAccommodationId,
           periodName,
-          {
-            startDate: toIsoDate(accommodationStartDate),
-            endDate: toIsoDate(accommodationEndDate),
-          },
         );
+        const optionWindowStart = isoDateOnly(pricingContext.windowStartDate ?? null);
+        const optionWindowEnd = isoDateOnly(pricingContext.windowEndDate ?? null);
+        const optionMinimumStayDays = Math.max(1, Number(pricingContext.minimumStayDays ?? 1));
+        const optionBasePriceMode = pricingContext.basePriceMode ?? 'weekly';
+
+        setAccommodationWindowStartDate(optionWindowStart);
+        setAccommodationWindowEndDate(optionWindowEnd);
+        setAccommodationMinimumStayDays(optionMinimumStayDays);
+        setAccommodationBasePriceMode(optionBasePriceMode);
+
+        const suggestedStartBase = isIsoDate(courseStartDate)
+          ? courseStartDate
+          : accommodationStartDate;
+        const suggestedEndBase = isIsoDate(courseEndDate)
+          ? courseEndDate
+          : accommodationEndDate;
+        const normalized = normalizeAccommodationDates(suggestedStartBase, suggestedEndBase);
+        if (!normalized) {
+          setAccommodationPricing(null);
+          setError(
+            'Não há datas disponíveis para esta acomodação dentro da janela atual. Selecione outra opção.',
+          );
+          return;
+        }
+
+        if (
+          normalized.start !== accommodationStartDate ||
+          normalized.end !== accommodationEndDate
+        ) {
+          setAccommodationStartDate(normalized.start);
+          setAccommodationEndDate(normalized.end);
+        }
+
+        const pricing = await enrollmentIntentApi.getAccommodationPricing(selectedAccommodationId, periodName, {
+          startDate: toIsoDate(courseStartDate),
+          endDate: toIsoDate(courseEndDate),
+        });
         setAccommodationPricing(pricing);
       } catch (err) {
         setAccommodationPricing(null);
@@ -364,22 +598,30 @@ export default function EnrollmentIntentScreen() {
     selectedPeriodId,
     accommodationStartDate,
     accommodationEndDate,
+    courseStartDate,
+    courseEndDate,
+    normalizeAccommodationDates,
+    selectedAccommodationId,
+    accommodationAvailability,
   ]);
 
   const selectAccommodation = React.useCallback(
     (accommodationId: string) => {
+      if (accommodationAvailability[accommodationId]?.available === false) {
+        setError('Essa acomodação não está disponível para as datas do curso selecionado.');
+        return;
+      }
       setSelectedAccommodationId(accommodationId);
       setAcceptedNonRecommendedAccommodation(false);
       if (isIsoDate(courseStartDate)) {
-        const start = alignToNextSunday(courseStartDate);
-        const weeks = isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)
-          ? diffDays(accommodationStartDate, accommodationEndDate) / 7
-          : 4;
+        const start = courseStartDate;
+        const weeks = isIsoDate(courseEndDate) ? Math.max(1, diffDays(courseStartDate, courseEndDate) / 7) : 4;
         setAccommodationStartDate(start);
-        setAccommodationEndDate(addDays(start, weeks * 7));
+        setAccommodationEndDate(isIsoDate(courseEndDate) ? courseEndDate : addDays(start, weeks * 7));
       }
+      setError(null);
     },
-    [accommodationEndDate, accommodationStartDate, courseStartDate],
+    [accommodationAvailability, courseStartDate, courseEndDate],
   );
 
   const openAccommodationModal = React.useCallback(
@@ -433,10 +675,10 @@ export default function EnrollmentIntentScreen() {
     if (course?.periodType === 'weekly' && !isWeeklyRangeValid(courseStartDate, courseEndDate)) {
       return null;
     }
-    if (selectedAccommodationId && !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)) {
+    if (selectedAccommodationId && !accommodationPricing) {
       return null;
     }
-    if (selectedAccommodationId && !accommodationPricing) {
+    if (selectedAccommodationId && accommodationAvailability[selectedAccommodationId]?.available === false) {
       return null;
     }
 
@@ -449,15 +691,14 @@ export default function EnrollmentIntentScreen() {
         endDate: toIsoDate(courseEndDate),
       },
       ...(accommodationPricing &&
-      isIsoDate(accommodationStartDate) &&
-      isIsoDate(accommodationEndDate)
+      selectedAccommodationId
         ? [
             {
               itemType: 'accommodation' as const,
               accommodationPricingId: accommodationPricing.id,
               referenceId: accommodationPricing.id,
-              startDate: toIsoDate(accommodationStartDate),
-              endDate: toIsoDate(accommodationEndDate),
+              startDate: toIsoDate(courseStartDate),
+              endDate: toIsoDate(courseEndDate),
             },
           ]
         : []),
@@ -471,6 +712,7 @@ export default function EnrollmentIntentScreen() {
     accommodationStartDate,
     accommodationEndDate,
     accommodationPricing,
+    accommodationAvailability,
   ]);
 
   const rebuildQuote = React.useCallback(async () => {
@@ -840,24 +1082,44 @@ export default function EnrollmentIntentScreen() {
 
       <Card>
         <Text variant="h3" className="font-semibold">Recomendadas pela escola</Text>
+        {accommodationAvailabilityLoading ? (
+          <Text variant="caption" className="mt-2 text-textMuted">
+            Validando disponibilidade para as datas do curso...
+          </Text>
+        ) : null}
         <View className="mt-3 gap-2">
           {recommendedAccommodations.map((item) => (
+            (() => {
+              const availability = accommodationAvailability[item.id];
+              const unavailable = availability?.available === false;
+              const computedPriceLabel =
+                availability?.available && availability.calculatedAmount !== undefined
+                  ? `Preço curso atual: ${formatMoney(availability.calculatedAmount, availability.currency ?? 'CAD')}`
+                  : null;
+              return (
             <TouchableOpacity
               key={item.id}
               onPress={() => {
                 void openAccommodationModal(item);
               }}
+              disabled={unavailable}
               activeOpacity={0.8}
               className={`rounded-lg border px-3 py-2 ${
                 selectedAccommodationId === item.id
                   ? 'border-primary-500 bg-primary-50'
                   : 'border-border bg-white'
-              }`}
+              } ${unavailable ? 'opacity-50' : ''}`}
             >
               <Text variant="body" className="font-medium">{item.title}</Text>
               <Text variant="caption">
                 {item.accommodationType} • CAD {(item.priceInCents / 100).toLocaleString()}/{item.priceUnit}
               </Text>
+              {computedPriceLabel ? <Text variant="caption" className="text-primary-700">{computedPriceLabel}</Text> : null}
+              {availability?.available === false ? (
+                <Text variant="caption" className="text-red-600">
+                  Indisponível para as datas do curso
+                </Text>
+              ) : null}
               {selectedAccommodationId === item.id && accommodationPricing && (
                 <Text variant="caption" className="text-primary-700">
                   Preço período atual: {formatMoney(accommodationPricing.calculatedAmount ?? 0, accommodationPricing.currency)}
@@ -867,6 +1129,8 @@ export default function EnrollmentIntentScreen() {
                 <Text variant="caption" className="text-primary-700">{item.recommendationBadge}</Text>
               )}
             </TouchableOpacity>
+              );
+            })()
           ))}
           {recommendedAccommodations.length === 0 && (
             <Text variant="caption">Sem recomendações para este contexto.</Text>
@@ -886,28 +1150,45 @@ export default function EnrollmentIntentScreen() {
         {showAllAccommodations && (
           <View className="mt-3 gap-2">
             {topScoreAccommodations.map((item) => (
+              (() => {
+                const availability = accommodationAvailability[item.id];
+                const unavailable = availability?.available === false;
+                const computedPriceLabel =
+                  availability?.available && availability.calculatedAmount !== undefined
+                    ? `Preço curso atual: ${formatMoney(availability.calculatedAmount, availability.currency ?? 'CAD')}`
+                    : null;
+                return (
               <TouchableOpacity
                 key={item.id}
                 onPress={() => {
                   void openAccommodationModal(item);
                 }}
+                disabled={unavailable}
                 activeOpacity={0.8}
                 className={`rounded-lg border px-3 py-2 ${
                   selectedAccommodationId === item.id
                     ? 'border-primary-500 bg-primary-50'
                     : 'border-border bg-white'
-                }`}
+                } ${unavailable ? 'opacity-50' : ''}`}
               >
                 <Text variant="body" className="font-medium">{item.title}</Text>
                 <Text variant="caption">
                   Score {Number(item.score ?? 0).toFixed(1)} • CAD {(item.priceInCents / 100).toLocaleString()}/{item.priceUnit}
                 </Text>
+                {computedPriceLabel ? <Text variant="caption" className="text-primary-700">{computedPriceLabel}</Text> : null}
+                {availability?.available === false ? (
+                  <Text variant="caption" className="text-red-600">
+                    Indisponível para as datas do curso
+                  </Text>
+                ) : null}
                 {selectedAccommodationId === item.id && accommodationPricing && (
                   <Text variant="caption" className="text-primary-700">
                     Preço período atual: {formatMoney(accommodationPricing.calculatedAmount ?? 0, accommodationPricing.currency)}
                   </Text>
                 )}
               </TouchableOpacity>
+                );
+              })()
             ))}
             {topScoreAccommodations.length === 0 && (
               <Text variant="caption">Sem acomodações disponíveis no catálogo.</Text>
@@ -967,7 +1248,7 @@ export default function EnrollmentIntentScreen() {
       <Card>
         <Text variant="h3" className="font-semibold">Datas da acomodação</Text>
         <Text variant="caption" className="mt-1">
-          Pré-preenchido com as datas do curso. Selecione em blocos semanais (domingo a domingo).
+          Datas fixas do curso selecionado.
         </Text>
         <View className="mt-3 gap-2">
           <Text variant="caption">Início</Text>
@@ -976,66 +1257,54 @@ export default function EnrollmentIntentScreen() {
             editable={false}
             className="h-11 rounded-lg border border-border bg-surfaceSecondary px-3"
           />
-          <Text variant="caption">Inícios semanais</Text>
-          <View className="flex-row flex-wrap gap-2">
-            {weeklyAccommodationStartOptions.map((option) => {
-              const selected = option === accommodationStartDate;
-              return (
-                <TouchableOpacity
-                  key={`acc-start-${option}`}
-                  onPress={() => {
-                    const weeks = isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)
-                      ? diffDays(accommodationStartDate, accommodationEndDate) / 7
-                      : 4;
-                    setAccommodationStartDate(option);
-                    setAccommodationEndDate(addDays(option, weeks * 7));
-                  }}
-                  className={`rounded-lg border px-3 py-2 ${
-                    selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'
-                  }`}
-                >
-                  <Text variant="caption">
-                    {new Date(`${option}T00:00:00.000Z`).toLocaleDateString()}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
           <Text variant="caption">Fim</Text>
           <TextInput
             value={accommodationEndDate}
             editable={false}
             className="h-11 rounded-lg border border-border bg-surfaceSecondary px-3"
           />
-          <Text variant="caption">Datas válidas (domingo a domingo)</Text>
-          <View className="flex-row flex-wrap gap-2">
-            {weeklyAccommodationOptions.map((option) => {
-              const selected = option.endDate === accommodationEndDate;
-              return (
-                <TouchableOpacity
-                  key={`acc-week-${option.weeks}`}
-                  onPress={() => setAccommodationEndDate(option.endDate)}
-                  className={`rounded-lg border px-3 py-2 ${
-                    selected ? 'border-primary-500 bg-primary-50' : 'border-border bg-white'
-                  }`}
-                >
-                  <Text variant="caption">
-                    {option.weeks} sem • até {new Date(`${option.endDate}T00:00:00.000Z`).toLocaleDateString()}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {selectedAccommodationId && !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate) && (
-            <Text variant="caption" className="text-red-600">
-              Período inválido: selecione um fim semanal de domingo a domingo.
+          <Text variant="caption">
+            {isAccommodationWeekly
+              ? 'Modo semanal: selecione domingos (domingo a domingo).'
+              : 'Modo diário: selecione início e fim dentro da janela disponível.'}
+          </Text>
+          {accommodationWindowStartDate || accommodationWindowEndDate ? (
+            <Text variant="caption">
+              Janela disponível:{' '}
+              {accommodationWindowStartDate
+                ? formatIsoDate(accommodationWindowStartDate)
+                : 'sem início'}{' '}
+              até{' '}
+              {accommodationWindowEndDate
+                ? formatIsoDate(accommodationWindowEndDate)
+                : 'sem fim'}
             </Text>
-          )}
+          ) : null}
+          <Text variant="caption">Mínimo de permanência: {accommodationMinimumStayDays} dia(s)</Text>
+
+          <Text variant="caption" className="text-textMuted">
+            Datas travadas pelo curso selecionado.
+          </Text>
+
           <Text variant="caption">
             {selectedAccommodationId && accommodationPricing
               ? `Preço final do período: ${formatMoney(accommodationPricing.calculatedAmount ?? 0, accommodationPricing.currency)}`
               : 'Sem acomodação selecionada'}
           </Text>
+          {selectedAccommodationId && accommodationPricing?.breakdown?.priceUnit === 'day' ? (
+            <Text variant="caption" className="text-textMuted">
+              Cálculo diário: {accommodationPricing.breakdown.durationDays} dia(s) x{' '}
+              {formatMoney(accommodationPricing.breakdown.basePrice, accommodationPricing.currency)} ={' '}
+              {formatMoney(accommodationPricing.breakdown.totalAmount, accommodationPricing.currency)}
+            </Text>
+          ) : null}
+          {selectedAccommodationId && accommodationPricing?.breakdown?.priceUnit === 'week' ? (
+            <Text variant="caption" className="text-textMuted">
+              Cálculo semanal: {accommodationPricing.breakdown.weeks} semana(s) x{' '}
+              {formatMoney(accommodationPricing.breakdown.basePrice, accommodationPricing.currency)} ={' '}
+              {formatMoney(accommodationPricing.breakdown.totalAmount, accommodationPricing.currency)}
+            </Text>
+          ) : null}
         </View>
       </Card>
 
@@ -1051,7 +1320,7 @@ export default function EnrollmentIntentScreen() {
             !quotePreview ||
             (Boolean(selectedAccommodationId) &&
               (!accommodationPricing ||
-                !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate))) ||
+                !normalizeAccommodationDates(accommodationStartDate, accommodationEndDate))) ||
             (Boolean(selectedAccommodationId) &&
               !isSelectedAccommodationRecommended &&
               !acceptedNonRecommendedAccommodation)
@@ -1087,6 +1356,18 @@ export default function EnrollmentIntentScreen() {
           <View className="mt-2 gap-1">
             <Text variant="caption">Curso: {formatMoney(quotePreview.courseAmount, quotePreview.currency)}</Text>
             <Text variant="caption">Acomodação: {formatMoney(quotePreview.accommodationAmount, quotePreview.currency)}</Text>
+            {selectedAccommodationId && accommodationPricing?.breakdown?.priceUnit === 'day' ? (
+              <Text variant="caption" className="text-textMuted">
+                Acomodação (diária): {accommodationPricing.breakdown.durationDays} dia(s) x{' '}
+                {formatMoney(accommodationPricing.breakdown.basePrice, quotePreview.currency)}
+              </Text>
+            ) : null}
+            {selectedAccommodationId && accommodationPricing?.breakdown?.priceUnit === 'week' ? (
+              <Text variant="caption" className="text-textMuted">
+                Acomodação (semanal): {accommodationPricing.breakdown.weeks} semana(s) x{' '}
+                {formatMoney(accommodationPricing.breakdown.basePrice, quotePreview.currency)}
+              </Text>
+            ) : null}
             <Text variant="caption">Total: {formatMoney(quotePreview.totalAmount, quotePreview.currency)}</Text>
             <Text variant="caption">
               Entrada (30%): {formatMoney(quotePreview.downPaymentAmount, quotePreview.currency)}

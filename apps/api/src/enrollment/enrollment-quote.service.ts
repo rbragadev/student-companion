@@ -105,14 +105,19 @@ export class EnrollmentQuoteService {
     windowEndDate: Date | null,
     label: string,
   ) {
-    if (windowStartDate && startDate < windowStartDate) {
+    const startDateOnly = this.toDateOnly(startDate);
+    const endDateOnly = this.toDateOnly(endDate);
+    const windowStartDateOnly = windowStartDate ? this.toDateOnly(windowStartDate) : null;
+    const windowEndDateOnly = windowEndDate ? this.toDateOnly(windowEndDate) : null;
+
+    if (windowStartDateOnly && startDateOnly < windowStartDateOnly) {
       throw new BadRequestException(
-        `Início fora da janela da acomodação para item ${label}: mínimo ${this.toDateOnly(windowStartDate)}.`,
+        `Início fora da janela da acomodação para item ${label}: mínimo ${windowStartDateOnly}.`,
       );
     }
-    if (windowEndDate && endDate > windowEndDate) {
+    if (windowEndDateOnly && endDateOnly > windowEndDateOnly) {
       throw new BadRequestException(
-        `Fim fora da janela da acomodação para item ${label}: máximo ${this.toDateOnly(windowEndDate)}.`,
+        `Fim fora da janela da acomodação para item ${label}: máximo ${windowEndDateOnly}.`,
       );
     }
   }

@@ -34,6 +34,11 @@ export interface AccommodationPricing {
   accommodationId: string;
   periodOption: string;
   basePrice: number;
+  pricePerDay?: number;
+  basePriceMode?: 'per_day' | 'weekly';
+  minimumStayDays?: number;
+  windowStartDate?: string | null;
+  windowEndDate?: string | null;
   calculatedAmount?: number;
   weeks?: number;
   durationDays?: number;
