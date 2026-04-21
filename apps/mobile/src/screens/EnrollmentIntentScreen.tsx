@@ -427,24 +427,20 @@ export default function EnrollmentIntentScreen() {
     course?.periodType,
   ]);
 
-  const rebuildQuote = React.useCallback(async () => {
-    if (!coursePricing) {
-      return;
-    }
-    if (!isIsoDate(courseStartDate) || !isIsoDate(courseEndDate)) {
-      return;
-    }
+  const buildQuoteItems = React.useCallback(() => {
+    if (!coursePricing) return null;
+    if (!isIsoDate(courseStartDate) || !isIsoDate(courseEndDate)) return null;
     if (course?.periodType === 'weekly' && !isWeeklyRangeValid(courseStartDate, courseEndDate)) {
-      return;
+      return null;
     }
     if (selectedAccommodationId && !isWeeklyRangeValid(accommodationStartDate, accommodationEndDate)) {
-      return;
+      return null;
     }
     if (selectedAccommodationId && !accommodationPricing) {
-      return;
+      return null;
     }
 
-    const items = [
+    return [
       {
         itemType: 'course' as const,
         coursePricingId: coursePricing.id,
@@ -466,6 +462,22 @@ export default function EnrollmentIntentScreen() {
           ]
         : []),
     ];
+  }, [
+    coursePricing,
+    courseStartDate,
+    courseEndDate,
+    course?.periodType,
+    selectedAccommodationId,
+    accommodationStartDate,
+    accommodationEndDate,
+    accommodationPricing,
+  ]);
+
+  const rebuildQuote = React.useCallback(async () => {
+    const items = buildQuoteItems();
+    if (!items) {
+      return;
+    }
 
     try {
       setQuoteLoading(true);
@@ -500,14 +512,7 @@ export default function EnrollmentIntentScreen() {
       setQuoteLoading(false);
     }
   }, [
-    coursePricing,
-    accommodationPricing,
-    courseStartDate,
-    courseEndDate,
-    accommodationStartDate,
-    accommodationEndDate,
-    course?.periodType,
-    selectedAccommodationId,
+    buildQuoteItems,
     userId,
   ]);
 
@@ -534,13 +539,35 @@ export default function EnrollmentIntentScreen() {
       setSaving(true);
       setError(null);
 
+      const submissionItems = buildQuoteItems();
+      if (!submissionItems) {
+        throw new Error('Pacote inválido para envio. Revise curso, acomodação e datas.');
+      }
+
+      let syncedQuote: EnrollmentQuote;
+      const currentQuoteId = quotePreviewRef.current?.id;
+      if (currentQuoteId) {
+        syncedQuote = await enrollmentIntentApi.recalculateQuote(currentQuoteId, {
+          userId,
+          downPaymentPercentage: 30,
+          items: submissionItems,
+        });
+      } else {
+        syncedQuote = await enrollmentIntentApi.createQuote({
+          userId,
+          downPaymentPercentage: 30,
+          items: submissionItems,
+        });
+      }
+      setQuotePreview(syncedQuote);
+
       const createdIntent = await enrollmentIntentApi.createEnrollmentIntent({
         studentId: userId,
         courseId,
         classGroupId: selectedClassGroupId,
         academicPeriodId: selectedPeriodId,
         accommodationId: selectedAccommodationId || undefined,
-        quoteId: quotePreview.id,
+        quoteId: syncedQuote.id,
       });
 
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.profile(userId) });

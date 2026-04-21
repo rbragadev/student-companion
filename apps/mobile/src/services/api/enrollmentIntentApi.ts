@@ -93,52 +93,70 @@ export const enrollmentIntentApi = {
       );
     }
 
-    const { data: startedEnrollment } = await apiClient.post('/enrollments/start', {
-      studentId: payload.studentId,
-      courseId: payload.courseId,
-      classGroupId: payload.classGroupId,
-      academicPeriodId: payload.academicPeriodId,
-      accommodationId: payload.accommodationId ?? undefined,
-    });
-    const enrollmentId = startedEnrollment?.id as string | undefined;
-    if (!enrollmentId) {
-      throw new Error('Não foi possível iniciar a matrícula para envio da proposta.');
+    let enrollmentId: string | undefined;
+    let startedStatus: string | undefined;
+
+    try {
+      const { data: startedEnrollment } = await apiClient.post('/enrollments/start', {
+        studentId: payload.studentId,
+        courseId: payload.courseId,
+        classGroupId: payload.classGroupId,
+        academicPeriodId: payload.academicPeriodId,
+        accommodationId: payload.accommodationId ?? undefined,
+      });
+      enrollmentId = startedEnrollment?.id as string | undefined;
+      startedStatus = startedEnrollment?.status as string | undefined;
+      if (!enrollmentId) {
+        throw new Error('Não foi possível iniciar a matrícula para envio da proposta.');
+      }
+
+      const baseItems =
+        currentQuote.items?.map((item) => ({
+          itemType: item.itemType,
+          referenceId: item.referenceId,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          ...(item.itemType === 'course'
+            ? { coursePricingId: item.referenceId }
+            : { accommodationPricingId: item.referenceId }),
+        })) ?? [];
+
+      await enrollmentIntentApi.recalculateQuote(currentQuote.id, {
+        userId: payload.studentId,
+        enrollmentId,
+        fees: Number(currentQuote.fees ?? 0),
+        discounts: Number(currentQuote.discounts ?? 0),
+        downPaymentPercentage: Number(currentQuote.downPaymentPercentage ?? 30),
+        items: baseItems,
+      });
+
+      const { data: course } = await apiClient.get(`/course/${payload.courseId}`);
+      const isAutoApprove =
+        Boolean(course?.autoApproveIntent) || Boolean(course?.auto_approve_intent);
+      const targetStatus = isAutoApprove
+        ? 'checkout_available'
+        : 'awaiting_school_approval';
+
+      const { data } = await apiClient.patch(
+        `/enrollments/${enrollmentId}/status`,
+        {
+          status: targetStatus,
+        },
+      );
+      return mapEnrollmentToIntentLike(data);
+    } catch (error) {
+      if (enrollmentId && startedStatus === 'started') {
+        try {
+          await apiClient.patch(`/enrollments/${enrollmentId}/status`, {
+            status: 'cancelled',
+            reason: 'Rollback automático após falha no envio do pacote',
+          });
+        } catch {
+          // no-op: mantém erro original para o chamador.
+        }
+      }
+      throw error;
     }
-
-    const baseItems =
-      currentQuote.items?.map((item) => ({
-        itemType: item.itemType,
-        referenceId: item.referenceId,
-        startDate: item.startDate,
-        endDate: item.endDate,
-        ...(item.itemType === 'course'
-          ? { coursePricingId: item.referenceId }
-          : { accommodationPricingId: item.referenceId }),
-      })) ?? [];
-
-    await enrollmentIntentApi.recalculateQuote(currentQuote.id, {
-      userId: payload.studentId,
-      enrollmentId,
-      fees: Number(currentQuote.fees ?? 0),
-      discounts: Number(currentQuote.discounts ?? 0),
-      downPaymentPercentage: Number(currentQuote.downPaymentPercentage ?? 30),
-      items: baseItems,
-    });
-
-    const { data: course } = await apiClient.get(`/course/${payload.courseId}`);
-    const isAutoApprove =
-      Boolean(course?.autoApproveIntent) || Boolean(course?.auto_approve_intent);
-    const targetStatus = isAutoApprove
-      ? 'checkout_available'
-      : 'awaiting_school_approval';
-
-    const { data } = await apiClient.patch(
-      `/enrollments/${enrollmentId}/status`,
-      {
-        status: targetStatus,
-      },
-    );
-    return mapEnrollmentToIntentLike(data);
   },
 
   getOpenIntentByStudent: async (studentId: string): Promise<EnrollmentIntent | null> => {

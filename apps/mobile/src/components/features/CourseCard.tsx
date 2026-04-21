@@ -11,6 +11,7 @@ interface CourseCardProps {
   programName: string;
   weeklyHours: number;
   priceCad?: string;
+  priceUnit?: string;
   rating: number;
   ratingCount: number;
   isPartner: boolean;
@@ -24,6 +25,7 @@ export function CourseCard({
   programName,
   weeklyHours,
   priceCad,
+  priceUnit,
   rating,
   ratingCount,
   isPartner,
@@ -90,7 +92,7 @@ export function CourseCard({
                   <Text variant="body" className="text-textPrimary font-semibold">
                     {priceCad}
                     <Text variant="caption" className="text-textMuted font-normal">
-                      {' '}/month
+                      {' '}/{priceUnit || 'month'}
                     </Text>
                   </Text>
                 </View>

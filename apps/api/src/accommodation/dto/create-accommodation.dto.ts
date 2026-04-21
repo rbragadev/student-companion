@@ -74,6 +74,11 @@ export class CreateAccommodationDto {
   @IsOptional()
   images?: string[];
 
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  badges?: string[];
+
   @IsNumber()
   @IsOptional()
   @Min(0)

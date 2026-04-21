@@ -173,6 +173,7 @@ export default function CourseScreen() {
                 programName={course.programName}
                 weeklyHours={course.weeklyHours}
                 priceCad={priceCad}
+                priceUnit={course.priceUnit}
                 rating={course.rating ? Number(course.rating) : 0}
                 ratingCount={course.ratingCount ?? 0}
                 isPartner={course.school?.isPartner || false}
